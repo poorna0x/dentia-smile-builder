@@ -20,20 +20,22 @@ const CTA = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
-            <Link to="/appointment">
-              <Button className="btn-appointment text-lg px-8 py-4 w-full sm:w-auto">
-                <Calendar className="w-5 h-5 mr-2" />
+            <Link to="/appointment" className="w-52">
+              <Button className="btn-appointment text-lg px-8 py-4 w-full flex items-center justify-center">
+                <Calendar className="w-6 h-6 mr-2" />
                 Book Appointment
               </Button>
             </Link>
-            
-            <a href="tel:+1123456789">
-              <Button className="btn-call text-lg px-8 py-4 w-full sm:w-auto">
-                <Phone className="w-5 h-5 mr-2" />
+
+            <a href="tel:+1123456789" className="w-52">
+              <Button className="btn-call text-lg px-8 py-4 w-full flex items-center justify-center">
+                <Phone className="w-6 h-6 mr-2" />
                 Call Now
               </Button>
             </a>
-          </div>
+        </div>
+
+
 
           {/* Additional Info */}
           <div className="pt-8 space-y-4">

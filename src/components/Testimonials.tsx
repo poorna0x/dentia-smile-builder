@@ -7,7 +7,6 @@ const Testimonials = () => {
       role: 'Mother of Two',
       rating: 5,
       text: 'Dentia has been incredible for our family. Dr. Bennett is so gentle with my kids, and they actually look forward to their dental visits now! The staff is amazing and the office is beautiful.',
-      image: '👩‍💼',
       icon: Heart
     },
     {
@@ -15,7 +14,6 @@ const Testimonials = () => {
       role: 'Business Executive',
       rating: 5,
       text: 'I was nervous about getting dental implants, but Dr. Bennett made the entire process comfortable and explained everything clearly. The results exceeded my expectations.',
-      image: '👨‍💼',
       icon: ThumbsUp
     },
     {
@@ -23,7 +21,6 @@ const Testimonials = () => {
       role: 'Teacher',
       rating: 5,
       text: 'The cosmetic dentistry work I had done has completely transformed my confidence. Dr. Bennett is an artist! The teeth whitening and veneers look so natural.',
-      image: '👩‍🏫',
       icon: Smile
     },
     {
@@ -31,7 +28,6 @@ const Testimonials = () => {
       role: 'Retiree',
       rating: 5,
       text: 'After years of dental anxiety, I finally found a place where I feel comfortable. The team at Dentia is patient, understanding, and their gentle approach changed my perspective.',
-      image: '👨‍🦳',
       icon: Heart
     }
   ];
@@ -78,9 +74,7 @@ const Testimonials = () => {
 
                 {/* Author */}
                 <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center text-2xl border-2 border-accent/20">
-                    {testimonial.image}
-                  </div>
+                 
                   <div>
                     <p className="font-bold text-primary text-lg">{testimonial.name}</p>
                     <p className="text-sm text-muted-foreground">{testimonial.role}</p>
@@ -106,10 +100,10 @@ const Testimonials = () => {
               <span className="font-bold text-primary text-xl">5.0 Rating</span>
             </div>
             <div className="text-muted-foreground">
-              <span className="font-semibold text-primary">1,200+</span> verified reviews
+              <span className="font-semibold text-primary">100+</span> verified reviews
             </div>
             <div className="text-muted-foreground">
-              <span className="font-semibold text-primary">98%</span> recommend us
+              <span className="font-semibold text-primary">100%</span> recommend us
             </div>
           </div>
         </div>

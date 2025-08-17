@@ -8,7 +8,7 @@ const Team = () => {
     name: 'Dr. Sarah Bennett',
     role: 'Lead Dentist & Practice Owner',
     image: drSarahBennett,
-    specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Oral Surgery', 'Dental Implants'],
+    specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Pediatric Dentistry', 'Dental Implants'],
     experience: '15+ Years Experience',
     education: 'DDS, Harvard School of Dental Medicine',
     description: 'Dr. Bennett is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'
@@ -54,10 +54,7 @@ const Team = () => {
                   {teamMember.description}
                 </p>
                 
-                <div className="space-y-3">
-                  <p className="font-semibold text-primary">Education:</p>
-                  <p className="text-muted-foreground">{teamMember.education}</p>
-                </div>
+               
 
                 <div className="space-y-3">
                   <p className="font-semibold text-primary">Specialties:</p>
