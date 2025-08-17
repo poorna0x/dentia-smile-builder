@@ -34,9 +34,10 @@ export default {
 					600: 'hsl(var(--orange-600))',
 					700: 'hsl(var(--orange-700))',
 				},
-				green: {
-					500: 'hsl(var(--green-500))',
-					600: 'hsl(var(--green-600))',
+				blue: {
+					500: 'hsl(var(--blue-500))',
+					600: 'hsl(var(--blue-600))',
+					700: 'hsl(var(--blue-700))',
 				},
 				
 				// Semantic tokens
@@ -90,6 +91,16 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
@@ -108,6 +119,7 @@ export default {
 				}
 			},
 			animation: {
+				'fade-in': 'fade-in 0.6s ease-out',
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			}

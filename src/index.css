@@ -18,6 +18,9 @@
     --orange-700: 17 88% 40%; /* #C2410C */
     --green-500: 142 76% 36%; /* #22C55E */
     --green-600: 142 71% 45%; /* #16A34A */
+    --blue-500: 217 91% 60%; /* #3B82F6 */
+    --blue-600: 221 83% 53%; /* #2563EB */
+    --blue-700: 224 76% 48%; /* #1D4ED8 */
     
     /* Background gradients */
     --gradient-hero: linear-gradient(135deg, hsl(var(--dental-light-blue)), hsl(var(--dental-white)));
@@ -145,12 +148,12 @@
   }
 
   .btn-appointment {
-    @apply bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:scale-105 active:scale-95;
-    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+    @apply bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:from-blue-600 hover:to-blue-700 hover:shadow-xl hover:scale-105 active:scale-95;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
   }
 
   .btn-appointment:hover {
-    box-shadow: 0 8px 25px rgba(249, 115, 22, 0.6);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
   }
 
   .btn-call {
