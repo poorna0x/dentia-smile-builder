@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -16,22 +16,25 @@ const Appointment = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
+  // ✅ Scroll to top when page opens
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Format the message for WhatsApp
+
     const formattedDate = format(date, 'MMM dd, yyyy');
     const message = `hi I am ${name} and ${formattedDate}`;
     const encodedMessage = encodeURIComponent(message);
-    
-    // Redirect to WhatsApp
+
     window.open(`https://wa.me/636163124?text=${encodedMessage}`, '_blank');
   };
 
   return (
     <div className="min-h-screen">
       <Navigation />
-      
+
       <main className="py-12 lg:py-20">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
