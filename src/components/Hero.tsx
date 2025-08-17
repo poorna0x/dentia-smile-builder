@@ -62,36 +62,7 @@ const Hero = () => {
         <div className="absolute inset-0 bg-primary/60"></div>
       </div>
 
-      {/* Navigation Arrows */}
-      <button
-        onClick={goToPrevious}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
-        aria-label="Previous image"
-      >
-        <ChevronLeft className="w-6 h-6" />
-      </button>
-      
-      <button
-        onClick={goToNext}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
-        aria-label="Next image"
-      >
-        <ChevronRight className="w-6 h-6" />
-      </button>
-
-      {/* Image Indicators */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 flex space-x-2">
-        {heroImages.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentImage(index)}
-            className={`w-3 h-3 rounded-full transition-colors ${
-              index === currentImage ? 'bg-white' : 'bg-white/50'
-            }`}
-            aria-label={`Go to image ${index + 1}`}
-          />
-        ))}
-      </div>
+    
 
       <div className="relative z-10 container mx-auto px-4 py-20">
         <div className="max-w-4xl mx-auto text-center text-white space-y-8">

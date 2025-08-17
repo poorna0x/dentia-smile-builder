@@ -17,7 +17,7 @@ const Navigation = () => {
           <div className="flex justify-center items-center space-x-8 text-sm text-secondary-foreground">
             <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4 text-accent" />
-              <span>+1 123 456 789</span>
+              <span>6361631253</span>
             </div>
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-accent" />
@@ -40,7 +40,7 @@ const Navigation = () => {
               <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
                 <span className="text-accent-foreground font-bold text-sm">🦷</span>
               </div>
-              <span className="text-xl font-bold">Dentia</span>
+              <span className="text-xl font-bold">Jeshna</span>
             </Link>
 
             {/* Desktop Menu */}

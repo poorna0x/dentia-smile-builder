@@ -14,10 +14,6 @@ const FAQ = () => {
       answer: 'During your first visit, we\'ll conduct a comprehensive examination including X-rays, oral cancer screening, and assessment of your teeth and gums. We\'ll discuss your medical history, current concerns, and develop a personalized treatment plan. The visit typically takes 60-90 minutes.'
     },
     {
-      question: 'Do you accept insurance?',
-      answer: 'Yes, we accept most major dental insurance plans. Our team will help verify your benefits and maximize your coverage. We also offer flexible payment options and financing plans to make dental care accessible and affordable for all our patients.'
-    },
-    {
       question: 'Is teeth whitening safe?',
       answer: 'Professional teeth whitening performed in our office is completely safe when done correctly. We use clinically proven whitening agents and custom-fitted trays to ensure even results while protecting your teeth and gums. The procedure is comfortable and provides dramatic results.'
     },
