@@ -2,41 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Dentia Dental Clinic Design System - Mobile-first responsive design */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Main brand colors - HSL format */
+    --dental-navy: 210 100% 12%; /* #001F3F */
+    --dental-blue: 210 100% 49%; /* #007BFF */
+    --dental-light-blue: 215 100% 96%; /* #E8F0FE */
+    --dental-white: 0 0% 100%;
+    
+    /* Background gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(var(--dental-light-blue)), hsl(var(--dental-white)));
+    --gradient-section: linear-gradient(180deg, hsl(var(--dental-white)), hsl(var(--dental-light-blue)));
+    
+    /* Shadows */
+    --shadow-card: 0 4px 6px -1px rgba(0, 123, 255, 0.1), 0 2px 4px -1px rgba(0, 123, 255, 0.06);
+    --shadow-button: 0 2px 4px rgba(0, 31, 63, 0.2);
+    --shadow-nav: 0 2px 10px rgba(0, 31, 63, 0.1);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Semantic color system */
+    --background: var(--dental-white);
+    --foreground: var(--dental-navy);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --card: var(--dental-white);
+    --card-foreground: var(--dental-navy);
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --popover: var(--dental-white);
+    --popover-foreground: var(--dental-navy);
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --primary: var(--dental-navy);
+    --primary-foreground: var(--dental-white);
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: var(--dental-light-blue);
+    --secondary-foreground: var(--dental-navy);
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 215 20% 95%;
+    --muted-foreground: 215 15% 45%;
+
+    --accent: var(--dental-blue);
+    --accent-foreground: var(--dental-white);
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: var(--dental-white);
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 215 20% 90%;
+    --input: 215 20% 95%;
+    --ring: var(--dental-blue);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -100,6 +118,64 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn-dental {
+    @apply bg-accent text-accent-foreground px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95;
+    box-shadow: var(--shadow-button);
+  }
+
+  .btn-dental-outline {
+    @apply border-2 border-accent text-accent px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:bg-accent hover:text-accent-foreground hover:shadow-lg hover:scale-105 active:scale-95;
+  }
+
+  /* Card styles */
+  .card-dental {
+    @apply bg-card text-card-foreground p-6 rounded-2xl transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Navigation styles */
+  .nav-dental {
+    @apply bg-primary text-primary-foreground;
+    box-shadow: var(--shadow-nav);
+  }
+
+  /* Hero gradient background */
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+
+  .section-gradient {
+    background: var(--gradient-section);
+  }
+
+  /* Mobile-first responsive text */
+  .heading-xl {
+    @apply text-3xl md:text-4xl lg:text-5xl font-bold leading-tight;
+  }
+
+  .heading-lg {
+    @apply text-2xl md:text-3xl lg:text-4xl font-bold leading-tight;
+  }
+
+  .heading-md {
+    @apply text-xl md:text-2xl lg:text-3xl font-semibold leading-tight;
+  }
+
+  .body-lg {
+    @apply text-base md:text-lg leading-relaxed;
+  }
+
+  .body-md {
+    @apply text-sm md:text-base leading-relaxed;
   }
 }

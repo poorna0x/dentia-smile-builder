@@ -18,7 +18,17 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ['Inter', 'system-ui', 'sans-serif'],
+			},
 			colors: {
+				// Dental brand colors
+				'dental-navy': 'hsl(var(--dental-navy))',
+				'dental-blue': 'hsl(var(--dental-blue))',
+				'dental-light-blue': 'hsl(var(--dental-light-blue))',
+				'dental-white': 'hsl(var(--dental-white))',
+				
+				// Semantic tokens
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
