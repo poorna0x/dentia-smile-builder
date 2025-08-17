@@ -99,7 +99,7 @@ const Appointment = () => {
 
                   <Button 
                     type="submit" 
-                    className="btn-dental w-full text-lg py-4"
+                    className="btn-appointment w-full text-lg py-4"
                     disabled={!name.trim()}
                   >
                     Send Appointment Request

@@ -53,17 +53,36 @@ const Navigation = () => {
               >
                 Home
               </Link>
-              <span className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Services</span>
-              <span className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Dentists</span>
-              <span className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Pages</span>
-              <span className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Blog</span>
-              <span className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Contact</span>
+              <button 
+                onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium"
+              >
+                Services
+              </button>
+              <button 
+                onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium"
+              >
+                Dentists
+              </button>
+              <button 
+                onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium"
+              >
+                Contact
+              </button>
             </div>
 
-            {/* Desktop Book Appointment Button */}
-            <div className="hidden md:block">
+            {/* Desktop Action Buttons */}
+            <div className="hidden md:flex items-center space-x-3">
+              <a href="tel:+1123456789">
+                <Button className="btn-call">
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call Now
+                </Button>
+              </a>
               <Link to="/appointment">
-                <Button className="btn-dental">
+                <Button className="btn-appointment">
                   Book Appointment
                 </Button>
               </Link>
@@ -92,16 +111,46 @@ const Navigation = () => {
               >
                 Home
               </Link>
-              <span className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Services</span>
-              <span className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Dentists</span>
-              <span className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Pages</span>
-              <span className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Blog</span>
-              <span className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors">Contact</span>
-              <Link to="/appointment" onClick={() => setIsMenuOpen(false)}>
-                <Button className="btn-dental w-full mt-4">
-                  Book Appointment
-                </Button>
-              </Link>
+              <button 
+                onClick={() => {
+                  document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+                  setIsMenuOpen(false);
+                }}
+                className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium text-left w-full"
+              >
+                Services
+              </button>
+              <button 
+                onClick={() => {
+                  document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' });
+                  setIsMenuOpen(false);
+                }}
+                className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium text-left w-full"
+              >
+                Dentists
+              </button>
+              <button 
+                onClick={() => {
+                  document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+                  setIsMenuOpen(false);
+                }}
+                className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium text-left w-full"
+              >
+                Contact
+              </button>
+              <div className="space-y-2 pt-4">
+                <a href="tel:+1123456789" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="btn-call w-full">
+                    <Phone className="w-4 h-4 mr-2" />
+                    Call Now
+                  </Button>
+                </a>
+                <Link to="/appointment" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="btn-appointment w-full">
+                    Book Appointment
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}

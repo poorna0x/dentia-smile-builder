@@ -37,13 +37,19 @@ const Hero = () => {
             </div>
           </div>
 
-          {/* CTA Button */}
-          <div className="pt-4">
+          {/* CTA Buttons */}
+          <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link to="/appointment">
-              <Button className="btn-dental text-lg px-8 py-4">
+              <Button className="btn-appointment text-lg px-8 py-4 w-full sm:w-auto">
                 Book Appointment
               </Button>
             </Link>
+            <a href="tel:+1123456789">
+              <Button className="btn-call text-lg px-8 py-4 w-full sm:w-auto">
+                <Phone className="w-5 h-5 mr-2" />
+                Call Now
+              </Button>
+            </a>
           </div>
         </div>
       </div>

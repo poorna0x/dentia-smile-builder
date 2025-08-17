@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import dentistPatientImage from '@/assets/dentist-patient.jpg';
 
@@ -49,13 +49,19 @@ const AboutUs = () => {
               ))}
             </ul>
 
-            {/* CTA Button */}
-            <div className="pt-4">
+            {/* CTA Buttons */}
+            <div className="pt-4 flex flex-col sm:flex-row gap-3">
               <Link to="/appointment">
-                <Button className="btn-dental">
+                <Button className="btn-appointment">
                   Book Appointment
                 </Button>
               </Link>
+              <a href="tel:+1123456789">
+                <Button className="btn-call">
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call Now
+                </Button>
+              </a>
             </div>
           </div>
         </div>

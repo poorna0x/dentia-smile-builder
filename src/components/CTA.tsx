@@ -21,18 +21,17 @@ const CTA = () => {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
             <Link to="/appointment">
-              <Button className="btn-dental text-lg px-8 py-4 w-full sm:w-auto">
+              <Button className="btn-appointment text-lg px-8 py-4 w-full sm:w-auto">
                 <Calendar className="w-5 h-5 mr-2" />
                 Book Appointment
               </Button>
             </Link>
             
-            <a 
-              href="tel:+1123456789" 
-              className="btn-dental-outline text-lg px-8 py-4 w-full sm:w-auto inline-flex items-center justify-center"
-            >
-              <Phone className="w-5 h-5 mr-2" />
-              Call Now
+            <a href="tel:+1123456789">
+              <Button className="btn-call text-lg px-8 py-4 w-full sm:w-auto">
+                <Phone className="w-5 h-5 mr-2" />
+                Call Now
+              </Button>
             </a>
           </div>
 

@@ -28,6 +28,17 @@ export default {
 				'dental-light-blue': 'hsl(var(--dental-light-blue))',
 				'dental-white': 'hsl(var(--dental-white))',
 				
+				// Button colors  
+				orange: {
+					500: 'hsl(var(--orange-500))',
+					600: 'hsl(var(--orange-600))',
+					700: 'hsl(var(--orange-700))',
+				},
+				green: {
+					500: 'hsl(var(--green-500))',
+					600: 'hsl(var(--green-600))',
+				},
+				
 				// Semantic tokens
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
