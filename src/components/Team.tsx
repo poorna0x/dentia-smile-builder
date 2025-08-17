@@ -10,7 +10,6 @@ const Team = () => {
     image: drSarahBennett,
     specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Pediatric Dentistry', 'Dental Implants'],
     experience: '15+ Years Experience',
-    education: 'DDS, Harvard School of Dental Medicine',
     description: 'Dr. Bennett is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'
   };
 

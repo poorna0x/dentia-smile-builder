@@ -145,6 +145,7 @@ const Navigation = () => {
                     Call Now
                   </Button>
                 </a>
+                <p></p>
                 <Link to="/appointment" onClick={() => setIsMenuOpen(false)}>
                   <Button className="btn-appointment w-full">
                     Book Appointment

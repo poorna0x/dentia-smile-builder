@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle, Phone } from 'lucide-react';
+import { CheckCircle, Phone, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import dentistPatientImage from '@/assets/dentist-patient.jpg';
 
@@ -50,15 +50,17 @@ const AboutUs = () => {
             </ul>
 
             {/* CTA Buttons */}
-            <div className="pt-4 flex flex-col sm:flex-row gap-3">
-              <Link to="/appointment">
-                <Button className="btn-appointment">
+            <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <Link to="/appointment" className="w-52">
+                <Button className="btn-appointment text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
+                  <Calendar className="w-6 h-6" />
                   Book Appointment
                 </Button>
               </Link>
-              <a href="tel:+1123456789">
-                <Button className="btn-call">
-                  <Phone className="w-4 h-4 mr-2" />
+
+              <a href="tel:+1123456789" className="w-52">
+                <Button className="btn-call text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
+                  <Phone className="w-6 h-6" />
                   Call Now
                 </Button>
               </a>
