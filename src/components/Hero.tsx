@@ -112,7 +112,7 @@ const Hero = () => {
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Mail className="w-4 h-4 text-accent" />
-              <span>contact@dentiaclinic.com</span>
+              <span>contact@jeshnadentalclinic.com</span>
             </div>
           </div>
         </div>
