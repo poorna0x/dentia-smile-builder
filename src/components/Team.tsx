@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Phone } from 'lucide-react';
-import drSarahBennett from '@/assets/dr-sarah-bennett.jpg';
+import drPrasanna from '@/assets/drprasanna.jpg';
 import { Button } from '@/components/ui/button';
 
 const Team = () => {
   const teamMember = {
     name: 'Dr. Prasanna A Chandan',
     role: 'Lead Dentist & Practice Owner',
-    image: drSarahBennett,
+    image: drPrasanna,
     specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Pediatric Dentistry', 'Dental Implants'],
     experience: '15+ Years Experience',
     description: 'Dr. Prasanna is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'

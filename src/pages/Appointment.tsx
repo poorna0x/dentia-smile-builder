@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import dentistChildImage from '@/assets/dentist-child.jpg';
+import dentistChildImage from '@/assets/dentist-patient.jpg';
 
 const Appointment = () => {
   const [name, setName] = useState('');

@@ -1,5 +1,5 @@
 import { Award, Zap, Heart } from 'lucide-react';
-import dentistPatientImage from '@/assets/dentist-patient.jpg';
+import dentistPatientImage from '@/assets/dentist-patient1.jpg';
 
 const WhyChooseUs = () => {
   const reasons = [

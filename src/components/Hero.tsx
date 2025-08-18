@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import {Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Star, Phone, Clock, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, Phone, Clock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import heroFamilyImage from '@/assets/hero-family.jpg';
 import heroOfficeImage from '@/assets/hero-office.jpg';
@@ -9,20 +9,11 @@ import heroSmileImage from '@/assets/hero-smile.jpg';
 
 const Hero = () => {
   const [currentImage, setCurrentImage] = useState(0);
-  
+
   const heroImages = [
-    {
-      src: heroFamilyImage,
-      alt: 'Happy family with beautiful smiles'
-    },
-    {
-      src: heroOfficeImage,
-      alt: 'Modern dental office interior'
-    },
-    {
-      src: heroSmileImage,
-      alt: 'Perfect healthy smile'
-    }
+    { src: heroFamilyImage, alt: 'Happy family with beautiful smiles' },
+    { src: heroOfficeImage, alt: 'Modern dental office interior' },
+    { src: heroSmileImage, alt: 'Perfect healthy smile' },
   ];
 
   // Auto-rotate images every 5 seconds
@@ -56,14 +47,16 @@ const Hero = () => {
             <img
               src={image.src}
               alt={image.alt}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${
+                index === 1
+                  ? 'object-[70%_50%] md:object-center' // show more right part on mobile
+                  : 'object-center'
+              }`}
             />
           </div>
         ))}
         <div className="absolute inset-0 bg-primary/60"></div>
       </div>
-
-    
 
       <div className="relative z-10 container mx-auto px-4 py-20">
         <div className="max-w-4xl mx-auto text-center text-white space-y-8">
@@ -73,7 +66,7 @@ const Hero = () => {
               Jeshna Dental Care <br />
               <span className="text-accent">Elevating Smiles</span> with Expert Care and a Gentle Touch
             </h1>
-            
+
             {/* Google Rating */}
             <div className="flex justify-center items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-3 w-fit mx-auto animate-fade-in">
               <div className="flex space-x-1">
@@ -87,21 +80,21 @@ const Hero = () => {
           </div>
 
           {/* CTA Buttons */}
-           <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in">
-      <Link to="/appointment" className="w-52">
-        <Button className="btn-appointment text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Book Appointment
-        </Button>
-      </Link>
+          <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in">
+            <Link to="/appointment" className="w-52">
+              <Button className="btn-appointment text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Book Appointment
+              </Button>
+            </Link>
 
-      <a href="tel:+1123456789" className="w-52">
-        <Button className="btn-call text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
-          <Phone className="w-5 h-5" />
-          Call Now
-        </Button>
-      </a>
-    </div>
+            <a href="tel:+1123456789" className="w-52">
+              <Button className="btn-call text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
+                <Phone className="w-5 h-5" />
+                Call Now
+              </Button>
+            </a>
+          </div>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Facebook, Twitter, MessageCircle, Instagram, Youtube, MapPin, Phone, Mail } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear(); // Dynamic year
@@ -10,11 +11,15 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Logo and Description */}
           <div className="space-y-4">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
-                <span className="text-accent-foreground font-bold text-sm">🦷</span>
+            <Link to="/" className="flex items-center">
+              <div className="w-15 h-14 rounded-full overflow-hidden mr-0">
+                <img 
+                  src={logo} 
+                  alt="Jeshna Dental Logo" 
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <span className="text-xl font-bold">Jeshna</span>
+              <span className="text-xl font-bold ml-[-15px]">Jeshna</span>
             </Link>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
               Providing exceptional dental care with a personal touch. Your smile is our priority, and we're committed to helping you achieve optimal oral health.
