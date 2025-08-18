@@ -76,7 +76,7 @@ const Team = () => {
                       Book with Dr. Prasanna
                     </Button>
                   </Link>
-                  <a href="tel:+6363116263">
+                  <a href="tel:6363116263">
                     <Button className="btn-call w-full sm:w-auto">
                       <Phone className="w-4 h-4 mr-2" />
                       Call Direct

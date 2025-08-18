@@ -20,7 +20,7 @@ const Hero = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImage((prev) => (prev + 1) % heroImages.length);
-    }, 5000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, [heroImages.length]);
@@ -88,7 +88,7 @@ const Hero = () => {
               </Button>
             </Link>
 
-            <a href="tel:+1123456789" className="w-52">
+            <a href="tel:6363116263" className="w-52">
               <Button className="btn-call text-lg px-8 py-4 w-full flex items-center justify-center gap-2">
                 <Phone className="w-5 h-5" />
                 Call Now

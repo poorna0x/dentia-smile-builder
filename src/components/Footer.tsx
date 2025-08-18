@@ -97,7 +97,7 @@ const Footer = () => {
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-accent" />
                 <a 
-                  href="tel:+6363116263" 
+                  href="tel:6363116263" 
                   className="text-primary-foreground/80 hover:text-accent transition-colors"
                 >
                   Contact us

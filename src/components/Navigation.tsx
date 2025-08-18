@@ -88,7 +88,7 @@ const Navigation = () => {
 
             {/* Desktop Action Buttons */}
             <div className="hidden md:flex items-center space-x-3">
-              <a href="tel:+6363116263">
+              <a href="tel:6363116263">
                 <Button className="btn-call">
                   <Phone className="w-4 h-4 mr-2" />
                   Call Now
@@ -152,7 +152,7 @@ const Navigation = () => {
                 Contact
               </button>
               <div className="space-y-2 pt-4">
-                <a href="tel:+6363116263" onClick={() => setIsMenuOpen(false)}>
+                <a href="tel:6363116263" onClick={() => setIsMenuOpen(false)}>
                   <Button className="btn-call w-full">
                     <Phone className="w-4 h-4 mr-2" />
                     Call Now
