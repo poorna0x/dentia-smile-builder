@@ -111,11 +111,11 @@ const Hero = () => {
           <div className="space-y-3 text-sm text-primary">
             <div className="flex items-center justify-center space-x-2">
               <Phone className="w-4 h-4 text-accent" />
-              <span>+1 123 456 789</span>
+              <span>6363116263</span>
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Clock className="w-4 h-4 text-accent" />
-              <span>Mon to Sat 08:00 - 20:00</span>
+              <span>Mon to Sat 09:00 - 20:00</span>
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Mail className="w-4 h-4 text-accent" />

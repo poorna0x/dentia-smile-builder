@@ -3,31 +3,31 @@ import { Star, Quote, ThumbsUp, Heart, Smile } from 'lucide-react';
 const Testimonials = () => {
   const testimonials = [
     {
-      name: 'Sarah Johnson',
+      name: 'Roopa',
       role: 'Mother of Two',
       rating: 5,
-      text: 'Dentia has been incredible for our family. Dr. Bennett is so gentle with my kids, and they actually look forward to their dental visits now! The staff is amazing and the office is beautiful.',
+      text: 'Dentia has been incredible for our family. Dr. Prasanna is so gentle with my kids, and they actually look forward to their dental visits now! The staff is amazing and the office is beautiful.',
       icon: Heart
     },
     {
-      name: 'Michael Chen',
+      name: 'Srujan',
       role: 'Business Executive',
       rating: 5,
-      text: 'I was nervous about getting dental implants, but Dr. Bennett made the entire process comfortable and explained everything clearly. The results exceeded my expectations.',
+      text: 'I was nervous about getting dental implants, but Dr. Prasanna made the entire process comfortable and explained everything clearly. The results exceeded my expectations.',
       icon: ThumbsUp
     },
     {
-      name: 'Emma Rodriguez',
-      role: 'Teacher',
+      name: 'Poorna',
+      role: 'Software Developer',
       rating: 5,
-      text: 'The cosmetic dentistry work I had done has completely transformed my confidence. Dr. Bennett is an artist! The teeth whitening and veneers look so natural.',
+      text: 'The cosmetic dentistry work I had done has completely transformed my confidence. Dr. Prasanna is an artist! The teeth whitening and veneers look so natural.',
       icon: Smile
     },
     {
-      name: 'David Thompson',
+      name: 'Narayana',
       role: 'Retiree',
       rating: 5,
-      text: 'After years of dental anxiety, I finally found a place where I feel comfortable. The team at Dentia is patient, understanding, and their gentle approach changed my perspective.',
+      text: 'After years of dental anxiety, I finally found a place where I feel comfortable. The team at Jeshna is patient, understanding, and their gentle approach changed my perspective.',
       icon: Heart
     }
   ];
@@ -40,7 +40,7 @@ const Testimonials = () => {
           <h2 className="heading-lg text-primary">What Our Patients Say</h2>
           <p className="body-lg text-muted-foreground max-w-2xl mx-auto">
             Real stories from real patients who trust us with their smiles. 
-            Here's what makes the Dentia experience special.
+            Here's what makes the Jeshna experience special.
           </p>
         </div>
 

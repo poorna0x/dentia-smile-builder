@@ -27,7 +27,7 @@ const CTA = () => {
               </Button>
             </Link>
 
-            <a href="tel:+1123456789" className="w-52">
+            <a href="tel:+6363116263" className="w-52">
               <Button className="btn-call text-lg px-8 py-4 w-full flex items-center justify-center">
                 <Phone className="w-6 h-6 mr-2" />
                 Call Now

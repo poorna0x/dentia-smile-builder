@@ -14,7 +14,7 @@ const Footer = () => {
               <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
                 <span className="text-accent-foreground font-bold text-sm">🦷</span>
               </div>
-              <span className="text-xl font-bold">Dentia</span>
+              <span className="text-xl font-bold">Jeshna</span>
             </Link>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
               Providing exceptional dental care with a personal touch. Your smile is our priority, and we're committed to helping you achieve optimal oral health.
@@ -32,12 +32,32 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Quick Links</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/" className="text-primary-foreground/80 hover:text-accent transition-colors">Home</Link></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">About Us</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Services</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Our Team</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Blog</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Contact</span></li>
+              <li>
+                <button 
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="text-primary-foreground/80 hover:text-accent transition-colors text-left"
+                >
+                  Home
+                </button>
+              </li>
+              <li><button 
+                onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-primary-foreground/80 hover:text-accent transition-colors text-left"
+              >
+                Services
+              </button></li>
+              <li><button 
+                onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-primary-foreground/80 hover:text-accent transition-colors text-left"
+              >
+                Dentists
+              </button></li>
+              <li><button 
+                onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-primary-foreground/80 hover:text-accent transition-colors text-left"
+              >
+                Contact
+              </button></li>
             </ul>
           </div>
 
@@ -45,12 +65,12 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Services</h3>
             <ul className="space-y-2 text-sm">
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">General Dentistry</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Cosmetic Dentistry</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Pediatric Dentistry</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Restorative Dentistry</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Dental Implants</span></li>
-              <li><span className="text-primary-foreground/80 hover:text-accent cursor-pointer transition-colors">Teeth Whitening</span></li>
+              <li><Link to="/services#general" className="text-primary-foreground/80 hover:text-accent transition-colors">General Dentistry</Link></li>
+              <li><Link to="/services#cosmetic" className="text-primary-foreground/80 hover:text-accent transition-colors">Cosmetic Dentistry</Link></li>
+              <li><Link to="/services#pediatric" className="text-primary-foreground/80 hover:text-accent transition-colors">Pediatric Dentistry</Link></li>
+              <li><Link to="/services#restorative" className="text-primary-foreground/80 hover:text-accent transition-colors">Restorative Dentistry</Link></li>
+              <li><Link to="/services#implants" className="text-primary-foreground/80 hover:text-accent transition-colors">Dental Implants</Link></li>
+              <li><Link to="/services#whitening" className="text-primary-foreground/80 hover:text-accent transition-colors">Teeth Whitening</Link></li>
             </ul>
           </div>
 
@@ -72,7 +92,7 @@ const Footer = () => {
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-accent" />
                 <a 
-                  href="tel:+1123456789" 
+                  href="tel:+6363116263" 
                   className="text-primary-foreground/80 hover:text-accent transition-colors"
                 >
                   Contact us
