@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 
 const Team = () => {
   const teamMember = {
-    name: 'Dr. Sarah Bennett',
+    name: 'Dr. Prasanna A Chandan',
     role: 'Lead Dentist & Practice Owner',
     image: drSarahBennett,
     specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Pediatric Dentistry', 'Dental Implants'],
     experience: '15+ Years Experience',
-    description: 'Dr. Bennett is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'
+    description: 'Dr. Prasanna is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'
   };
 
   return (
@@ -73,7 +73,7 @@ const Team = () => {
                 <div className="pt-6 flex flex-col sm:flex-row gap-3">
                   <Link to="/appointment">
                     <Button className="btn-appointment w-full sm:w-auto">
-                      Book with Dr. Bennett
+                      Book with Dr. Prasanna
                     </Button>
                   </Link>
                   <a href="tel:+1123456789">

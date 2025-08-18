@@ -25,10 +25,10 @@ const Appointment = () => {
     e.preventDefault();
 
     const formattedDate = format(date, 'MMM dd, yyyy');
-    const message = `hi I am ${name} and ${formattedDate}`;
+    const message = `Hi, I'm ${name} and I want an appointment on ${formattedDate}.`;
     const encodedMessage = encodeURIComponent(message);
 
-    window.open(`https://wa.me/636163124?text=${encodedMessage}`, '_blank');
+    window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
   };
 
   return (
@@ -38,6 +38,7 @@ const Appointment = () => {
       <main className="py-12 lg:py-20">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            
             {/* Form Section */}
             <div className="order-2 lg:order-1">
               <div className="space-y-6">
@@ -50,6 +51,8 @@ const Appointment = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  
+                  {/* Name Input */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-base font-medium text-primary">
                       Full Name
@@ -65,6 +68,7 @@ const Appointment = () => {
                     />
                   </div>
 
+                  {/* Date Picker */}
                   <div className="space-y-2">
                     <Label htmlFor="date" className="text-base font-medium text-primary">
                       Date of Appointment
@@ -92,7 +96,12 @@ const Appointment = () => {
                               setIsCalendarOpen(false);
                             }
                           }}
-                          disabled={(date) => date < new Date()}
+                          // ✅ Disable past dates + Sundays
+                          disabled={(day) => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return day < today || day.getDay() === 0; // 0 = Sunday
+                          }}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                         />
@@ -100,6 +109,7 @@ const Appointment = () => {
                     </Popover>
                   </div>
 
+                  {/* Submit Button */}
                   <Button 
                     type="submit" 
                     className="btn-appointment w-full text-lg py-4"
@@ -128,12 +138,13 @@ const Appointment = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-primary text-sm">Opening Hours</p>
-                      <p className="text-muted-foreground text-sm">Mon to Sat 08:00 - 20:00</p>
+                      <p className="text-muted-foreground text-sm">Mon to Sat 09:00 - 20:00</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </main>

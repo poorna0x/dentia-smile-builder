@@ -17,15 +17,15 @@ const Navigation = () => {
           <div className="flex justify-center items-center space-x-8 text-sm text-secondary-foreground">
             <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4 text-accent" />
-              <span>6361631253</span>
+              <span>6363116263</span>
             </div>
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-accent" />
-              <span>Mon to Sat 08:00 - 20:00</span>
+              <span>Mon to Sat 09:00 - 20:00</span>
             </div>
             <div className="flex items-center space-x-2">
               <Mail className="w-4 h-4 text-accent" />
-              <span>contact@dentiaclinic.com</span>
+              <span>contact@jeshnadentalclinic.com</span>
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@ const Navigation = () => {
 
             {/* Desktop Action Buttons */}
             <div className="hidden md:flex items-center space-x-3">
-              <a href="tel:+1123456789">
+              <a href="tel:+6363116263">
                 <Button className="btn-call">
                   <Phone className="w-4 h-4 mr-2" />
                   Call Now
@@ -139,7 +139,7 @@ const Navigation = () => {
                 Contact
               </button>
               <div className="space-y-2 pt-4">
-                <a href="tel:+1123456789" onClick={() => setIsMenuOpen(false)}>
+                <a href="tel:+6363116263" onClick={() => setIsMenuOpen(false)}>
                   <Button className="btn-call w-full">
                     <Phone className="w-4 h-4 mr-2" />
                     Call Now

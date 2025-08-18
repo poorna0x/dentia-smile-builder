@@ -70,7 +70,7 @@ const Hero = () => {
           {/* Main Headline */}
           <div className="space-y-6">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in">
-              Family Dental Care: <br />
+              Jeshna Dental Care <br />
               <span className="text-accent">Elevating Smiles</span> with Expert Care and a Gentle Touch
             </h1>
             

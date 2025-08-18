@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { Facebook, Twitter, MessageCircle, Instagram, Youtube, MapPin, Phone, Mail } from 'lucide-react';
 
 const Footer = () => {
+  const currentYear = new Date().getFullYear(); // Dynamic year
+
   return (
     <footer id="contact" className="bg-primary text-primary-foreground py-12">
       <div className="container mx-auto px-4">
@@ -58,15 +60,32 @@ const Footer = () => {
             <div className="space-y-3 text-sm">
               <div className="flex items-start space-x-3">
                 <MapPin className="w-4 h-4 text-accent mt-1 flex-shrink-0" />
-                <span className="text-primary-foreground/80">100 Main St, New York, NY 10001</span>
+                <a 
+                  href="https://maps.app.goo.gl/yuqc2tEqDEyP1L537" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary-foreground/80 hover:text-accent transition-colors"
+                >
+                  Location
+                </a>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-accent" />
-                <span className="text-primary-foreground/80">+1 123 456 789</span>
+                <a 
+                  href="tel:+1123456789" 
+                  className="text-primary-foreground/80 hover:text-accent transition-colors"
+                >
+                  Contact us
+                </a>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="w-4 h-4 text-accent" />
-                <span className="text-primary-foreground/80">contact@dentiaclinic.com</span>
+                <a 
+                  href="mailto:contact@jeshnadentalclinic.com" 
+                  className="text-primary-foreground/80 hover:text-accent transition-colors"
+                >
+                  contact@jeshnadentalclinic.com
+                </a>
               </div>
             </div>
           </div>
@@ -75,7 +94,7 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="border-t border-primary-foreground/20 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <p className="text-primary-foreground/60 text-sm">
-            © 2024 Dentia Clinic. All rights reserved.
+            © {currentYear} Jeshna Dental Clinic. All rights reserved.
           </p>
           <div className="flex space-x-6 text-sm">
             <span className="text-primary-foreground/60 hover:text-accent cursor-pointer transition-colors">Terms & Conditions</span>
