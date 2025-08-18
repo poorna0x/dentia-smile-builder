@@ -14,9 +14,10 @@ import dentistChildImage from '@/assets/dentist-patient.jpg';
 const Appointment = () => {
   const [name, setName] = useState('');
   const [date, setDate] = useState<Date>(new Date());
+  const [slot, setSlot] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // ✅ Scroll to top when page opens
+  // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -25,7 +26,7 @@ const Appointment = () => {
     e.preventDefault();
 
     const formattedDate = format(date, 'MMM dd, yyyy');
-    const message = `Hi, I'm ${name} and I want an appointment on ${formattedDate}.`;
+    const message = `Hi, I'm ${name} and I want an appointment on ${formattedDate}. Preferred time: ${slot || 'Any time'}.`;
     const encodedMessage = encodeURIComponent(message);
 
     window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
@@ -38,7 +39,7 @@ const Appointment = () => {
       <main className="py-12 lg:py-20">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            
+
             {/* Form Section */}
             <div className="order-2 lg:order-1">
               <div className="space-y-6">
@@ -51,7 +52,7 @@ const Appointment = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  
+
                   {/* Name Input */}
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-base font-medium text-primary">
@@ -96,17 +97,32 @@ const Appointment = () => {
                               setIsCalendarOpen(false);
                             }
                           }}
-                          // ✅ Disable past dates + Sundays
+                          // Disable past dates + Sundays
                           disabled={(day) => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
-                            return day < today || day.getDay() === 0; // 0 = Sunday
+                            return day < today || day.getDay() === 0;
                           }}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                         />
                       </PopoverContent>
                     </Popover>
+                  </div>
+
+                  {/* Preferred Time Slot */}
+                  <div className="space-y-2">
+                    <Label htmlFor="slot" className="text-base font-medium text-primary">
+                      Preferred Time Slot
+                    </Label>
+                    <Input
+                      id="slot"
+                      type="text"
+                      placeholder="Enter your preferred slot, e.g., 8:00 AM, 10:30 AM, or between 9 - 10 AM"
+                      value={slot}
+                      onChange={(e) => setSlot(e.target.value)}
+                      className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
+                    />
                   </div>
 
                   {/* Submit Button */}
