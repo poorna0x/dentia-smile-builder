@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,14 @@ import { CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dentistChildImage from '@/assets/dentist-patient.jpg';
+// Frontend-only: send to WhatsApp
 
 const Appointment = () => {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [date, setDate] = useState<Date>(new Date());
-  const [slot, setSlot] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Scroll to top on page load
@@ -22,13 +25,102 @@ const Appointment = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  type SchedulingSettings = {
+    startTime: string; // "HH:MM"
+    endTime: string;   // "HH:MM"
+    breakStart: string; // "HH:MM"
+    breakEnd: string;   // "HH:MM"
+    slotIntervalMinutes: number;
+    weeklyHolidays: number[]; // 0-6 (Sun-Sat)
+    customHolidays: string[]; // ISO yyyy-MM-dd
+    disabledAppointments?: boolean;
+  };
+
+  const defaultSettings: SchedulingSettings = {
+    startTime: '09:00',
+    endTime: '20:00',
+    breakStart: '13:00',
+    breakEnd: '14:00',
+    slotIntervalMinutes: 30,
+    weeklyHolidays: [],
+    customHolidays: [],
+  };
+
+  const settings: SchedulingSettings = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('clinicSchedulingSettings');
+      if (!raw) return defaultSettings;
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaultSettings,
+        ...parsed,
+        slotIntervalMinutes: Number(parsed.slotIntervalMinutes) || defaultSettings.slotIntervalMinutes,
+        weeklyHolidays: Array.isArray(parsed.weeklyHolidays) ? parsed.weeklyHolidays : defaultSettings.weeklyHolidays,
+        customHolidays: Array.isArray(parsed.customHolidays) ? parsed.customHolidays : defaultSettings.customHolidays,
+      } as SchedulingSettings;
+    } catch {
+      return defaultSettings;
+    }
+  }, []);
+
+  const isHoliday = (d: Date) => {
+    const iso = format(d, 'yyyy-MM-dd');
+    const isWeeklyHoliday = settings.weeklyHolidays.includes(d.getDay());
+    const isCustomHoliday = settings.customHolidays.includes(iso);
+    return isWeeklyHoliday || isCustomHoliday;
+  };
+
+  const generateTimeSlots = (dateForSlots: Date) => {
+    const [startH, startM] = settings.startTime.split(':').map(Number);
+    const [endH, endM] = settings.endTime.split(':').map(Number);
+    const [breakStartH, breakStartM] = settings.breakStart.split(':').map(Number);
+    const [breakEndH, breakEndM] = settings.breakEnd.split(':').map(Number);
+
+    const start = new Date(dateForSlots);
+    start.setHours(startH, startM, 0, 0);
+    const end = new Date(dateForSlots);
+    end.setHours(endH, endM, 0, 0);
+    const breakStart = new Date(dateForSlots);
+    breakStart.setHours(breakStartH, breakStartM, 0, 0);
+    const breakEnd = new Date(dateForSlots);
+    breakEnd.setHours(breakEndH, breakEndM, 0, 0);
+
+    const intervalMs = settings.slotIntervalMinutes * 60 * 1000;
+    const slots: { label: string; value: string; disabled: boolean }[] = [];
+
+    if (isHoliday(dateForSlots)) {
+      return slots;
+    }
+
+    for (let t = start.getTime(); t < end.getTime(); t += intervalMs) {
+      const slotStart = new Date(t);
+      const slotEnd = new Date(t + intervalMs);
+
+      // Exclude slots overlapping the break window
+      const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
+
+      // Disable past times if the selected date is today
+      const now = new Date();
+      const isToday = dateForSlots.toDateString() === now.toDateString();
+      const isPast = isToday && slotStart.getTime() <= now.getTime();
+
+      if (!overlapsBreak && slotEnd <= end) {
+        const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
+        slots.push({ label, value: label, disabled: isPast });
+      }
+    }
+
+    return slots;
+  };
+
+  const timeSlots = useMemo(() => generateTimeSlots(date), [date, settings]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    if (settings.disabledAppointments) return;
     const formattedDate = format(date, 'MMM dd, yyyy');
-    const message = `Hi, I'm ${name} and I want an appointment on ${formattedDate}. Preferred time: ${slot || 'Any time'}.`;
+    const message = `Hi, I'm ${name} (${email}, ${phone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
     const encodedMessage = encodeURIComponent(message);
-
     window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
   };
 
@@ -64,6 +156,38 @@ const Appointment = () => {
                       placeholder="Enter your full name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
+                    />
+                  </div>
+
+                  {/* Email Input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-base font-medium text-primary">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
+                    />
+                  </div>
+
+                  {/* Phone Input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-base font-medium text-primary">
+                      Phone
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
                       required
                       className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
                     />
@@ -110,26 +234,42 @@ const Appointment = () => {
                     </Popover>
                   </div>
 
-                  {/* Preferred Time Slot */}
+                  {/* Time Slots or Holiday Notice */}
                   <div className="space-y-2">
-                    <Label htmlFor="slot" className="text-base font-medium text-primary">
-                      Preferred Time Slot
+                    <Label className="text-base font-medium text-primary">
+                      Available Time Slots
                     </Label>
-                    <Input
-                      id="slot"
-                      type="text"
-                      placeholder="Enter your preferred slot, e.g., 8:00 AM, 10:30 AM, or between 9 - 10 AM"
-                      value={slot}
-                      onChange={(e) => setSlot(e.target.value)}
-                      className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
-                    />
+                    {settings.disabledAppointments ? (
+                      <div className="text-sm text-destructive">
+                        Appointments are temporarily disabled.
+                      </div>
+                    ) : timeSlots.length === 0 ? (
+                      <div className="text-sm text-destructive">
+                        Holiday: Appointments are not available on the selected date.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {timeSlots.map((ts) => (
+                          <Button
+                            key={ts.value}
+                            type="button"
+                            variant={selectedTime === ts.value ? 'default' : 'outline'}
+                            className={cn('justify-center', selectedTime === ts.value ? 'btn-appointment' : '')}
+                            disabled={ts.disabled}
+                            onClick={() => setSelectedTime(ts.value)}
+                          >
+                            {ts.label}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Submit Button */}
                   <Button 
                     type="submit" 
                     className="btn-appointment w-full text-lg py-4"
-                    disabled={!name.trim()}
+                    disabled={settings.disabledAppointments || !name.trim() || !email.trim() || !phone.trim() || !selectedTime}
                   >
                     Send Appointment Request
                   </Button>
