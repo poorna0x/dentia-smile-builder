@@ -243,6 +243,17 @@ Please confirm by replying "Yes" or "No"`;
     }
   };
 
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    try {
+      if (deleteAppointment) {
+        await deleteAppointment(appointmentId);
+      }
+      toast.success('Appointment deleted permanently');
+    } catch (error) {
+      toast.error('Failed to delete appointment');
+    }
+  };
+
   const handleScheduleUpdate = (day: string, field: keyof DaySchedule, value: any) => {
     setSchedulingSettings(prev => ({
       ...prev,
@@ -390,7 +401,7 @@ Please confirm by replying "Yes" or "No"`;
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredAppointments
+                  {realAppointments
                     .filter(apt => apt.status === 'Cancelled')
                     .slice(0, 5)
                     .map((appointment) => (
@@ -404,15 +415,42 @@ Please confirm by replying "Yes" or "No"`;
                             </div>
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleWhatsApp(appointment.phone, 'cancellation', appointment)}
-                          className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          <span className="hidden sm:inline">WhatsApp</span>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
+                            className="flex items-center gap-2 text-blue-600 border-blue-300 hover:bg-blue-50"
+                            title="Call patient"
+                          >
+                            <Phone className="h-4 w-4" />
+                            <span className="hidden sm:inline">Call</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleWhatsApp(appointment.phone, 'cancellation', appointment)}
+                            className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50"
+                            title="Send WhatsApp message"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            <span className="hidden sm:inline">WhatsApp</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete the appointment for ${appointment.name}? This action cannot be undone.`)) {
+                                handleDeleteAppointment(appointment.id);
+                              }
+                            }}
+                            className="flex items-center gap-2 text-red-600 border-red-300 hover:bg-red-50"
+                            title="Delete appointment"
+                          >
+                            <X className="h-4 w-4" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </Button>
+                        </div>
                       </div>
                     ))}
                 </div>
