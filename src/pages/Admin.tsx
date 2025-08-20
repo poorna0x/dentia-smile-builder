@@ -97,6 +97,7 @@ const Admin = () => {
   const [selectedDay, setSelectedDay] = useState('Mon');
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [showNewAppointmentDialog, setShowNewAppointmentDialog] = useState(false);
   const [showNewAppointmentForClient, setShowNewAppointmentForClient] = useState(false);
   const [newAppointmentData, setNewAppointmentData] = useState({
@@ -114,6 +115,8 @@ const Admin = () => {
   });
   const [bookedSlotsForNewAppointment, setBookedSlotsForNewAppointment] = useState<string[]>([]);
   const [isLoadingSlotsForNewAppointment, setIsLoadingSlotsForNewAppointment] = useState(false);
+  const [showUpcomingAppointments, setShowUpcomingAppointments] = useState(false);
+  const [upcomingPeriod, setUpcomingPeriod] = useState<'tomorrow' | 'next-week' | 'next-month'>('tomorrow');
   
 
 
@@ -280,6 +283,7 @@ Please confirm by replying "Yes" or "No"`;
 
   const handleEditAppointment = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
+    setEditingAppointment({ ...appointment }); // Create a copy for editing
     setShowEditDialog(true);
   };
 
@@ -288,6 +292,12 @@ Please confirm by replying "Yes" or "No"`;
       if (updateAppointment) {
         await updateAppointment(appointmentId, { status: newStatus as any });
       }
+      
+      // Update the editing appointment state
+      if (editingAppointment && editingAppointment.id === appointmentId) {
+        setEditingAppointment(prev => prev ? { ...prev, status: newStatus as any } : null);
+      }
+      
       toast.success(`Appointment ${newStatus.toLowerCase()}`);
     } catch (error) {
       toast.error('Failed to update appointment status');
@@ -338,6 +348,36 @@ Please confirm by replying "Yes" or "No"`;
       toast.success('Appointment deleted permanently');
     } catch (error) {
       toast.error('Failed to delete appointment');
+    }
+  };
+
+  const handleDeleteAllCancelledAppointments = async () => {
+    try {
+      if (!clinic?.id) {
+        toast.error('Clinic information not available');
+        return;
+      }
+
+      // Get all cancelled appointments for this clinic
+      const allAppointments = await appointmentsApi.getAll(clinic.id);
+      const cancelledAppointments = allAppointments.filter(apt => apt.status === 'Cancelled');
+      
+      if (cancelledAppointments.length === 0) {
+        toast.info('No cancelled appointments to delete');
+        return;
+      }
+
+      // Delete all cancelled appointments
+      for (const appointment of cancelledAppointments) {
+        if (deleteAppointment) {
+          await deleteAppointment(appointment.id);
+        }
+      }
+
+      toast.success(`${cancelledAppointments.length} cancelled appointments deleted permanently`);
+    } catch (error) {
+      console.error('Error deleting all cancelled appointments:', error);
+      toast.error('Failed to delete cancelled appointments');
     }
   };
 
@@ -880,8 +920,25 @@ Please confirm by replying "Yes" or "No"`;
           {cancelledAppointments > 0 && (
             <Card className="mb-6 md:mb-8">
               <CardHeader>
-                <CardTitle className="text-red-700">Cancelled Appointments</CardTitle>
-                <CardDescription>Recently cancelled appointments</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-red-700">Cancelled Appointments</CardTitle>
+                    <CardDescription>Recently cancelled appointments</CardDescription>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete all ${cancelledAppointments} cancelled appointments? This action cannot be undone.`)) {
+                        handleDeleteAllCancelledAppointments();
+                      }
+                    }}
+                    className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Delete All
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -962,14 +1019,14 @@ Please confirm by replying "Yes" or "No"`;
                   type="date"
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
-                  className="pl-10 pr-8 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 min-w-[140px]"
+                  className="pl-10 pr-16 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 min-w-[140px] sm:min-w-[160px]"
                 />
                 {filterDate && filterDate !== format(new Date(), 'yyyy-MM-dd') && (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setFilterDate(format(new Date(), 'yyyy-MM-dd'))}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                    className="absolute right-5 sm:right-6 top-1/2 transform -translate-y-1/2 h-6 w-6 sm:h-5 sm:w-5 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
                     title="Reset to today"
                   >
                     <X className="h-3 w-3" />
@@ -1427,10 +1484,10 @@ Please confirm by replying "Yes" or "No"`;
                   <div className="text-sm text-gray-600">{selectedAppointment.time}</div>
                 </div>
               </div>
-              <div>
+                            <div>
                 <Label>Status</Label>
                 <Select 
-                  value={selectedAppointment.status} 
+                  value={editingAppointment?.status || selectedAppointment.status} 
                   onValueChange={(value) => handleStatusUpdate(selectedAppointment.id, value)}
                 >
                   <SelectTrigger>
@@ -1443,7 +1500,7 @@ Please confirm by replying "Yes" or "No"`;
                     <SelectItem value="Rescheduled">Rescheduled</SelectItem>
                   </SelectContent>
                 </Select>
-                        </div>
+              </div>
         </div>
           )}
           <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-6">
