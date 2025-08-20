@@ -1,65 +1,161 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { authenticateAdmin, isAdminLoggedIn } from '@/lib/auth';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { isAdminLoggedIn, createAdminSession, getExpectedAdminPassword } from '@/lib/auth';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
 
 const AdminLogin = () => {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => {
+    // Redirect if already logged in
     if (isAdminLoggedIn()) {
       navigate('/admin', { replace: true });
     }
   }, [navigate]);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    const expected = getExpectedAdminPassword();
-    if (password !== expected) {
-      setError('Invalid credentials');
-      return;
+    setIsLoading(true);
+
+    try {
+      // Validate inputs
+      if (!credentials.username.trim() || !credentials.password.trim()) {
+        toast.error('Please enter both username and password');
+        return;
+      }
+
+      // Authenticate
+      const isAuthenticated = authenticateAdmin(credentials);
+      
+      if (isAuthenticated) {
+        toast.success('Login successful!');
+        navigate('/admin', { replace: true });
+      } else {
+        toast.error('Invalid username or password');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    createAdminSession(8);
-    const from = (location.state as any)?.from || '/admin';
-    navigate(from, { replace: true });
+  };
+
+  const handleInputChange = (field: 'username' | 'password', value: string) => {
+    setCredentials(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <main className="py-10 lg:py-16">
-        <div className="container mx-auto px-4 max-w-md">
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin Login</CardTitle>
-              <CardDescription>Enter the admin password to continue.</CardDescription>
+      
+      <main className="flex items-center justify-center min-h-[60vh] py-12">
+        <div className="w-full max-w-md">
+          <Card className="shadow-lg border-2 border-blue-200">
+            <CardHeader className="text-center pb-6">
+              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <Lock className="h-8 w-8 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-gray-900">Admin Login</CardTitle>
+              <CardDescription className="text-gray-600">
+                Access the dental clinic administration panel
+              </CardDescription>
             </CardHeader>
+            
             <CardContent>
-              <form onSubmit={onSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <Label htmlFor="username" className="text-sm font-medium text-gray-700">
+                    Username
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="Enter username"
+                      value={credentials.username}
+                      onChange={(e) => handleInputChange('username', e.target.value)}
+                      className="pl-10 h-12 text-base border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
                 </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <Button type="submit" className="btn-appointment w-full">Login</Button>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter password"
+                      value={credentials.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      className="pl-10 pr-12 h-12 text-base border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      disabled={isLoading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      disabled={isLoading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Logging in...
+                    </div>
+                  ) : (
+                    'Login to Admin Panel'
+                  )}
+                </Button>
               </form>
+
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-500">
+                  Secure access to clinic management
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
       </main>
+
       <Footer />
     </div>
   );
