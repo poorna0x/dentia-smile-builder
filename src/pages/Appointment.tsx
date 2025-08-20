@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CalendarIcon, Clock, CheckCircle, AlertCircle, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dentistChildImage from '@/assets/dentist-patient.jpg';
@@ -18,6 +20,7 @@ import { sendAppointmentConfirmation } from '@/lib/email';
 import { showAppointmentNotification, sendPushNotification } from '@/lib/notifications';
 
 const Appointment = () => {
+  const navigate = useNavigate();
   const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
   const { settings, loading: settingsLoading } = useSettings();
 
@@ -45,6 +48,7 @@ const Appointment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   // Get next available booking date (skip holidays)
   const getNextAvailableDate = (): Date => {
@@ -301,7 +305,13 @@ const Appointment = () => {
       return;
     }
     
+    // Show confirmation dialog instead of proceeding directly
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmBooking = async () => {
     setIsSubmitting(true);
+    setShowConfirmation(false);
     
     try {
       // Format phone number for storage (remove all non-digits)
@@ -364,18 +374,15 @@ const Appointment = () => {
           }
         });
 
-        if (emailSent) {
-          toast.success('Appointment booked successfully! Check your email for confirmation details.');
-        } else {
-          toast.success('Appointment booked successfully! We will contact you shortly.');
-        }
+        // Navigate to booking completion page with appointment details
+        const params = new URLSearchParams({
+          name: name.trim(),
+          date: format(date, 'MMMM dd, yyyy'),
+          time: selectedTime,
+          email: email.trim()
+        });
         
-        // Reset form
-        setName('');
-        setEmail('');
-        setPhone('');
-        setSelectedTime('');
-        setDate(new Date());
+        navigate(`/booking-complete?${params.toString()}`);
         
       } else {
         // Fallback to WhatsApp if no clinic ID
@@ -385,14 +392,15 @@ const Appointment = () => {
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
         
-        toast.success('Appointment request sent via WhatsApp! You will receive a confirmation email or we will call you shortly.');
+        // Navigate to booking completion page with appointment details
+        const params = new URLSearchParams({
+          name: name.trim(),
+          date: format(date, 'MMMM dd, yyyy'),
+          time: selectedTime,
+          email: email.trim()
+        });
         
-        // Reset form
-        setName('');
-        setEmail('');
-        setPhone('');
-        setSelectedTime('');
-        setDate(new Date());
+        navigate(`/booking-complete?${params.toString()}`);
       }
       
     } catch (error) {
@@ -408,14 +416,15 @@ const Appointment = () => {
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
         
-        toast.success('Database unavailable. Appointment request sent via WhatsApp! You will receive a confirmation email or we will call you shortly.');
+        // Navigate to booking completion page with appointment details
+        const params = new URLSearchParams({
+          name: name.trim(),
+          date: format(date, 'MMMM dd, yyyy'),
+          time: selectedTime,
+          email: email.trim()
+        });
         
-        // Reset form
-        setName('');
-        setEmail('');
-        setPhone('');
-        setSelectedTime('');
-        setDate(new Date());
+        navigate(`/booking-complete?${params.toString()}`);
       }
     } finally {
       setIsSubmitting(false);
@@ -729,6 +738,64 @@ const Appointment = () => {
           </div>
         </div>
       </main>
+      
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-gray-900">
+              Confirm Appointment
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            {/* Patient Info - Minimal */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Name:</span>
+                <span className="font-medium text-gray-900">{name}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Email:</span>
+                <span className="font-medium text-gray-900">{email}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Phone:</span>
+                <span className="font-medium text-gray-900">{phone}</span>
+              </div>
+            </div>
+            
+            {/* Appointment Details - Minimal */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <span className="text-sm text-gray-600">Date:</span>
+                <span className="font-medium text-gray-900">{format(date, 'MMM dd, yyyy')}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <span className="text-sm text-gray-600">Time:</span>
+                <span className="font-medium text-gray-900">{selectedTime}</span>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex gap-3 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmation(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmBooking}
+              disabled={isSubmitting}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              {isSubmitting ? 'Confirming...' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

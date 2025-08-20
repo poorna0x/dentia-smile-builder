@@ -39,6 +39,7 @@ import Services from "./pages/Services";
 import Dentists from "./pages/Dentists";
 import Contact from "./pages/Contact";
 import Appointment from "./pages/Appointment";
+import BookingComplete from "./pages/BookingComplete";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/dentists" element={<Dentists />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/appointment" element={<Appointment />} />
+            <Route path="/booking-complete" element={<BookingComplete />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
