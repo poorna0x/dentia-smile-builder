@@ -28,6 +28,7 @@ export function isAdminLoggedIn(): boolean {
   return Date.now() < session.expiresAt;
 }
 
+
 export function createAdminSession(hoursValid: number): void {
   const expiresAt = Date.now() + hoursValid * 60 * 60 * 1000;
   const session: AdminSession = { loggedIn: true, expiresAt };
