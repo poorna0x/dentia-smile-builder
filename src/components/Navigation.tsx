@@ -1,3 +1,22 @@
+/**
+ * Navigation Component
+ * 
+ * This component provides the main navigation for the dental clinic website.
+ * It includes:
+ * - Contact information bar (desktop only)
+ * - Main navigation with logo and menu items
+ * - Mobile-responsive hamburger menu
+ * - Call-to-action buttons
+ * 
+ * Navigation Features:
+ * - Logo links to home page (/)
+ * - Responsive design for mobile and desktop
+ * - Active state highlighting for current page
+ * - Direct phone call functionality
+ * - Appointment booking link
+ * 
+ * @returns JSX.Element - The navigation component
+ */
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Phone, Clock, Mail } from 'lucide-react';
@@ -66,24 +85,30 @@ const Navigation = () => {
               >
                 Home
               </Link>
-              <button 
-                onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium"
+              <Link 
+                to="/services" 
+                className={`font-medium transition-colors hover:text-accent ${
+                  isActive('/services') ? 'text-accent' : 'text-primary-foreground'
+                }`}
               >
                 Services
-              </button>
-              <button 
-                onClick={() => document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium"
+              </Link>
+              <Link 
+                to="/dentists" 
+                className={`font-medium transition-colors hover:text-accent ${
+                  isActive('/dentists') ? 'text-accent' : 'text-primary-foreground'
+                }`}
               >
                 Dentists
-              </button>
-              <button 
-                onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium"
+              </Link>
+              <Link 
+                to="/contact" 
+                className={`font-medium transition-colors hover:text-accent ${
+                  isActive('/contact') ? 'text-accent' : 'text-primary-foreground'
+                }`}
               >
                 Contact
-              </button>
+              </Link>
             </div>
 
             {/* Desktop Action Buttons */}
@@ -124,33 +149,33 @@ const Navigation = () => {
               >
                 Home
               </Link>
-              <button 
-                onClick={() => {
-                  document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
-                  setIsMenuOpen(false);
-                }}
-                className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium text-left w-full"
+              <Link 
+                to="/services" 
+                className={`block py-2 font-medium transition-colors hover:text-accent ${
+                  isActive('/services') ? 'text-accent' : 'text-primary-foreground'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Services
-              </button>
-              <button 
-                onClick={() => {
-                  document.getElementById('team')?.scrollIntoView({ behavior: 'smooth' });
-                  setIsMenuOpen(false);
-                }}
-                className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium text-left w-full"
+              </Link>
+              <Link 
+                to="/dentists" 
+                className={`block py-2 font-medium transition-colors hover:text-accent ${
+                  isActive('/dentists') ? 'text-accent' : 'text-primary-foreground'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Dentists
-              </button>
-              <button 
-                onClick={() => {
-                  document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
-                  setIsMenuOpen(false);
-                }}
-                className="block py-2 text-primary-foreground/70 cursor-pointer hover:text-accent transition-colors font-medium text-left w-full"
+              </Link>
+              <Link 
+                to="/contact" 
+                className={`block py-2 font-medium transition-colors hover:text-accent ${
+                  isActive('/contact') ? 'text-accent' : 'text-primary-foreground'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Contact
-              </button>
+              </Link>
               <div className="space-y-2 pt-4">
                 <a href="tel:6363116263" onClick={() => setIsMenuOpen(false)}>
                   <Button className="btn-call w-full">
