@@ -199,6 +199,20 @@ export const appointmentsApi = {
       .in('id', ids)
     
     if (error) throw error
+  },
+
+  // Check for duplicate bookings (same date and time)
+  async getByDateAndTime(clinicId: string, date: string, time: string) {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .eq('date', date)
+      .eq('time', time)
+      .not('status', 'eq', 'Cancelled') // Exclude cancelled appointments
+    
+    if (error) throw error
+    return data
   }
 }
 

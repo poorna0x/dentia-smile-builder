@@ -42,7 +42,7 @@ import Appointment from "./pages/Appointment";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
-import PWAInstall from "./components/PWAInstall";
+// import PWAInstall from "./components/PWAInstall";
 
 const queryClient = new QueryClient();
 
@@ -65,7 +65,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ClinicProvider>
-        <PWAInstall />
+        {/* <PWAInstall /> */}
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

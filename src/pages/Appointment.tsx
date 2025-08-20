@@ -28,11 +28,40 @@ const Appointment = () => {
   const [phoneError, setPhoneError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  // Check for booked slots when date changes
+  useEffect(() => {
+    const checkBookedSlots = async () => {
+      if (!clinic?.id) return;
+      
+      setIsLoadingSlots(true);
+      try {
+        const appointmentDate = format(date, 'yyyy-MM-dd');
+        const existingAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
+        
+        // Get booked time slots (exclude cancelled appointments)
+        const booked = existingAppointments
+          .filter(apt => apt.status !== 'Cancelled')
+          .map(apt => apt.time);
+        
+        setBookedSlots(booked);
+      } catch (error) {
+        console.error('Error checking booked slots:', error);
+        setBookedSlots([]);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+
+    checkBookedSlots();
+  }, [date, clinic?.id]);
 
   // Phone number validation function
   const validatePhone = (phoneNumber: string): boolean => {
@@ -125,7 +154,7 @@ const Appointment = () => {
     breakEnd.setHours(breakEndH, breakEndM, 0, 0);
 
     const intervalMs = currentSettings.slotIntervalMinutes * 60 * 1000;
-    const slots: { label: string; value: string; disabled: boolean }[] = [];
+    const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
 
     if (isHoliday(dateForSlots)) {
       return slots;
@@ -145,7 +174,13 @@ const Appointment = () => {
 
       if (!overlapsBreak && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
-        slots.push({ label, value: label, disabled: isPast });
+        const isBooked = bookedSlots.includes(label);
+        slots.push({ 
+          label, 
+          value: label, 
+          disabled: isPast || isBooked,
+          booked: isBooked
+        });
       }
     }
 
@@ -179,17 +214,33 @@ const Appointment = () => {
     try {
       // Format phone number for storage (remove all non-digits)
       const formattedPhone = phone.replace(/\D/g, '');
+      const appointmentDate = format(date, 'yyyy-MM-dd');
       
-      // Try to save to database first
+      // Check for duplicate booking first
       if (clinic?.id) {
-        console.log('Saving to database with clinic ID:', clinic.id);
+        console.log('Checking for duplicate booking...');
+        
+        // Get existing appointments for the same date and time
+        const existingAppointments = await appointmentsApi.getByDateAndTime(
+          clinic.id,
+          appointmentDate,
+          selectedTime
+        );
+        
+        if (existingAppointments && existingAppointments.length > 0) {
+          toast.error(`This time slot (${selectedTime}) is already booked. Please select a different time.`);
+          setIsSubmitting(false);
+          return;
+        }
+        
+        console.log('No duplicate found, proceeding with booking...');
         
         const newAppointment = await appointmentsApi.create({
           clinic_id: clinic.id,
           name: name.trim(),
           email: email.trim().toLowerCase(),
           phone: formattedPhone,
-          date: format(date, 'yyyy-MM-dd'),
+          date: appointmentDate,
           time: selectedTime,
           status: 'Confirmed'
         });
@@ -199,7 +250,7 @@ const Appointment = () => {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           phone: formattedPhone,
-          date: format(date, 'yyyy-MM-dd'),
+          date: appointmentDate,
           time: selectedTime,
           status: 'Confirmed',
           clinicName: clinic.name || 'Jeshna Dental Clinic',
@@ -207,25 +258,25 @@ const Appointment = () => {
           clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
         });
         
-               // Show local notification
-       await showAppointmentNotification(newAppointment);
-       
-       // Send push notification to all subscribers
-       await sendPushNotification({
-         title: 'New Appointment Booked! 🦷',
-         body: `${newAppointment.name} - ${newAppointment.date} at ${newAppointment.time}`,
-         icon: '/logo.png',
-         data: {
-           url: '/admin',
-           appointment: newAppointment
-         }
-       });
+        // Show local notification
+        await showAppointmentNotification(newAppointment);
+        
+        // Send push notification to all subscribers
+        await sendPushNotification({
+          title: 'New Appointment Booked! 🦷',
+          body: `${newAppointment.name} - ${newAppointment.date} at ${newAppointment.time}`,
+          icon: '/logo.png',
+          data: {
+            url: '/admin',
+            appointment: newAppointment
+          }
+        });
 
-       if (emailSent) {
-         toast.success('Appointment booked successfully! Check your email for confirmation details.');
-       } else {
-         toast.success('Appointment booked successfully! We will contact you shortly.');
-       }
+        if (emailSent) {
+          toast.success('Appointment booked successfully! Check your email for confirmation details.');
+        } else {
+          toast.success('Appointment booked successfully! We will contact you shortly.');
+        }
         
         // Reset form
         setName('');
@@ -255,20 +306,25 @@ const Appointment = () => {
     } catch (error) {
       console.error('Error booking appointment:', error);
       
-      // Fallback to WhatsApp if database fails
-      const formattedDate = format(date, 'MMM dd, yyyy');
-      const message = `Hi, I'm ${name} (${email}, ${phone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
-      const encodedMessage = encodeURIComponent(message);
-      window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
-      
-      toast.success('Database unavailable. Appointment request sent via WhatsApp! You will receive a confirmation email or we will call you shortly.');
-      
-      // Reset form
-      setName('');
-      setEmail('');
-      setPhone('');
-      setSelectedTime('');
-      setDate(new Date());
+      // Check if it's a duplicate booking error
+      if (error instanceof Error && error.message.includes('duplicate')) {
+        toast.error(`This time slot (${selectedTime}) is already booked. Please select a different time.`);
+      } else {
+        // Fallback to WhatsApp if database fails
+        const formattedDate = format(date, 'MMM dd, yyyy');
+        const message = `Hi, I'm ${name} (${email}, ${phone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
+        
+        toast.success('Database unavailable. Appointment request sent via WhatsApp! You will receive a confirmation email or we will call you shortly.');
+        
+        // Reset form
+        setName('');
+        setEmail('');
+        setPhone('');
+        setSelectedTime('');
+        setDate(new Date());
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -447,19 +503,38 @@ const Appointment = () => {
                         Holiday: Appointments are not available on the selected date.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {timeSlots.map((ts) => (
-                          <Button
-                            key={ts.value}
-                            type="button"
-                            variant={selectedTime === ts.value ? 'default' : 'outline'}
-                            className={cn('justify-center', selectedTime === ts.value ? 'btn-appointment' : '')}
-                            disabled={ts.disabled}
-                            onClick={() => setSelectedTime(ts.value)}
-                          >
-                            {ts.label}
-                          </Button>
-                        ))}
+                      <div className="space-y-2">
+                        {isLoadingSlots && (
+                          <div className="text-sm text-muted-foreground">
+                            Loading available slots...
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {timeSlots.map((ts) => (
+                            <Button
+                              key={ts.value}
+                              type="button"
+                              variant={selectedTime === ts.value ? 'default' : 'outline'}
+                              className={cn(
+                                'justify-center', 
+                                selectedTime === ts.value ? 'btn-appointment' : '',
+                                ts.booked ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed' : ''
+                              )}
+                              disabled={ts.disabled}
+                              onClick={() => !ts.booked && setSelectedTime(ts.value)}
+                            >
+                              {ts.label}
+                              {ts.booked && (
+                                <span className="ml-1 text-xs">(Booked)</span>
+                              )}
+                            </Button>
+                          ))}
+                        </div>
+                        {bookedSlots.length > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            Red slots are already booked. Please select an available time.
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
