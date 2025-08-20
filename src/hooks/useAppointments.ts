@@ -1,23 +1,65 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { appointmentsApi, subscribeToAppointments, type Appointment } from '@/lib/supabase'
 import { useClinic } from '@/contexts/ClinicContext'
+
+// Cache for appointments by date
+const appointmentsCache = new Map<string, { data: Appointment[], timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+// Debounce utility
+const debounce = <T extends (...args: any[]) => any>(func: T, delay: number): T => {
+  let timeoutId: NodeJS.Timeout
+  return ((...args: any[]) => {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => func(...args), delay)
+  }) as T
+}
 
 export const useAppointments = () => {
   const { clinic } = useClinic()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastFetch, setLastFetch] = useState<number>(0)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Load initial appointments
-  const loadAppointments = useCallback(async () => {
+  // Load initial appointments with caching and optimization
+  const loadAppointments = useCallback(async (forceRefresh = false) => {
     if (!clinic?.id) return
+    
+    // Check cache first
+    const cacheKey = `appointments_${clinic.id}`
+    const cached = appointmentsCache.get(cacheKey)
+    const now = Date.now()
+    
+    if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
+      setAppointments(cached.data)
+      setLoading(false)
+      return
+    }
+    
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Create new abort controller
+    abortControllerRef.current = new AbortController()
     
     try {
       setLoading(true)
       setError(null)
+      
       const data = await appointmentsApi.getAll(clinic.id)
+      
+      // Update cache
+      appointmentsCache.set(cacheKey, { data, timestamp: now })
       setAppointments(data)
+      setLastFetch(now)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return // Request was cancelled
+      }
       setError(err instanceof Error ? err.message : 'Failed to load appointments')
     } finally {
       setLoading(false)
@@ -99,13 +141,25 @@ export const useAppointments = () => {
     }
   }, [])
 
-  // Get appointments by date
+  // Get appointments by date with caching
   const getAppointmentsByDate = useCallback(async (date: string) => {
     if (!clinic?.id) throw new Error('No clinic selected')
+    
+    // Check cache first
+    const cacheKey = `appointments_${clinic.id}_${date}`
+    const cached = appointmentsCache.get(cacheKey)
+    const now = Date.now()
+    
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return cached.data
+    }
     
     try {
       setError(null)
       const data = await appointmentsApi.getByDate(clinic.id, date)
+      
+      // Update cache
+      appointmentsCache.set(cacheKey, { data, timestamp: now })
       return data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load appointments by date')
@@ -127,36 +181,58 @@ export const useAppointments = () => {
     }
   }, [clinic?.id])
 
-  // Set up real-time subscription
+  // Optimized real-time subscription with debouncing
   useEffect(() => {
     if (!clinic?.id) return
     
     loadAppointments()
+
+    // Debounced cache invalidation
+    const debouncedCacheInvalidation = debounce(() => {
+      const cacheKey = `appointments_${clinic.id}`
+      appointmentsCache.delete(cacheKey)
+    }, 1000)
 
     const subscription = subscribeToAppointments((payload) => {
       // Only handle events for current clinic
       if (payload.new?.clinic_id === clinic.id || payload.old?.clinic_id === clinic.id) {
         if (payload.eventType === 'INSERT') {
           setAppointments(prev => [payload.new, ...prev])
+          debouncedCacheInvalidation()
         } else if (payload.eventType === 'UPDATE') {
           setAppointments(prev => 
             prev.map(apt => apt.id === payload.new.id ? payload.new : apt)
           )
+          debouncedCacheInvalidation()
         } else if (payload.eventType === 'DELETE') {
           setAppointments(prev => prev.filter(apt => apt.id !== payload.old.id))
+          debouncedCacheInvalidation()
         }
       }
     })
 
     return () => {
       subscription.unsubscribe()
+      // Cancel any pending requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
   }, [loadAppointments, clinic?.id])
 
+  // Memoized computed values for better performance
+  const memoizedAppointments = useMemo(() => appointments, [appointments])
+  const isStale = useMemo(() => {
+    const now = Date.now()
+    return (now - lastFetch) > CACHE_DURATION
+  }, [lastFetch])
+
   return {
-    appointments,
+    appointments: memoizedAppointments,
     loading,
     error,
+    isStale,
+    lastFetch,
     createAppointment,
     updateAppointment,
     deleteAppointment,
@@ -164,6 +240,9 @@ export const useAppointments = () => {
     bulkDeleteAppointments,
     getAppointmentsByDate,
     getAppointmentsByStatus,
-    refresh: loadAppointments
+    refresh: () => loadAppointments(true),
+    clearCache: () => {
+      appointmentsCache.clear()
+    }
   }
 }

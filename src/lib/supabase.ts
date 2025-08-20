@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { QueryOptimizer, QueryMonitor, BatchOperations } from './db-optimizations'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -120,42 +121,66 @@ export const clinicsApi = {
 }
 
 export const appointmentsApi = {
-  // Get all appointments for a clinic
+  // Get all appointments for a clinic (optimized with caching)
   async getAll(clinicId: string) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
-    return data
+    return QueryOptimizer.executeQuery(
+      `appointments_all_${clinicId}`,
+      async () => {
+        return QueryMonitor.monitorQuery('getAll', async () => {
+          const { data, error } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('clinic_id', clinicId)
+            .order('created_at', { ascending: false })
+          
+          if (error) throw error
+          return data
+        })
+      },
+      QueryOptimizer.CACHE_TTL.APPOINTMENTS
+    )
   },
 
-  // Get appointments by date for a clinic
+  // Get appointments by date for a clinic (optimized with caching)
   async getByDate(clinicId: string, date: string) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .eq('date', date)
-      .order('time', { ascending: true })
-    
-    if (error) throw error
-    return data
+    return QueryOptimizer.executeQuery(
+      `appointments_date_${clinicId}_${date}`,
+      async () => {
+        return QueryMonitor.monitorQuery('getByDate', async () => {
+          const { data, error } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('clinic_id', clinicId)
+            .eq('date', date)
+            .order('time', { ascending: true })
+          
+          if (error) throw error
+          return data
+        })
+      },
+      QueryOptimizer.CACHE_TTL.APPOINTMENTS
+    )
   },
 
-  // Get appointments by status for a clinic
+  // Get appointments by status for a clinic (optimized with caching)
   async getByStatus(clinicId: string, status: string) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .eq('status', status)
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
-    return data
+    return QueryOptimizer.executeQuery(
+      `appointments_status_${clinicId}_${status}`,
+      async () => {
+        return QueryMonitor.monitorQuery('getByStatus', async () => {
+          const { data, error } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('clinic_id', clinicId)
+            .eq('status', status)
+            .order('created_at', { ascending: false })
+          
+          if (error) throw error
+          return data
+        })
+      },
+      QueryOptimizer.CACHE_TTL.APPOINTMENTS
+    )
   },
 
   // Create new appointment
@@ -231,16 +256,24 @@ export const appointmentsApi = {
 }
 
 export const settingsApi = {
-  // Get settings for a clinic
+  // Get settings for a clinic (optimized with caching)
   async get(clinicId: string) {
-    const { data, error } = await supabase
-      .from('scheduling_settings')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .single()
-    
-    if (error && error.code !== 'PGRST116') throw error // PGRST116 is "not found"
-    return data
+    return QueryOptimizer.executeQuery(
+      `settings_${clinicId}`,
+      async () => {
+        return QueryMonitor.monitorQuery('getSettings', async () => {
+          const { data, error } = await supabase
+            .from('scheduling_settings')
+            .select('*')
+            .eq('clinic_id', clinicId)
+            .single()
+          
+          if (error && error.code !== 'PGRST116') throw error // PGRST116 is "not found"
+          return data
+        })
+      },
+      QueryOptimizer.CACHE_TTL.SETTINGS
+    )
   },
 
   // Create or update settings for a clinic

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -10,8 +10,8 @@ import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { appointmentsApi, settingsApi } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-import Navigation from '@/components/Navigation';
-import Footer from '@/components/Footer';
+import { QueryOptimizer } from '@/lib/db-optimizations';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -116,7 +116,18 @@ const Admin = () => {
   const [bookedSlotsForNewAppointment, setBookedSlotsForNewAppointment] = useState<string[]>([]);
   const [isLoadingSlotsForNewAppointment, setIsLoadingSlotsForNewAppointment] = useState(false);
   const [showUpcomingAppointments, setShowUpcomingAppointments] = useState(false);
-  const [upcomingPeriod, setUpcomingPeriod] = useState<'tomorrow' | 'next-week' | 'next-month'>('tomorrow');
+  const [upcomingPeriod, setUpcomingPeriod] = useState<'tomorrow' | 'next-week' | 'all'>('tomorrow');
+  const [generalNewAppointment, setGeneralNewAppointment] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    date: new Date(),
+    time: '',
+    selectedDate: new Date(),
+    isCalendarOpen: false
+  });
+  const [bookedSlotsForGeneral, setBookedSlotsForGeneral] = useState<string[]>([]);
+  const [isLoadingSlotsForGeneral, setIsLoadingSlotsForGeneral] = useState(false);
   
 
 
@@ -293,6 +304,9 @@ Please confirm by replying "Yes" or "No"`;
         await updateAppointment(appointmentId, { status: newStatus as any });
       }
       
+      // Clear cache to ensure fresh data
+      QueryOptimizer.clearCache('appointments');
+      
       // Update the editing appointment state
       if (editingAppointment && editingAppointment.id === appointmentId) {
         setEditingAppointment(prev => prev ? { ...prev, status: newStatus as any } : null);
@@ -309,6 +323,10 @@ Please confirm by replying "Yes" or "No"`;
       if (updateAppointment) {
         await updateAppointment(appointmentId, { status: 'Completed' });
       }
+      
+      // Clear cache to ensure fresh data
+      QueryOptimizer.clearCache('appointments');
+      
       toast.success('Appointment marked as completed');
     } catch (error) {
       toast.error('Failed to complete appointment');
@@ -321,6 +339,10 @@ Please confirm by replying "Yes" or "No"`;
         if (updateAppointment) {
           await updateAppointment(appointmentId, { status: 'Cancelled' });
         }
+        
+        // Clear cache to ensure fresh data
+        QueryOptimizer.clearCache('appointments');
+        
         toast.success('Appointment cancelled');
         
         // Show WhatsApp button for cancellation message
@@ -345,6 +367,10 @@ Please confirm by replying "Yes" or "No"`;
       if (deleteAppointment) {
         await deleteAppointment(appointmentId);
       }
+      
+      // Clear cache to ensure fresh data
+      QueryOptimizer.clearCache('appointments');
+      
       toast.success('Appointment deleted permanently');
     } catch (error) {
       toast.error('Failed to delete appointment');
@@ -374,6 +400,9 @@ Please confirm by replying "Yes" or "No"`;
         }
       }
 
+      // Clear cache to ensure fresh data
+      QueryOptimizer.clearCache('appointments');
+
       toast.success(`${cancelledAppointments.length} cancelled appointments deleted permanently`);
     } catch (error) {
       console.error('Error deleting all cancelled appointments:', error);
@@ -381,68 +410,7 @@ Please confirm by replying "Yes" or "No"`;
     }
   };
 
-  const getUpcomingAppointments = () => {
-    if (!realAppointments) return [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let startDate = new Date();
-    let endDate = new Date();
-
-    switch (upcomingPeriod) {
-      case 'tomorrow':
-        startDate.setDate(today.getDate() + 1);
-        endDate.setDate(today.getDate() + 1);
-        break;
-      case 'next-week':
-        startDate.setDate(today.getDate() + 1);
-        endDate.setDate(today.getDate() + 7);
-        break;
-      case 'next-month':
-        startDate.setDate(today.getDate() + 1);
-        endDate.setMonth(today.getMonth() + 1);
-        break;
-      default:
-        startDate.setDate(today.getDate() + 1);
-        endDate.setDate(today.getDate() + 1);
-    }
-
-    // Debug logging
-    console.log('Upcoming Appointments Debug:', {
-      totalAppointments: realAppointments.length,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      period: upcomingPeriod,
-      confirmedAppointments: realAppointments.filter(apt => apt.status === 'Confirmed').length
-    });
-
-    const filtered = realAppointments
-      .filter(apt => {
-        const appointmentDate = new Date(apt.date);
-        appointmentDate.setHours(0, 0, 0, 0);
-        
-        const isInRange = appointmentDate >= startDate && appointmentDate <= endDate;
-        const isConfirmed = apt.status === 'Confirmed';
-        
-        // Debug individual appointments
-        if (isConfirmed) {
-          console.log('Checking appointment:', {
-            name: apt.name,
-            date: apt.date,
-            appointmentDate: appointmentDate.toISOString(),
-            isInRange,
-            status: apt.status
-          });
-        }
-        
-        return isInRange && isConfirmed;
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    console.log('Filtered upcoming appointments:', filtered.length);
-    return filtered;
-  };
 
   const handleNewAppointmentForClient = (appointment: Appointment) => {
     const today = new Date();
@@ -563,6 +531,299 @@ Please confirm by replying "Yes" or "No"`;
       console.error('Error creating new appointment:', error);
       toast.error('Failed to create new appointment');
     }
+  };
+
+  // Phone number formatting function (same as appointment page)
+  const formatPhoneNumber = (phoneNumber: string): string => {
+    // Remove all non-digit characters
+    let cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Handle different input formats
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+      // Remove +91 prefix and return 10 digits
+      return cleaned.substring(2);
+    } else if (cleaned.startsWith('0') && cleaned.length === 11) {
+      // Remove leading 0 and return 10 digits
+      return cleaned.substring(1);
+    } else if (cleaned.length === 10) {
+      // Already 10 digits, return as is
+      return cleaned;
+    }
+    
+    // Return original if no formatting needed
+    return cleaned;
+  };
+
+  // Phone number validation function (same as appointment page)
+  const validatePhone = (phoneNumber: string): boolean => {
+    // Format the phone number first
+    const formatted = formatPhoneNumber(phoneNumber);
+    
+    // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
+    if (formatted.length === 10 && /^[6-9]\d{9}$/.test(formatted)) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Name formatting function (same as appointment page)
+  const formatName = (name: string): string => {
+    // Remove extra spaces and trim
+    let formatted = name.trim().replace(/\s+/g, ' ');
+    
+    // Convert to title case (first letter of each word capitalized)
+    formatted = formatted.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+    
+    return formatted;
+  };
+
+  // Email validation function (same as appointment page)
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleCreateGeneralAppointment = async () => {
+    // Validation checks (same as appointment page)
+    if (!generalNewAppointment.name || !generalNewAppointment.phone || !generalNewAppointment.time || !clinic?.id) {
+      toast.error('Please fill in all required fields and select a time slot');
+      return;
+    }
+
+    // Validate phone number
+    if (!validatePhone(generalNewAppointment.phone)) {
+      toast.error('Please enter a valid 10-digit mobile number (e.g., 9876543210, +91 9876543210, 09876543210)');
+      return;
+    }
+
+    // Validate email if provided
+    if (generalNewAppointment.email && !validateEmail(generalNewAppointment.email)) {
+      toast.error('Please enter a valid email address (e.g., user@example.com)');
+      return;
+    }
+
+    // Check if selected date is a holiday
+    if (isDateHolidayForGeneral(generalNewAppointment.selectedDate)) {
+      toast.error('Clinic is closed on the selected date. Please choose another date.');
+      return;
+    }
+
+    // Check if appointments are disabled
+    const daySettings = getDaySettingsForGeneral(generalNewAppointment.selectedDate);
+    if (daySettings.disabledAppointments) {
+      toast.error('Appointments are currently disabled. Please try again later.');
+      return;
+    }
+
+    try {
+      const newAppointment = {
+        clinic_id: clinic.id,
+        name: formatName(generalNewAppointment.name),
+        phone: formatPhoneNumber(generalNewAppointment.phone),
+        email: generalNewAppointment.email.trim(),
+        date: format(generalNewAppointment.selectedDate, 'yyyy-MM-dd'),
+        time: generalNewAppointment.time,
+        status: 'Confirmed' as const
+      };
+
+      await appointmentsApi.create(newAppointment);
+      
+      // Clear cache to ensure fresh data
+      QueryOptimizer.clearCache('appointments');
+      
+      toast.success(`New appointment created for ${generalNewAppointment.name} on ${format(generalNewAppointment.selectedDate, 'MMM dd, yyyy')} at ${generalNewAppointment.time}`);
+      setShowNewAppointmentDialog(false);
+      
+      // Reset form
+      setGeneralNewAppointment({
+        name: '',
+        phone: '',
+        email: '',
+        date: new Date(),
+        time: '',
+        selectedDate: new Date(),
+        isCalendarOpen: false
+      });
+    } catch (error) {
+      console.error('Error creating new appointment:', error);
+      toast.error('Failed to create new appointment');
+    }
+  };
+
+  // Function to initialize general appointment dialog
+  const handleOpenGeneralAppointmentDialog = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    setGeneralNewAppointment({
+      name: '',
+      phone: '',
+      email: '',
+      date: tomorrow,
+      time: '',
+      selectedDate: tomorrow,
+      isCalendarOpen: false
+    });
+    
+    setBookedSlotsForGeneral([]);
+    setShowNewAppointmentDialog(true);
+    
+    // Check booked slots for tomorrow's date when dialog opens
+    checkBookedSlotsForGeneral(tomorrow);
+  };
+
+  const checkBookedSlotsForGeneral = async (date: Date) => {
+    if (!clinic?.id) return;
+    
+    setIsLoadingSlotsForGeneral(true);
+    try {
+      const appointmentDate = format(date, 'yyyy-MM-dd');
+      console.log('Checking booked slots for date:', appointmentDate);
+      
+      // Force refresh appointments data to get latest bookings
+      // This bypasses cache to ensure we get real-time data
+      const freshAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
+      console.log('Fresh appointments for date:', freshAppointments);
+      
+      // Filter out cancelled appointments
+      const existingAppointments = freshAppointments.filter(apt => apt.status !== 'Cancelled');
+      console.log('Existing appointments (excluding cancelled):', existingAppointments);
+      
+      // Extract just the start times from the time ranges
+      const booked = existingAppointments.map(apt => {
+        const timeRange = apt.time; // e.g., "05:30 PM - 06:00 PM"
+        const startTime = timeRange.split(' - ')[0]; // e.g., "05:30 PM"
+        
+        // Convert 12-hour format to 24-hour format
+        const [time, period] = startTime.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        
+        let hour24 = hours;
+        if (period === 'PM' && hours !== 12) hour24 += 12;
+        if (period === 'AM' && hours === 12) hour24 = 0;
+        
+        return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      });
+      
+      console.log('Booked time slots (converted to 24-hour):', booked);
+      console.log('Current bookedSlotsForGeneral state:', bookedSlotsForGeneral);
+      
+      // Test time format matching
+      const testTime = '09:00';
+      console.log(`Testing if '${testTime}' is in booked slots:`, booked.includes(testTime));
+      console.log('Sample appointment time format:', existingAppointments[0]?.time);
+      
+      setBookedSlotsForGeneral(booked);
+    } catch (error) {
+      console.error('Error checking booked slots:', error);
+      setBookedSlotsForGeneral([]);
+    } finally {
+      setIsLoadingSlotsForGeneral(false);
+    }
+  };
+
+  // Get settings for the specific day of the week (same as appointment page)
+  const getDaySettingsForGeneral = (selectedDate: Date) => {
+    const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daySchedule = settings?.day_schedules?.[dayOfWeek];
+    
+    return {
+      startTime: daySchedule?.start_time || '09:00',
+      endTime: daySchedule?.end_time || '20:00',
+      breakStart: daySchedule?.break_start || '13:00',
+      breakEnd: daySchedule?.break_end || '14:00',
+      slotIntervalMinutes: daySchedule?.slot_interval_minutes || 30,
+      enabled: daySchedule?.enabled ?? true,
+      weeklyHolidays: settings?.weekly_holidays || [],
+      customHolidays: settings?.custom_holidays || [],
+      disabledAppointments: settings?.disabled_appointments || false,
+    };
+  };
+
+  // Check if a date is a holiday (same as appointment page)
+  const isDateHolidayForGeneral = (checkDate: Date): boolean => {
+    if (!settings) return false;
+    
+    const isoDate = format(checkDate, 'yyyy-MM-dd');
+    const dayOfWeek = checkDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Check weekly holidays (array of numbers: 0=Sunday, 1=Monday, etc.)
+    const weeklyHolidays = settings.weekly_holidays || [];
+    const isWeeklyHoliday = weeklyHolidays.includes(dayOfWeek);
+    
+    // Check custom holidays (array of date strings)
+    const customHolidays = settings.custom_holidays || [];
+    const isCustomHoliday = customHolidays.includes(isoDate);
+    
+    return isWeeklyHoliday || isCustomHoliday;
+  };
+
+  const generateTimeSlotsForGeneral = (dateForSlots: Date) => {
+    console.log('generateTimeSlotsForGeneral called with date:', dateForSlots);
+    console.log('Current bookedSlotsForGeneral state:', bookedSlotsForGeneral);
+    
+    const daySettings = getDaySettingsForGeneral(dateForSlots);
+    
+    // Check if the day is enabled
+    if (!daySettings.enabled) {
+      return [];
+    }
+    
+    // Check if it's a holiday
+    if (isDateHolidayForGeneral(dateForSlots)) {
+      return [];
+    }
+    
+    // Check if appointments are disabled globally
+    if (daySettings.disabledAppointments) {
+      return [];
+    }
+
+    const [startH, startM] = daySettings.startTime.split(':').map(Number);
+    const [endH, endM] = daySettings.endTime.split(':').map(Number);
+    const [breakStartH, breakStartM] = daySettings.breakStart.split(':').map(Number);
+    const [breakEndH, breakEndM] = daySettings.breakEnd.split(':').map(Number);
+
+    const start = new Date(dateForSlots);
+    start.setHours(startH, startM, 0, 0);
+    const end = new Date(dateForSlots);
+    end.setHours(endH, endM, 0, 0);
+    const breakStart = new Date(dateForSlots);
+    breakStart.setHours(breakStartH, breakStartM, 0, 0);
+    const breakEnd = new Date(dateForSlots);
+    breakEnd.setHours(breakEndH, breakEndM, 0, 0);
+
+    const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
+    const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
+
+    for (let t = start.getTime(); t < end.getTime(); t += intervalMs) {
+      const slotStart = new Date(t);
+      const slotEnd = new Date(t + intervalMs);
+
+      const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
+
+      const now = new Date();
+      const isToday = dateForSlots.toDateString() === now.toDateString();
+      const isPast = isToday && slotStart.getTime() <= now.getTime();
+
+      if (!overlapsBreak && slotEnd <= end) {
+        const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
+        const timeValue = format(slotStart, 'HH:mm');
+        const isBooked = bookedSlotsForGeneral.includes(timeValue);
+        
+        console.log(`Slot ${timeValue}: isBooked = ${isBooked}, bookedSlotsForGeneral =`, bookedSlotsForGeneral);
+        
+        slots.push({ 
+          label, 
+          value: timeValue, 
+          disabled: isPast || isBooked,
+          booked: isBooked
+        });
+      }
+    }
+
+    return slots;
   };
 
   const handleScheduleUpdate = (day: string, field: keyof DaySchedule, value: any) => {
@@ -791,7 +1052,7 @@ Please confirm by replying "Yes" or "No"`;
     }
   };
 
-  const [newCustomHoliday, setNewCustomHoliday] = useState('');
+  const [newCustomHoliday, setNewCustomHoliday] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const handleAddCustomHoliday = async () => {
     if (newCustomHoliday) {
@@ -884,24 +1145,122 @@ Please confirm by replying "Yes" or "No"`;
 
   // Use real appointments data if available, otherwise use empty array
   const realAppointments = appointments || [];
-  const filteredAppointments = realAppointments.filter(appointment => {
-    const matchesSearch = appointment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.phone.includes(searchTerm);
-    const matchesStatus = filterStatus === 'all' || appointment.status === filterStatus;
-    const matchesDate = !filterDate || appointment.date === filterDate;
-    return matchesSearch && matchesStatus && matchesDate;
-  });
 
-  const completedAppointments = realAppointments.filter(apt => apt.status === 'Completed').length;
-  const cancelledAppointments = realAppointments.filter(apt => apt.status === 'Cancelled').length;
-  const totalAppointments = realAppointments.length;
+  // Refresh booked slots for general appointment when appointments data changes
+  useEffect(() => {
+    if (showNewAppointmentDialog && generalNewAppointment.selectedDate) {
+      // Force refresh booked slots when dialog is open and appointments change
+      checkBookedSlotsForGeneral(generalNewAppointment.selectedDate);
+    }
+  }, [appointments, showNewAppointmentDialog, generalNewAppointment.selectedDate]);
+
+  // Additional effect to refresh slots when appointments change (for real-time updates)
+  useEffect(() => {
+    if (showNewAppointmentDialog && generalNewAppointment.selectedDate) {
+      // Small delay to ensure appointments data is updated
+      const timer = setTimeout(() => {
+        checkBookedSlotsForGeneral(generalNewAppointment.selectedDate);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [appointments]);
+
+  // Refresh general appointment dialog when settings change
+  useEffect(() => {
+    if (showNewAppointmentDialog && generalNewAppointment.selectedDate) {
+      // Refresh booked slots when settings change (holidays, working hours, etc.)
+      checkBookedSlotsForGeneral(generalNewAppointment.selectedDate);
+    }
+  }, [settings]);
+
+  // Memoized filtered appointments for better performance
+  const filteredAppointments = useMemo(() => {
+    return realAppointments.filter(appointment => {
+      const matchesSearch = appointment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           appointment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           appointment.phone.includes(searchTerm);
+      const matchesStatus = filterStatus === 'all' || appointment.status === filterStatus;
+      const matchesDate = !filterDate || appointment.date === filterDate;
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [realAppointments, searchTerm, filterStatus, filterDate]);
+
+  // Memoized appointment statistics for better performance
+  const appointmentStats = useMemo(() => {
+    const completed = realAppointments.filter(apt => apt.status === 'Completed').length;
+    const cancelled = realAppointments.filter(apt => apt.status === 'Cancelled').length;
+    const total = realAppointments.length;
+    return { completed, cancelled, total };
+  }, [realAppointments]);
+
+  const completedAppointments = appointmentStats.completed;
+  const cancelledAppointments = appointmentStats.cancelled;
+  const totalAppointments = appointmentStats.total;
+
+  // Memoized upcoming appointments for better performance
+  const upcomingAppointments = useMemo(() => {
+    if (!realAppointments) return [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    // Set both to start of day
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    switch (upcomingPeriod) {
+      case 'tomorrow':
+        startDate.setDate(today.getDate() + 1);
+        endDate.setDate(today.getDate() + 1);
+        break;
+      case 'next-week':
+        startDate.setDate(today.getDate() + 1);
+        endDate.setDate(today.getDate() + 7);
+        break;
+      case 'all':
+        startDate.setDate(today.getDate() + 1);
+        endDate.setFullYear(today.getFullYear() + 10); // Far future date to get all
+        break;
+      default:
+        startDate.setDate(today.getDate() + 1);
+        endDate.setDate(today.getDate() + 1);
+    }
+
+    return realAppointments
+      .filter(apt => {
+        const appointmentDate = new Date(apt.date);
+        appointmentDate.setHours(0, 0, 0, 0);
+        
+        const isInRange = appointmentDate >= startDate && appointmentDate <= endDate;
+        const isConfirmed = apt.status === 'Confirmed';
+        
+        return isInRange && isConfirmed;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [realAppointments, upcomingPeriod]);
+
+  const getUpcomingAppointments = () => upcomingAppointments;
 
   // Show loading while data is being fetched
   if (isLoading || clinicLoading || appointmentsLoading || settingsLoading) {
   return (
       <div className="min-h-screen bg-gray-50">
-        <Navigation />
+        {/* Centered Logo Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-center">
+              <img 
+                src="/src/assets/logo.png" 
+                alt="Dentia Smile Builder" 
+                className="h-12 w-auto"
+              />
+            </div>
+          </div>
+        </div>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -916,27 +1275,41 @@ Please confirm by replying "Yes" or "No"`;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Centered Clinic Name Header */}
+      <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-slate-200">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex justify-center">
+            <div className="text-center">
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+                Dentia Smile Builder
+              </h1>
+              <p className="text-slate-600 text-sm md:text-base font-medium">
+                Professional Dental Care Management
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <main className="py-4 md:py-8">
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
           <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600 mt-2">Manage appointments and clinic settings</p>
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent">Admin Dashboard</h1>
+              <p className="text-slate-600 mt-2">Manage appointments and clinic settings</p>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
               <Button 
                 onClick={() => setShowSettings(!showSettings)} 
                 variant="outline" 
-                className="flex items-center gap-2 text-sm"
+                className="flex items-center gap-2 text-sm border-2 border-slate-400 text-slate-700 hover:bg-slate-50 hover:border-slate-500 shadow-sm"
               >
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Settings</span>
               </Button>
-              <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 text-sm">
+              <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 text-sm border-2 border-red-400 text-red-700 hover:bg-red-50 hover:border-red-500 shadow-sm">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
@@ -945,48 +1318,48 @@ Please confirm by replying "Yes" or "No"`;
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-            <Card>
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Appointments</CardTitle>
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-blue-800">Total Appointments</CardTitle>
+                <CalendarIcon className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalAppointments}</div>
-                <p className="text-xs text-muted-foreground">All time</p>
+                <div className="text-2xl font-bold text-blue-900">{totalAppointments}</div>
+                <p className="text-xs text-blue-700">All time</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
+                <CardTitle className="text-sm font-medium text-green-800">Completed Today</CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{completedAppointments}</div>
-                <p className="text-xs text-muted-foreground">Finished appointments</p>
+                <div className="text-2xl font-bold text-green-900">{completedAppointments}</div>
+                <p className="text-xs text-green-700">Finished appointments</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cancelled Today</CardTitle>
+                <CardTitle className="text-sm font-medium text-red-800">Cancelled Today</CardTitle>
                 <X className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{cancelledAppointments}</div>
-                <p className="text-xs text-muted-foreground">Cancelled appointments</p>
+                <div className="text-2xl font-bold text-red-900">{cancelledAppointments}</div>
+                <p className="text-xs text-red-700">Cancelled appointments</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Cancelled Appointments Section */}
           {cancelledAppointments > 0 && (
-            <Card className="mb-6 md:mb-8">
+            <Card className="mb-6 md:mb-8 bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-red-700">Cancelled Appointments</CardTitle>
-                    <CardDescription>Recently cancelled appointments</CardDescription>
+                    <CardTitle className="text-red-800">Cancelled Appointments</CardTitle>
+                    <CardDescription className="text-red-700">Recently cancelled appointments</CardDescription>
                   </div>
                   <Button
                     size="sm"
@@ -996,7 +1369,7 @@ Please confirm by replying "Yes" or "No"`;
                         handleDeleteAllCancelledAppointments();
                       }
                     }}
-                    className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                    className="text-red-700 border-red-400 hover:bg-red-100 hover:text-red-800 hover:border-red-500"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Delete All
@@ -1009,7 +1382,7 @@ Please confirm by replying "Yes" or "No"`;
                     .filter(apt => apt.status === 'Cancelled')
                     .slice(0, 5)
                     .map((appointment) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                      <div key={appointment.id} className="flex items-center justify-between p-3 bg-red-100/50 rounded-lg border border-red-200">
                         <div className="flex items-center gap-3">
                           <User className="h-5 w-5 text-red-600" />
                           <div>
@@ -1024,7 +1397,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
-                            className="flex items-center gap-2 text-blue-600 border-blue-300 hover:bg-blue-50"
+                            className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 shadow-sm"
                             title="Call patient"
                           >
                             <Phone className="h-4 w-4" />
@@ -1034,7 +1407,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => handleWhatsApp(appointment.phone, 'cancellation', appointment)}
-                            className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50"
+                            className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-50 hover:border-green-500 shadow-sm"
                             title="Send WhatsApp message"
                           >
                             <WhatsAppIcon className="h-4 w-4" />
@@ -1048,7 +1421,7 @@ Please confirm by replying "Yes" or "No"`;
                                 handleDeleteAppointment(appointment.id);
                               }
                             }}
-                            className="flex items-center gap-2 text-red-600 border-red-300 hover:bg-red-50"
+                            className="flex items-center gap-2 text-red-600 border-2 border-red-400 hover:bg-red-50 hover:border-red-500 shadow-sm"
                             title="Delete appointment"
                           >
                             <X className="h-4 w-4" />
@@ -1065,33 +1438,33 @@ Please confirm by replying "Yes" or "No"`;
 
 
           {/* Search and Filter */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-6 p-4 bg-gradient-to-br from-slate-50 to-gray-100 rounded-lg border border-slate-200 shadow-sm">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="pl-10 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80"
                 />
               </div>
             </div>
             <div className="flex gap-2">
               <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   type="date"
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
-                  className="pl-10 pr-16 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 min-w-[140px] sm:min-w-[160px]"
+                  className="pl-10 pr-16 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 min-w-[140px] sm:min-w-[160px] bg-white/80"
                 />
                 {filterDate && filterDate !== format(new Date(), 'yyyy-MM-dd') && (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setFilterDate(format(new Date(), 'yyyy-MM-dd'))}
-                    className="absolute right-5 sm:right-6 top-1/2 transform -translate-y-1/2 h-6 w-6 sm:h-5 sm:w-5 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                    className="absolute right-5 sm:right-6 top-1/2 transform -translate-y-1/2 h-6 w-6 sm:h-5 sm:w-5 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded"
                     title="Reset to today"
                   >
                     <X className="h-3 w-3" />
@@ -1099,7 +1472,7 @@ Please confirm by replying "Yes" or "No"`;
                 )}
               </div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-[180px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                <SelectTrigger className="w-full sm:w-[180px] border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1111,8 +1484,8 @@ Please confirm by replying "Yes" or "No"`;
                 </SelectContent>
               </Select>
               <Button 
-                onClick={() => setShowNewAppointmentDialog(true)}
-                className="flex items-center gap-2"
+                onClick={handleOpenGeneralAppointmentDialog}
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg border-2 border-blue-500"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">New Appointment</span>
@@ -1122,22 +1495,22 @@ Please confirm by replying "Yes" or "No"`;
 
           {/* Filter Summary */}
           {(searchTerm || filterDate || filterStatus !== 'all') && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-100 border border-blue-200 rounded-lg shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-blue-800">
                   <span className="font-medium">Active Filters:</span>
                   {searchTerm && (
-                    <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                    <span className="px-2 py-1 bg-blue-200/50 rounded text-xs border border-blue-300">
                       Search: "{searchTerm}"
                     </span>
                   )}
                   {filterDate && (
-                    <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                    <span className="px-2 py-1 bg-blue-200/50 rounded text-xs border border-blue-300">
                       Date: {format(new Date(filterDate), 'MMM dd, yyyy')}
                     </span>
                   )}
                   {filterStatus !== 'all' && (
-                    <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                    <span className="px-2 py-1 bg-blue-200/50 rounded text-xs border border-blue-300">
                       Status: {filterStatus}
                     </span>
                   )}
@@ -1150,7 +1523,7 @@ Please confirm by replying "Yes" or "No"`;
                     setFilterDate(format(new Date(), 'yyyy-MM-dd'));
                     setFilterStatus('all');
                   }}
-                  className="text-xs"
+                  className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
                 >
                   Clear All
                 </Button>
@@ -1159,10 +1532,10 @@ Please confirm by replying "Yes" or "No"`;
           )}
 
           {/* Appointments Table */}
-          <Card>
+          <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
             <CardHeader>
-              <CardTitle>Appointments</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-purple-800">Appointments</CardTitle>
+              <CardDescription className="text-purple-600">
                 Filter and manage appointment details
               </CardDescription>
             </CardHeader>
@@ -1180,7 +1553,7 @@ Please confirm by replying "Yes" or "No"`;
                 </TableHeader>
                 <TableBody>
                     {filteredAppointments.map((appointment) => (
-                      <TableRow key={appointment.id}>
+                      <TableRow key={appointment.id} className="hover:bg-purple-50/50">
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -1197,7 +1570,7 @@ Please confirm by replying "Yes" or "No"`;
                                 size="sm"
                                 variant="outline"
                                 onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
-                                className="h-8 w-8 p-0 text-blue-600 border-blue-300 hover:bg-blue-50 flex-shrink-0"
+                                className="h-8 w-8 p-0 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 flex-shrink-0 shadow-sm"
                                 title="Call patient"
                               >
                                 <Phone className="h-3 w-3" />
@@ -1206,7 +1579,7 @@ Please confirm by replying "Yes" or "No"`;
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
-                                className="h-8 w-8 p-0 text-green-600 border-green-300 hover:bg-green-50 flex-shrink-0"
+                                className="h-8 w-8 p-0 text-green-600 border-2 border-green-400 hover:bg-green-50 hover:border-green-500 flex-shrink-0 shadow-sm"
                                 title="Send WhatsApp message"
                               >
                                 <WhatsAppIcon className="h-3 w-3" />
@@ -1240,7 +1613,7 @@ Please confirm by replying "Yes" or "No"`;
                               size="sm" 
                               variant="outline" 
                               onClick={() => handleEditAppointment(appointment)}
-                              className="h-8 px-2 text-blue-600 border-blue-300 hover:bg-blue-50 text-xs"
+                              className="h-8 px-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 text-xs shadow-sm"
                             >
                               <Edit className="h-3 w-3 mr-1" />
                               <span className="hidden sm:inline">Edit</span>
@@ -1262,19 +1635,20 @@ Please confirm by replying "Yes" or "No"`;
           </Card>
 
           {/* Upcoming Appointments Section */}
-          <Card className="mt-6 md:mt-8">
+          <Card className="mt-6 md:mt-8 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-blue-700">Upcoming Appointments</CardTitle>
-                  <CardDescription>View and manage future appointments</CardDescription>
+                  <CardTitle className="text-blue-800">Upcoming Appointments</CardTitle>
+                  <CardDescription className="text-blue-700">View and manage future appointments</CardDescription>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="upcoming-toggle" className="text-sm">Show Upcoming</Label>
+                <div className="flex items-center space-x-3 bg-blue-100/50 px-4 py-2 rounded-lg border border-blue-300">
+                  <Label htmlFor="upcoming-toggle" className="text-sm font-medium text-blue-800">Show Upcoming</Label>
                   <Switch
                     id="upcoming-toggle"
                     checked={showUpcomingAppointments}
                     onCheckedChange={setShowUpcomingAppointments}
+                    className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-blue-200"
                   />
                 </div>
               </div>
@@ -1288,7 +1662,7 @@ Please confirm by replying "Yes" or "No"`;
                       size="sm"
                       variant={upcomingPeriod === 'tomorrow' ? 'default' : 'outline'}
                       onClick={() => setUpcomingPeriod('tomorrow')}
-                      className="text-xs"
+                      className={`text-xs ${upcomingPeriod === 'tomorrow' ? 'bg-blue-600 hover:bg-blue-700' : 'border-2 border-blue-400 text-blue-600 hover:bg-blue-50 hover:border-blue-500 shadow-sm'}`}
                     >
                       Tomorrow
                     </Button>
@@ -1296,24 +1670,24 @@ Please confirm by replying "Yes" or "No"`;
                       size="sm"
                       variant={upcomingPeriod === 'next-week' ? 'default' : 'outline'}
                       onClick={() => setUpcomingPeriod('next-week')}
-                      className="text-xs"
+                      className={`text-xs ${upcomingPeriod === 'next-week' ? 'bg-blue-600 hover:bg-blue-700' : 'border-2 border-blue-400 text-blue-600 hover:bg-blue-50 hover:border-blue-500 shadow-sm'}`}
                     >
                       Next Week
                     </Button>
                     <Button
                       size="sm"
-                      variant={upcomingPeriod === 'next-month' ? 'default' : 'outline'}
-                      onClick={() => setUpcomingPeriod('next-month')}
-                      className="text-xs"
+                      variant={upcomingPeriod === 'all' ? 'default' : 'outline'}
+                      onClick={() => setUpcomingPeriod('all')}
+                      className={`text-xs ${upcomingPeriod === 'all' ? 'bg-blue-600 hover:bg-blue-700' : 'border-2 border-blue-400 text-blue-600 hover:bg-blue-50 hover:border-blue-500 shadow-sm'}`}
                     >
-                      Next Month
+                      All
                     </Button>
                   </div>
 
                   {/* Upcoming Appointments List */}
                   <div className="space-y-3">
                     {getUpcomingAppointments().map((appointment) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-100/50 rounded-lg border border-blue-200">
                         <div className="flex items-center gap-3">
                           <User className="h-5 w-5 text-blue-600" />
                           <div>
@@ -1328,7 +1702,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
-                            className="flex items-center gap-2 text-blue-600 border-blue-300 hover:bg-blue-50"
+                            className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 shadow-sm"
                             title="Call patient"
                           >
                             <Phone className="h-4 w-4" />
@@ -1338,7 +1712,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
-                            className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50"
+                            className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-50 hover:border-green-500 shadow-sm"
                             title="Send WhatsApp message"
                           >
                             <WhatsAppIcon className="h-4 w-4" />
@@ -1348,7 +1722,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => handleEditAppointment(appointment)}
-                            className="flex items-center gap-2 text-purple-600 border-purple-300 hover:bg-purple-50"
+                            className="flex items-center gap-2 text-purple-600 border-2 border-purple-400 hover:bg-purple-50 hover:border-purple-500 shadow-sm"
                             title="Edit appointment"
                           >
                             <Edit className="h-4 w-4" />
@@ -1370,10 +1744,10 @@ Please confirm by replying "Yes" or "No"`;
 
           {/* Settings Section */}
           {showSettings && (
-            <Card className="mt-6 md:mt-8">
+            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-emerald-50 to-teal-100 border-emerald-200 shadow-lg">
             <CardHeader>
-              <CardTitle>Scheduling Settings</CardTitle>
-                <CardDescription>Control the appointment window and slot generation</CardDescription>
+              <CardTitle className="text-emerald-800">Scheduling Settings</CardTitle>
+                <CardDescription className="text-emerald-700">Control the appointment window and slot generation</CardDescription>
             </CardHeader>
               <CardContent className="space-y-6">
                 {/* Disable Appointments */}
@@ -1830,7 +2204,206 @@ Please confirm by replying "Yes" or "No"`;
         </DialogContent>
       </Dialog>
 
-      <Footer />
+      {/* General New Appointment Dialog */}
+      <Dialog open={showNewAppointmentDialog} onOpenChange={setShowNewAppointmentDialog}>
+        <DialogContent className="sm:max-w-lg w-[95vw] sm:w-auto max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Create New Appointment</DialogTitle>
+            <DialogDescription>
+              Schedule a new appointment for any patient
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-5 px-2 pb-2">
+            {/* Patient Information */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Patient Name *</Label>
+                <Input
+                  id="name"
+                  value={generalNewAppointment.name}
+                  onChange={(e) => setGeneralNewAppointment(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter patient name"
+                  className="border-2 border-slate-300 focus:border-blue-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  value={generalNewAppointment.phone}
+                  onChange={(e) => setGeneralNewAppointment(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Enter phone number"
+                  className={cn(
+                    "border-2 focus:border-blue-500",
+                    generalNewAppointment.phone && !validatePhone(generalNewAppointment.phone) 
+                      ? "border-red-300 focus:border-red-500" 
+                      : "border-slate-300"
+                  )}
+                />
+                {generalNewAppointment.phone && !validatePhone(generalNewAppointment.phone) && (
+                  <div className="text-sm text-red-600">
+                    Please enter a valid 10-digit mobile number
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={generalNewAppointment.email}
+                  onChange={(e) => setGeneralNewAppointment(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Enter email address"
+                  className={cn(
+                    "border-2 focus:border-blue-500",
+                    generalNewAppointment.email && !validateEmail(generalNewAppointment.email) 
+                      ? "border-red-300 focus:border-red-500" 
+                      : "border-slate-300"
+                  )}
+                />
+                {generalNewAppointment.email && !validateEmail(generalNewAppointment.email) && (
+                  <div className="text-sm text-red-600">
+                    Please enter a valid email address
+                  </div>
+                )}
+                {!generalNewAppointment.email && (
+                  <div className="text-xs text-gray-500">
+                    We don't spam, so don't worry
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Date Selection */}
+            <div className="space-y-2">
+              <Label>Select Date</Label>
+              
+              {/* Holiday/Clinic Closed Messages */}
+              {generalNewAppointment.selectedDate && (
+                <>
+                  {isDateHolidayForGeneral(generalNewAppointment.selectedDate) && (
+                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+                      <AlertCircle className="h-4 w-4 inline mr-1" />
+                      Clinic is closed on this date
+                    </div>
+                  )}
+                  {getDaySettingsForGeneral(generalNewAppointment.selectedDate).disabledAppointments && (
+                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+                      <AlertCircle className="h-4 w-4 inline mr-1" />
+                      Appointments are currently disabled
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <Popover open={generalNewAppointment.isCalendarOpen} onOpenChange={(open) => setGeneralNewAppointment(prev => ({ ...prev, isCalendarOpen: open }))}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal border-2 border-slate-300 focus:border-blue-500"
+                    onClick={() => setGeneralNewAppointment(prev => ({ ...prev, isCalendarOpen: !prev.isCalendarOpen }))}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {generalNewAppointment.selectedDate ? (
+                      format(generalNewAppointment.selectedDate, 'PPP')
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={generalNewAppointment.selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setGeneralNewAppointment(prev => ({
+                          ...prev,
+                          selectedDate: date,
+                          isCalendarOpen: false,
+                          time: '' // Reset time when date changes
+                        }));
+                        // Check booked slots for the selected date
+                        checkBookedSlotsForGeneral(date);
+                      }
+                    }}
+                    initialFocus
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today;
+                    }}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Time Selection */}
+            <div className="space-y-3">
+              <Label>Select Time</Label>
+              {isLoadingSlotsForGeneral ? (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  Checking available slots...
+                </div>
+              ) : (
+                <>
+                  {generateTimeSlotsForGeneral(generalNewAppointment.selectedDate).length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p>No available slots for this date</p>
+                      <p className="text-sm">Clinic may be closed or all slots are booked</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {generateTimeSlotsForGeneral(generalNewAppointment.selectedDate).map((slot) => (
+                        <Button
+                          key={slot.value}
+                          type="button"
+                          variant={generalNewAppointment.time === slot.value ? 'default' : 'outline'}
+                          className={cn(
+                            'justify-center text-xs p-2 h-auto border-2',
+                            slot.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : 
+                            generalNewAppointment.time === slot.value ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' : 'border-slate-300 hover:border-blue-500'
+                          )}
+                          disabled={slot.disabled || slot.booked}
+                          onClick={() => !slot.booked && setGeneralNewAppointment(prev => ({ ...prev, time: slot.value }))}
+                        >
+                          {slot.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {bookedSlotsForGeneral.length > 0 && (
+                    <div className="text-xs text-gray-500">
+                      Red slots are unavailable. Please select an available time.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-6">
+            <Button
+              onClick={handleCreateGeneralAppointment}
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white w-full h-12 border-2 border-blue-500 shadow-lg"
+            >
+              <Plus className="h-4 w-4" />
+              Create Appointment
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowNewAppointmentDialog(false)}
+              className="flex items-center justify-center gap-2 w-full h-12 border-2 border-slate-300 hover:border-slate-400 shadow-sm"
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
