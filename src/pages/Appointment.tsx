@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -6,37 +6,92 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dentistChildImage from '@/assets/dentist-patient.jpg';
-// Frontend-only: send to WhatsApp
+import { toast } from 'sonner';
+import { appointmentsApi } from '@/lib/supabase';
+import { useClinic } from '@/contexts/ClinicContext';
+import { sendAppointmentConfirmation } from '@/lib/email';
+import { showAppointmentNotification, sendPushNotification } from '@/lib/notifications';
 
 const Appointment = () => {
+  const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
+  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [selectedTime, setSelectedTime] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  type SchedulingSettings = {
-    startTime: string; // "HH:MM"
-    endTime: string;   // "HH:MM"
-    breakStart: string; // "HH:MM"
-    breakEnd: string;   // "HH:MM"
-    slotIntervalMinutes: number;
-    weeklyHolidays: number[]; // 0-6 (Sun-Sat)
-    customHolidays: string[]; // ISO yyyy-MM-dd
-    disabledAppointments?: boolean;
+  // Phone number validation function
+  const validatePhone = (phoneNumber: string): boolean => {
+    // Remove all non-digit characters
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    
+    // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
+    if (cleaned.length === 10 && /^[6-9]\d{9}$/.test(cleaned)) {
+      return true;
+    }
+    
+    // Check if it's a valid Indian mobile number with country code (12 digits starting with 91)
+    if (cleaned.length === 12 && cleaned.startsWith('91') && /^91[6-9]\d{9}$/.test(cleaned)) {
+      return true;
+    }
+    
+    return false;
   };
 
-  const defaultSettings: SchedulingSettings = {
+  // Email validation function
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Handle phone input change with validation
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
+    
+    if (!value.trim()) {
+      setPhoneError('');
+      return;
+    }
+    
+    if (!validatePhone(value)) {
+      setPhoneError('Please enter a valid 10-digit mobile number (e.g., 9876543210)');
+    } else {
+      setPhoneError('');
+    }
+  };
+
+  // Handle email input change with validation
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    
+    if (!value.trim()) {
+      setEmailError('');
+      return;
+    }
+    
+    if (!validateEmail(value)) {
+      setEmailError('Please enter a valid email address (e.g., user@example.com)');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  // Default settings
+  const currentSettings = {
     startTime: '09:00',
     endTime: '20:00',
     breakStart: '13:00',
@@ -44,37 +99,21 @@ const Appointment = () => {
     slotIntervalMinutes: 30,
     weeklyHolidays: [],
     customHolidays: [],
+    disabledAppointments: false,
   };
-
-  const settings: SchedulingSettings = useMemo(() => {
-    try {
-      const raw = localStorage.getItem('clinicSchedulingSettings');
-      if (!raw) return defaultSettings;
-      const parsed = JSON.parse(raw);
-      return {
-        ...defaultSettings,
-        ...parsed,
-        slotIntervalMinutes: Number(parsed.slotIntervalMinutes) || defaultSettings.slotIntervalMinutes,
-        weeklyHolidays: Array.isArray(parsed.weeklyHolidays) ? parsed.weeklyHolidays : defaultSettings.weeklyHolidays,
-        customHolidays: Array.isArray(parsed.customHolidays) ? parsed.customHolidays : defaultSettings.customHolidays,
-      } as SchedulingSettings;
-    } catch {
-      return defaultSettings;
-    }
-  }, []);
 
   const isHoliday = (d: Date) => {
     const iso = format(d, 'yyyy-MM-dd');
-    const isWeeklyHoliday = settings.weeklyHolidays.includes(d.getDay());
-    const isCustomHoliday = settings.customHolidays.includes(iso);
+    const isWeeklyHoliday = currentSettings.weeklyHolidays.includes(d.getDay());
+    const isCustomHoliday = currentSettings.customHolidays.includes(iso);
     return isWeeklyHoliday || isCustomHoliday;
   };
 
   const generateTimeSlots = (dateForSlots: Date) => {
-    const [startH, startM] = settings.startTime.split(':').map(Number);
-    const [endH, endM] = settings.endTime.split(':').map(Number);
-    const [breakStartH, breakStartM] = settings.breakStart.split(':').map(Number);
-    const [breakEndH, breakEndM] = settings.breakEnd.split(':').map(Number);
+    const [startH, startM] = currentSettings.startTime.split(':').map(Number);
+    const [endH, endM] = currentSettings.endTime.split(':').map(Number);
+    const [breakStartH, breakStartM] = currentSettings.breakStart.split(':').map(Number);
+    const [breakEndH, breakEndM] = currentSettings.breakEnd.split(':').map(Number);
 
     const start = new Date(dateForSlots);
     start.setHours(startH, startM, 0, 0);
@@ -85,7 +124,7 @@ const Appointment = () => {
     const breakEnd = new Date(dateForSlots);
     breakEnd.setHours(breakEndH, breakEndM, 0, 0);
 
-    const intervalMs = settings.slotIntervalMinutes * 60 * 1000;
+    const intervalMs = currentSettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean }[] = [];
 
     if (isHoliday(dateForSlots)) {
@@ -113,16 +152,142 @@ const Appointment = () => {
     return slots;
   };
 
-  const timeSlots = useMemo(() => generateTimeSlots(date), [date, settings]);
+  const timeSlots = generateTimeSlots(date);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (settings.disabledAppointments) return;
-    const formattedDate = format(date, 'MMM dd, yyyy');
-    const message = `Hi, I'm ${name} (${email}, ${phone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
+    
+    // Validate email
+    if (!validateEmail(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    // Validate phone number
+    if (!validatePhone(phone)) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+    
+    if (currentSettings.disabledAppointments) {
+      toast.error('Appointments are currently disabled');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Format phone number for storage (remove all non-digits)
+      const formattedPhone = phone.replace(/\D/g, '');
+      
+      // Try to save to database first
+      if (clinic?.id) {
+        console.log('Saving to database with clinic ID:', clinic.id);
+        
+        const newAppointment = await appointmentsApi.create({
+          clinic_id: clinic.id,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: formattedPhone,
+          date: format(date, 'yyyy-MM-dd'),
+          time: selectedTime,
+          status: 'Confirmed'
+        });
+        
+        // Send confirmation email
+        const emailSent = await sendAppointmentConfirmation({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: formattedPhone,
+          date: format(date, 'yyyy-MM-dd'),
+          time: selectedTime,
+          status: 'Confirmed',
+          clinicName: clinic.name || 'Jeshna Dental Clinic',
+          clinicPhone: clinic.contact_phone || '6363116263',
+          clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
+        });
+        
+               // Show local notification
+       await showAppointmentNotification(newAppointment);
+       
+       // Send push notification to all subscribers
+       await sendPushNotification({
+         title: 'New Appointment Booked! 🦷',
+         body: `${newAppointment.name} - ${newAppointment.date} at ${newAppointment.time}`,
+         icon: '/logo.png',
+         data: {
+           url: '/admin',
+           appointment: newAppointment
+         }
+       });
+
+       if (emailSent) {
+         toast.success('Appointment booked successfully! Check your email for confirmation details.');
+       } else {
+         toast.success('Appointment booked successfully! We will contact you shortly.');
+       }
+        
+        // Reset form
+        setName('');
+        setEmail('');
+        setPhone('');
+        setSelectedTime('');
+        setDate(new Date());
+        
+      } else {
+        // Fallback to WhatsApp if no clinic ID
+        console.log('No clinic ID, falling back to WhatsApp');
+        const formattedDate = format(date, 'MMM dd, yyyy');
+        const message = `Hi, I'm ${name} (${email}, ${formattedPhone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
+        
+        toast.success('Appointment request sent via WhatsApp! You will receive a confirmation email or we will call you shortly.');
+        
+        // Reset form
+        setName('');
+        setEmail('');
+        setPhone('');
+        setSelectedTime('');
+        setDate(new Date());
+      }
+      
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      
+      // Fallback to WhatsApp if database fails
+      const formattedDate = format(date, 'MMM dd, yyyy');
+      const message = `Hi, I'm ${name} (${email}, ${phone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
+      const encodedMessage = encodeURIComponent(message);
+      window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
+      
+      toast.success('Database unavailable. Appointment request sent via WhatsApp! You will receive a confirmation email or we will call you shortly.');
+      
+      // Reset form
+      setName('');
+      setEmail('');
+      setPhone('');
+      setSelectedTime('');
+      setDate(new Date());
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Show loading while clinic context is loading
+  if (clinicLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -141,6 +306,10 @@ const Appointment = () => {
                     Book your appointment today for expert dental care tailored to your needs. 
                     Healthy, beautiful smiles start with a simple step, schedule now!
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    💌 We don't spam! Your email is only used for appointment confirmations and important updates.
+                  </p>
+
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -171,10 +340,25 @@ const Appointment = () => {
                       type="email"
                       placeholder="Enter your email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                       required
-                      className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
+                      className={cn(
+                        "w-full p-4 text-base border-2 rounded-xl focus:border-accent transition-colors",
+                        emailError ? "border-red-500 focus:border-red-500" : "border-border"
+                      )}
                     />
+                    {emailError && (
+                      <div className="flex items-center gap-2 text-sm text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        {emailError}
+                      </div>
+                    )}
+                    {email && !emailError && (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <CheckCircle className="h-4 w-4" />
+                        Valid email address
+                      </div>
+                    )}
                   </div>
 
                   {/* Phone Input */}
@@ -185,12 +369,27 @@ const Appointment = () => {
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="Enter your phone number"
+                      placeholder="Enter your 10-digit mobile number"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
                       required
-                      className="w-full p-4 text-base border-2 border-border rounded-xl focus:border-accent transition-colors"
+                      className={cn(
+                        "w-full p-4 text-base border-2 rounded-xl focus:border-accent transition-colors",
+                        phoneError ? "border-red-500 focus:border-red-500" : "border-border"
+                      )}
                     />
+                    {phoneError && (
+                      <div className="flex items-center gap-2 text-sm text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        {phoneError}
+                      </div>
+                    )}
+                    {phone && !phoneError && (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <CheckCircle className="h-4 w-4" />
+                        Valid phone number
+                      </div>
+                    )}
                   </div>
 
                   {/* Date Picker */}
@@ -239,7 +438,7 @@ const Appointment = () => {
                     <Label className="text-base font-medium text-primary">
                       Available Time Slots
                     </Label>
-                    {settings.disabledAppointments ? (
+                    {currentSettings.disabledAppointments ? (
                       <div className="text-sm text-destructive">
                         Appointments are temporarily disabled.
                       </div>
@@ -269,9 +468,17 @@ const Appointment = () => {
                   <Button 
                     type="submit" 
                     className="btn-appointment w-full text-lg py-4"
-                    disabled={settings.disabledAppointments || !name.trim() || !email.trim() || !phone.trim() || !selectedTime}
+                    disabled={
+                      currentSettings.disabledAppointments || 
+                      !name.trim() || 
+                      !email.trim() || 
+                      !phone.trim() || 
+                      !selectedTime ||
+                      !!phoneError ||
+                      isSubmitting
+                    }
                   >
-                    Send Appointment Request
+                    {isSubmitting ? 'Booking Appointment...' : 'Book Appointment'}
                   </Button>
                 </form>
               </div>
