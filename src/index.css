@@ -4,19 +4,33 @@
 
 /* Dentia Dental Clinic Design System - Mobile-first responsive design */
 
-/* Calendar styling fixes */
+/* Calendar day styling to maintain rounded corners */
 @layer components {
-  /* Force rounded corners for calendar day buttons */
   .rdp-day {
-    border-radius: 0.5rem !important;
+    border-radius: 0.375rem !important;
+  }
+  
+  .rdp-day:hover {
+    border-radius: 0.375rem !important;
   }
   
   .rdp-day_selected {
-    border-radius: 0.5rem !important;
+    border-radius: 0.375rem !important;
   }
   
   .rdp-day_today {
-    border-radius: 0.5rem !important;
+    border-radius: 0.375rem !important;
+  }
+  
+  /* Switch component visibility */
+  .switch-root {
+    border: 2px solid #d1d5db !important;
+    background-color: white !important;
+  }
+  
+  .switch-thumb {
+    background-color: white !important;
+    border: 1px solid #d1d5db !important;
   }
 }
 

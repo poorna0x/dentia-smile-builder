@@ -146,6 +146,55 @@ const Admin = () => {
     }, 1000);
   }, [navigate]);
 
+  // Sync local state with database settings
+  useEffect(() => {
+    if (settings) {
+      console.log('Syncing settings from database:', settings);
+      
+      // Convert database format to frontend format
+      const convertedSettings: SchedulingSettings = {
+        appointmentsDisabled: settings.disabled_appointments || false,
+        disableMessage: "We're currently not accepting new appointments. Please check back later or contact us directly.",
+        disableUntilDate: settings.disable_until_date || '',
+        disableUntilTime: settings.disable_until_time || '',
+        weeklyHolidays: (settings.weekly_holidays || []).map(dayNumber => {
+          // Convert number back to day name
+          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          return dayNames[dayNumber] || 'Sun';
+        }),
+        customHolidays: settings.custom_holidays || [],
+        daySchedules: {
+          Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
+          Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
+          Wed: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
+          Thu: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
+          Fri: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
+          Sat: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
+          Sun: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 }
+        }
+      };
+
+      // Convert day schedules from database format
+      if (settings.day_schedules) {
+        Object.entries(settings.day_schedules).forEach(([dayNumber, schedule]) => {
+          const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const dayName = dayNames[parseInt(dayNumber)] || 'Sun';
+          
+          convertedSettings.daySchedules[dayName as keyof typeof convertedSettings.daySchedules] = {
+            enabled: schedule.enabled ?? true,
+            startTime: schedule.start_time || '09:00',
+            endTime: schedule.end_time || '18:00',
+            breakStart: schedule.break_start || '13:00',
+            breakEnd: schedule.break_end || '14:00',
+            slotInterval: schedule.slot_interval_minutes || 30
+          };
+        });
+      }
+
+      setSchedulingSettings(convertedSettings);
+    }
+  }, [settings]);
+
   const handleLogout = () => {
     clearAdminSession();
     navigate('/admin/login');
@@ -448,6 +497,58 @@ Please confirm by replying "Yes" or "No"`;
     } catch (error) {
       console.error('Error saving day schedule:', error);
       toast.error('Failed to save day schedule');
+    }
+  };
+
+  const handleDisableAppointmentsToggle = async (checked: boolean) => {
+    setSchedulingSettings(prev => ({
+      ...prev,
+      appointmentsDisabled: checked
+    }));
+    
+    // Save to database
+    try {
+      if (clinic?.id) {
+        console.log('Saving disable appointments setting:', checked);
+        
+        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
+          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
+          if (dayNumber !== undefined) {
+            acc[dayNumber] = {
+              start_time: schedule.startTime,
+              end_time: schedule.endTime,
+              break_start: schedule.breakStart,
+              break_end: schedule.breakEnd,
+              slot_interval_minutes: schedule.slotInterval,
+              enabled: schedule.enabled
+            };
+          }
+          return acc;
+        }, {} as Record<number, any>);
+
+        const settingsData = {
+          clinic_id: clinic.id,
+          weekly_holidays: (schedulingSettings.weeklyHolidays || []).map(d => dayNumbers[d as keyof typeof dayNumbers]),
+          custom_holidays: (schedulingSettings.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
+          disabled_appointments: checked,
+          disabled_slots: [],
+          day_schedules: daySchedules,
+          notification_settings: {
+            email_notifications: true,
+            reminder_hours: 24,
+            auto_confirm: true
+          }
+        };
+        
+        console.log('Settings data to save:', settingsData);
+        
+        const result = await settingsApi.upsert(settingsData);
+        console.log('Disable appointments setting saved successfully:', result);
+        toast.success(checked ? 'Appointments disabled' : 'Appointments enabled');
+      }
+    } catch (error) {
+      console.error('Error saving disable appointments setting:', error);
+      toast.error('Failed to save setting');
     }
   };
 
@@ -982,51 +1083,14 @@ Please confirm by replying "Yes" or "No"`;
                       <Label className="text-base font-medium">Disable All Appointments</Label>
                       <p className="text-sm text-gray-600">Temporarily stop accepting new appointments</p>
                     </div>
-                    <div className="border-2 border-gray-300 rounded-lg p-1">
+                    <div className="border-2 border-gray-300 rounded-lg p-1 bg-white">
                       <Switch
                         checked={schedulingSettings.appointmentsDisabled}
-                        onCheckedChange={(checked) => setSchedulingSettings(prev => ({
-                          ...prev,
-                          appointmentsDisabled: checked
-                        }))}
+                        onCheckedChange={handleDisableAppointmentsToggle}
+                        className="border-2 border-gray-300"
                       />
                     </div>
                   </div>
-                  
-                  {schedulingSettings.appointmentsDisabled && (
-                    <div className="space-y-3 p-4 bg-yellow-50 rounded-lg">
-                      <Label htmlFor="disableMessage">Custom Message</Label>
-                      <Input
-                        id="disableMessage"
-                        value={schedulingSettings.disableMessage}
-                        onChange={(e) => setSchedulingSettings(prev => ({
-                          ...prev,
-                          disableMessage: e.target.value
-                        }))}
-                        placeholder="Enter custom message for disabled appointments"
-                      />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <Input
-                          type="date"
-                          value={schedulingSettings.disableUntilDate}
-                          onChange={(e) => setSchedulingSettings(prev => ({
-                            ...prev,
-                            disableUntilDate: e.target.value
-                          }))}
-                          placeholder="Disable until date"
-                        />
-                        <Input
-                          type="time"
-                          value={schedulingSettings.disableUntilTime}
-                          onChange={(e) => setSchedulingSettings(prev => ({
-                            ...prev,
-                            disableUntilTime: e.target.value
-                          }))}
-                          placeholder="Disable until time"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Weekly Holidays */}
@@ -1059,7 +1123,7 @@ Please confirm by replying "Yes" or "No"`;
                       value={newCustomHoliday}
                       onChange={(e) => setNewCustomHoliday(e.target.value)}
                     />
-                    <Button size="sm" variant="outline" onClick={handleAddCustomHoliday}>
+                    <Button size="sm" variant="outline" onClick={handleAddCustomHoliday} className="text-red-600 border-red-300 hover:bg-red-50">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1107,11 +1171,12 @@ Please confirm by replying "Yes" or "No"`;
                         <CardTitle className="text-lg">{selectedDay} Schedule</CardTitle>
                         <div className="flex items-center gap-2">
                           <Label htmlFor={`enabled-${selectedDay}`} className="text-sm">Enabled</Label>
-                          <div className="border-2 border-gray-300 rounded-lg p-1">
+                          <div className="border-2 border-gray-300 rounded-lg p-1 bg-white">
                             <Switch
                               id={`enabled-${selectedDay}`}
                               checked={schedulingSettings.daySchedules[selectedDay].enabled}
                               onCheckedChange={(checked) => handleScheduleUpdate(selectedDay, 'enabled', checked)}
+                              className="border-2 border-gray-300"
                             />
                           </div>
                         </div>
@@ -1399,11 +1464,7 @@ Please confirm by replying "Yes" or "No"`;
                       initialFocus
                       disabled={(date) => date < new Date()}
                       className={cn("p-3 pointer-events-auto")}
-                      classNames={{
-                        day_selected: "bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:bg-purple-700 !rounded-lg",
-                        day_today: "bg-accent text-accent-foreground rounded-lg !rounded-lg",
-                        day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
-                      }}
+
                     />
                   </PopoverContent>
                 </Popover>

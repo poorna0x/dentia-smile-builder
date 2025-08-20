@@ -617,11 +617,7 @@ const Appointment = () => {
                           }}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
-                          classNames={{
-                            day_selected: "bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:bg-purple-700 !rounded-lg",
-                            day_today: "bg-accent text-accent-foreground rounded-lg !rounded-lg",
-                            day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
-                          }}
+
                         />
                       </PopoverContent>
                     </Popover>
