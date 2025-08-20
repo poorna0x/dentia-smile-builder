@@ -29,3 +29,8 @@ SYSTEM_DOCUMENTATION.md
 NETLIFY_ENV_SETUP.md
 FIXES_SUMMARY.md
 MULTI_TENANT_ARCHITECTURE.md
+AUTOMATED_SETUP_GUIDE.md
+
+# Configuration files (not committed to repository)
+.env.local
+src/config/clinic.js
