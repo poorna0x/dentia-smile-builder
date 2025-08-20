@@ -381,6 +381,69 @@ Please confirm by replying "Yes" or "No"`;
     }
   };
 
+  const getUpcomingAppointments = () => {
+    if (!realAppointments) return [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let startDate = new Date();
+    let endDate = new Date();
+
+    switch (upcomingPeriod) {
+      case 'tomorrow':
+        startDate.setDate(today.getDate() + 1);
+        endDate.setDate(today.getDate() + 1);
+        break;
+      case 'next-week':
+        startDate.setDate(today.getDate() + 1);
+        endDate.setDate(today.getDate() + 7);
+        break;
+      case 'next-month':
+        startDate.setDate(today.getDate() + 1);
+        endDate.setMonth(today.getMonth() + 1);
+        break;
+      default:
+        startDate.setDate(today.getDate() + 1);
+        endDate.setDate(today.getDate() + 1);
+    }
+
+    // Debug logging
+    console.log('Upcoming Appointments Debug:', {
+      totalAppointments: realAppointments.length,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      period: upcomingPeriod,
+      confirmedAppointments: realAppointments.filter(apt => apt.status === 'Confirmed').length
+    });
+
+    const filtered = realAppointments
+      .filter(apt => {
+        const appointmentDate = new Date(apt.date);
+        appointmentDate.setHours(0, 0, 0, 0);
+        
+        const isInRange = appointmentDate >= startDate && appointmentDate <= endDate;
+        const isConfirmed = apt.status === 'Confirmed';
+        
+        // Debug individual appointments
+        if (isConfirmed) {
+          console.log('Checking appointment:', {
+            name: apt.name,
+            date: apt.date,
+            appointmentDate: appointmentDate.toISOString(),
+            isInRange,
+            status: apt.status
+          });
+        }
+        
+        return isInRange && isConfirmed;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    console.log('Filtered upcoming appointments:', filtered.length);
+    return filtered;
+  };
+
   const handleNewAppointmentForClient = (appointment: Appointment) => {
     const today = new Date();
     setNewAppointmentForClient({
@@ -999,6 +1062,8 @@ Please confirm by replying "Yes" or "No"`;
             </Card>
           )}
 
+
+
           {/* Search and Filter */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
@@ -1194,6 +1259,113 @@ Please confirm by replying "Yes" or "No"`;
                 </div>
               )}
             </CardContent>
+          </Card>
+
+          {/* Upcoming Appointments Section */}
+          <Card className="mt-6 md:mt-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-blue-700">Upcoming Appointments</CardTitle>
+                  <CardDescription>View and manage future appointments</CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="upcoming-toggle" className="text-sm">Show Upcoming</Label>
+                  <Switch
+                    id="upcoming-toggle"
+                    checked={showUpcomingAppointments}
+                    onCheckedChange={setShowUpcomingAppointments}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            {showUpcomingAppointments && (
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Period Selection Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={upcomingPeriod === 'tomorrow' ? 'default' : 'outline'}
+                      onClick={() => setUpcomingPeriod('tomorrow')}
+                      className="text-xs"
+                    >
+                      Tomorrow
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={upcomingPeriod === 'next-week' ? 'default' : 'outline'}
+                      onClick={() => setUpcomingPeriod('next-week')}
+                      className="text-xs"
+                    >
+                      Next Week
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={upcomingPeriod === 'next-month' ? 'default' : 'outline'}
+                      onClick={() => setUpcomingPeriod('next-month')}
+                      className="text-xs"
+                    >
+                      Next Month
+                    </Button>
+                  </div>
+
+                  {/* Upcoming Appointments List */}
+                  <div className="space-y-3">
+                    {getUpcomingAppointments().map((appointment) => (
+                      <div key={appointment.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <User className="h-5 w-5 text-blue-600" />
+                          <div>
+                            <div className="font-medium text-gray-900">{appointment.name}</div>
+                            <div className="text-sm text-gray-600">
+                              {format(new Date(appointment.date), 'yyyy-MM-dd')} at {appointment.time}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
+                            className="flex items-center gap-2 text-blue-600 border-blue-300 hover:bg-blue-50"
+                            title="Call patient"
+                          >
+                            <Phone className="h-4 w-4" />
+                            <span className="hidden sm:inline">Call</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
+                            className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50"
+                            title="Send WhatsApp message"
+                          >
+                            <WhatsAppIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline">WhatsApp</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditAppointment(appointment)}
+                            className="flex items-center gap-2 text-purple-600 border-purple-300 hover:bg-purple-50"
+                            title="Edit appointment"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="hidden sm:inline">Edit</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {getUpcomingAppointments().length === 0 && (
+                      <div className="text-center py-6 text-gray-500">
+                        No upcoming appointments found for the selected period.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            )}
           </Card>
 
           {/* Settings Section */}
