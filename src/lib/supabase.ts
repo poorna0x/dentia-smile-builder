@@ -233,7 +233,9 @@ export const settingsApi = {
   async upsert(settings: Omit<SchedulingSettings, 'id' | 'created_at' | 'updated_at'>) {
     const { data, error } = await supabase
       .from('scheduling_settings')
-      .upsert([settings])
+      .upsert([settings], {
+        onConflict: 'clinic_id' // Specify which column to use for conflict resolution
+      })
       .select()
       .single()
     

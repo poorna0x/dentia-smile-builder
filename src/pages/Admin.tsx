@@ -6,7 +6,7 @@ import { isAdminLoggedIn, clearAdminSession } from '@/lib/auth';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
-import { appointmentsApi } from '@/lib/supabase';
+import { appointmentsApi, settingsApi } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -129,6 +129,9 @@ const Admin = () => {
   });
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  // Day name to number mapping
+  const dayNumbers = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
 
   useEffect(() => {
     // Check if admin is logged in
@@ -401,24 +404,105 @@ Please confirm by replying "Yes" or "No"`;
     }));
   };
 
-  const handleWeeklyHolidayToggle = (day: string) => {
+  const handleWeeklyHolidayToggle = async (day: string) => {
+    // Convert day name to number (0=Sunday, 1=Monday, etc.)
+    const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
+    
+    const currentWeeklyHolidays = schedulingSettings.weeklyHolidays || [];
+    const updatedWeeklyHolidays = currentWeeklyHolidays.includes(day)
+      ? currentWeeklyHolidays.filter(d => d !== day)
+      : [...currentWeeklyHolidays, day];
+    
+    // Convert to numbers for database
+    const weeklyHolidayNumbers = updatedWeeklyHolidays.map(d => dayNumbers[d as keyof typeof dayNumbers]);
+    
     setSchedulingSettings(prev => ({
       ...prev,
-      weeklyHolidays: prev.weeklyHolidays.includes(day)
-        ? prev.weeklyHolidays.filter(d => d !== day)
-        : [...prev.weeklyHolidays, day]
+      weeklyHolidays: updatedWeeklyHolidays
     }));
+    
+    // Save to database
+    try {
+      if (clinic?.id) {
+        console.log('Saving weekly holidays for clinic:', clinic.id);
+        console.log('Weekly holiday numbers:', weeklyHolidayNumbers);
+        
+        // Convert day schedules to the correct format
+        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
+          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
+          if (dayNumber !== undefined) {
+            acc[dayNumber] = {
+              start_time: schedule.startTime,
+              end_time: schedule.endTime,
+              break_start: schedule.breakStart,
+              break_end: schedule.breakEnd,
+              slot_interval_minutes: schedule.slotInterval,
+              enabled: schedule.enabled
+            };
+          }
+          return acc;
+        }, {} as Record<number, any>);
+
+        const settingsData = {
+          clinic_id: clinic.id,
+          weekly_holidays: weeklyHolidayNumbers,
+          custom_holidays: (schedulingSettings.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
+          disabled_appointments: schedulingSettings.appointmentsDisabled,
+          disabled_slots: [],
+          day_schedules: daySchedules,
+          notification_settings: {
+            email_notifications: true,
+            reminder_hours: 24,
+            auto_confirm: true
+          }
+        };
+        
+        console.log('Settings data to save:', settingsData);
+        
+        const result = await settingsApi.upsert(settingsData);
+        console.log('Settings saved successfully:', result);
+        toast.success('Weekly holidays updated');
+      }
+    } catch (error) {
+      console.error('Error saving weekly holidays:', error);
+      toast.error('Failed to save weekly holidays');
+    }
   };
 
   const [newCustomHoliday, setNewCustomHoliday] = useState('');
 
-  const handleAddCustomHoliday = () => {
+  const handleAddCustomHoliday = async () => {
     if (newCustomHoliday) {
+      const updatedCustomHolidays = [...schedulingSettings.customHolidays, newCustomHoliday];
+      
       setSchedulingSettings(prev => ({
         ...prev,
-        customHolidays: [...prev.customHolidays, newCustomHoliday]
+        customHolidays: updatedCustomHolidays
       }));
       setNewCustomHoliday('');
+      
+      // Save to database
+      try {
+        if (clinic?.id) {
+          await settingsApi.upsert({
+            clinic_id: clinic.id,
+            weekly_holidays: schedulingSettings.weeklyHolidays.map(d => dayNumbers[d as keyof typeof dayNumbers]),
+            custom_holidays: updatedCustomHolidays.map(date => new Date(date).toISOString().split('T')[0]), // Convert to DATE format
+            disabled_appointments: schedulingSettings.appointmentsDisabled,
+            disabled_slots: [],
+            day_schedules: {},
+            notification_settings: {
+              email_notifications: true,
+              reminder_hours: 24,
+              auto_confirm: true
+            }
+          });
+          toast.success('Custom holiday added');
+        }
+      } catch (error) {
+        console.error('Error saving custom holiday:', error);
+        toast.error('Failed to save custom holiday');
+      }
     }
   };
 

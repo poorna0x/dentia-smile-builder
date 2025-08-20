@@ -13,16 +13,31 @@ import dentistChildImage from '@/assets/dentist-patient.jpg';
 import { toast } from 'sonner';
 import { appointmentsApi } from '@/lib/supabase';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useSettings } from '@/hooks/useSettings';
 import { sendAppointmentConfirmation } from '@/lib/email';
 import { showAppointmentNotification, sendPushNotification } from '@/lib/notifications';
 
 const Appointment = () => {
   const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
+  const { settings, loading: settingsLoading } = useSettings();
+
+  // Debug: Log settings structure
+  useEffect(() => {
+    if (settings) {
+      console.log('Settings object:', settings);
+      console.log('Settings keys:', Object.keys(settings));
+    }
+  }, [settings]);
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date>(() => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    return tomorrow; // Start with tomorrow, will be updated when settings load
+  });
   const [selectedTime, setSelectedTime] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [phoneError, setPhoneError] = useState('');
@@ -31,12 +46,71 @@ const Appointment = () => {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
+  // Get next available booking date (skip holidays)
+  const getNextAvailableDate = (): Date => {
+    const today = new Date();
+    let nextDate = new Date(today);
+    nextDate.setDate(today.getDate() + 1); // Start with tomorrow
+    
+    // Check up to 30 days ahead to find an available date
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() + i + 1);
+      
+      // Check if it's a holiday
+      const isHoliday = isDateHoliday(checkDate);
+      if (!isHoliday) {
+        return checkDate;
+      }
+    }
+    
+    // Fallback to tomorrow if all dates are holidays
+    return nextDate;
+  };
+
+  // Check if a date is a holiday
+  const isDateHoliday = (checkDate: Date): boolean => {
+    if (!settings) return false;
+    
+    const isoDate = format(checkDate, 'yyyy-MM-dd');
+    const dayOfWeek = checkDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Check weekly holidays (array of numbers: 0=Sunday, 1=Monday, etc.)
+    const weeklyHolidays = settings.weekly_holidays || [];
+    const isWeeklyHoliday = weeklyHolidays.includes(dayOfWeek);
+    
+    // Check custom holidays (array of date strings)
+    const customHolidays = settings.custom_holidays || [];
+    const isCustomHoliday = customHolidays.includes(isoDate);
+    
+    console.log('Holiday check:', {
+      date: isoDate,
+      dayOfWeek,
+      weeklyHolidays,
+      customHolidays,
+      isWeeklyHoliday,
+      isCustomHoliday
+    });
+    
+    return isWeeklyHoliday || isCustomHoliday;
+  };
+
+  // Update date to next available date when settings load
+  useEffect(() => {
+    if (settings && !settingsLoading) {
+      const nextAvailableDate = getNextAvailableDate();
+      setDate(nextAvailableDate);
+    }
+  }, [settings, settingsLoading]);
+
+
+
   // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Check for booked slots when date changes
+  // Check for booked slots when date changes or appointments update
   useEffect(() => {
     const checkBookedSlots = async () => {
       if (!clinic?.id) return;
@@ -61,6 +135,9 @@ const Appointment = () => {
     };
 
     checkBookedSlots();
+
+    // Note: Real-time subscription will be implemented later
+    // For now, slots will refresh when date changes or page reloads
   }, [date, clinic?.id]);
 
   // Phone number validation function
@@ -119,23 +196,20 @@ const Appointment = () => {
     }
   };
 
-  // Default settings
+  // Get current settings or use defaults
   const currentSettings = {
-    startTime: '09:00',
-    endTime: '20:00',
-    breakStart: '13:00',
-    breakEnd: '14:00',
-    slotIntervalMinutes: 30,
-    weeklyHolidays: [],
-    customHolidays: [],
-    disabledAppointments: false,
+    startTime: settings?.day_schedules?.[0]?.start_time || '09:00',
+    endTime: settings?.day_schedules?.[0]?.end_time || '20:00',
+    breakStart: settings?.day_schedules?.[0]?.break_start || '13:00',
+    breakEnd: settings?.day_schedules?.[0]?.break_end || '14:00',
+    slotIntervalMinutes: settings?.day_schedules?.[0]?.slot_interval_minutes || 30,
+    weeklyHolidays: settings?.weekly_holidays || [],
+    customHolidays: settings?.custom_holidays || [],
+    disabledAppointments: settings?.disabled_appointments || false,
   };
 
   const isHoliday = (d: Date) => {
-    const iso = format(d, 'yyyy-MM-dd');
-    const isWeeklyHoliday = currentSettings.weeklyHolidays.includes(d.getDay());
-    const isCustomHoliday = currentSettings.customHolidays.includes(iso);
-    return isWeeklyHoliday || isCustomHoliday;
+    return isDateHoliday(d);
   };
 
   const generateTimeSlots = (dateForSlots: Date) => {
@@ -167,10 +241,11 @@ const Appointment = () => {
       // Exclude slots overlapping the break window
       const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
 
-      // Disable past times if the selected date is today
+      // Disable past times and times within 1 hour if the selected date is today
       const now = new Date();
       const isToday = dateForSlots.toDateString() === now.toDateString();
-      const isPast = isToday && slotStart.getTime() <= now.getTime();
+      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+      const isPast = isToday && slotStart.getTime() <= oneHourFromNow.getTime();
 
       if (!overlapsBreak && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
@@ -345,6 +420,45 @@ const Appointment = () => {
     );
   }
 
+  // Show loading while clinic and settings are loading
+  if (clinicLoading || settingsLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <main className="py-12 lg:py-20">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading appointment page...</p>
+                {clinicLoading && <p className="text-sm text-gray-500 mt-2">Loading clinic data...</p>}
+                {settingsLoading && <p className="text-sm text-gray-500 mt-2">Loading settings...</p>}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show error if clinic failed to load
+  if (clinicError) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <main className="py-12 lg:py-20">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="text-center">
+                <p className="text-red-600">Error loading clinic data. Please refresh the page.</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Navigation />
@@ -476,14 +590,21 @@ const Appointment = () => {
                               setIsCalendarOpen(false);
                             }
                           }}
-                          // Disable past dates + Sundays
+                          // Disable past dates and holidays
                           disabled={(day) => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
-                            return day < today || day.getDay() === 0;
+                            const isPast = day < today;
+                            const isHoliday = isDateHoliday(day);
+                            return isPast || isHoliday;
                           }}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
+                          classNames={{
+                            day_selected: "bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:bg-purple-700",
+                            day_today: "bg-accent text-accent-foreground rounded-lg",
+                            day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
+                          }}
                         />
                       </PopoverContent>
                     </Popover>
@@ -500,7 +621,7 @@ const Appointment = () => {
                       </div>
                     ) : timeSlots.length === 0 ? (
                       <div className="text-sm text-destructive">
-                        Holiday: Appointments are not available on the selected date.
+                        Clinic is closed on this date.
                       </div>
                     ) : (
                       <div className="space-y-2">
