@@ -506,11 +506,58 @@ Please confirm by replying "Yes" or "No"`;
     }
   };
 
-  const handleRemoveCustomHoliday = (holiday: string) => {
+  const handleRemoveCustomHoliday = async (holiday: string) => {
+    const updatedCustomHolidays = schedulingSettings.customHolidays.filter(h => h !== holiday);
+    
     setSchedulingSettings(prev => ({
       ...prev,
-      customHolidays: prev.customHolidays.filter(h => h !== holiday)
+      customHolidays: updatedCustomHolidays
     }));
+    
+    // Save to database
+    try {
+      if (clinic?.id) {
+        console.log('Removing custom holiday:', holiday);
+        
+        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
+          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
+          if (dayNumber !== undefined) {
+            acc[dayNumber] = {
+              start_time: schedule.startTime,
+              end_time: schedule.endTime,
+              break_start: schedule.breakStart,
+              break_end: schedule.breakEnd,
+              slot_interval_minutes: schedule.slotInterval,
+              enabled: schedule.enabled
+            };
+          }
+          return acc;
+        }, {} as Record<number, any>);
+
+        const settingsData = {
+          clinic_id: clinic.id,
+          weekly_holidays: (schedulingSettings.weeklyHolidays || []).map(d => dayNumbers[d as keyof typeof dayNumbers]),
+          custom_holidays: updatedCustomHolidays.map(date => new Date(date).toISOString().split('T')[0]),
+          disabled_appointments: schedulingSettings.appointmentsDisabled,
+          disabled_slots: [],
+          day_schedules: daySchedules,
+          notification_settings: {
+            email_notifications: true,
+            reminder_hours: 24,
+            auto_confirm: true
+          }
+        };
+        
+        console.log('Settings data after removing custom holiday:', settingsData);
+        
+        const result = await settingsApi.upsert(settingsData);
+        console.log('Settings updated successfully after removing custom holiday:', result);
+        toast.success('Custom holiday removed');
+      }
+    } catch (error) {
+      console.error('Error removing custom holiday:', error);
+      toast.error('Failed to remove custom holiday');
+    }
   };
 
   // Use real appointments data if available, otherwise use empty array
