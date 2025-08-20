@@ -92,6 +92,28 @@ const BookingComplete: React.FC = () => {
             </p>
           </div>
 
+          {/* WhatsApp Query Banner */}
+          <div className="mb-8 p-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <WhatsAppIcon className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-green-800 text-lg">Have any questions?</h3>
+                  <p className="text-green-700 text-sm">WhatsApp us for quick responses to your queries</p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleWhatsApp}
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 flex items-center space-x-2 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+              >
+                <WhatsAppIcon className="w-5 h-5" />
+                <span className="font-semibold">WhatsApp Us</span>
+              </Button>
+            </div>
+          </div>
+
           {/* Appointment Details Card */}
           <Card className="mb-8 shadow-lg border-0 bg-white">
             <CardHeader className="text-center pb-4">
@@ -145,7 +167,7 @@ const BookingComplete: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Button 
                   onClick={handleCall}
                   className="h-16 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
@@ -154,16 +176,6 @@ const BookingComplete: React.FC = () => {
                   <span className="font-semibold">Call Clinic</span>
                 </Button>
                 
-                <Button 
-                  onClick={handleWhatsApp}
-                  className="h-16 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
-                >
-                  <WhatsAppIcon className="w-6 h-6" />
-                  <span className="font-semibold">WhatsApp</span>
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button 
                   onClick={handleDirections}
                   variant="outline"
