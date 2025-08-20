@@ -59,6 +59,7 @@ interface DaySchedule {
   endTime: string;
   breakStart: string;
   breakEnd: string;
+  slotIntervalMinutes: number;
   enabled: boolean;
 }
 
@@ -137,13 +138,13 @@ const Admin = () => {
     breakEnd: '14:00',
     slotIntervalMinutes: 30,
     daySchedules: {
-      0: { startTime: '10:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', enabled: false }, // Sunday
-      1: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', enabled: true },  // Monday
-      2: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', enabled: true },  // Tuesday
-      3: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', enabled: true },  // Wednesday
-      4: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', enabled: true },  // Thursday
-      5: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', enabled: true },  // Friday
-      6: { startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', enabled: false }, // Saturday
+      0: { startTime: '10:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: false }, // Sunday
+      1: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: true },  // Monday
+      2: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: true },  // Tuesday
+      3: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: true },  // Wednesday
+      4: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: true },  // Thursday
+      5: { startTime: '09:00', endTime: '20:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: true },  // Friday
+      6: { startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotIntervalMinutes: 30, enabled: false }, // Saturday
     },
     weeklyHolidays: [],
     customHolidays: [],
@@ -155,8 +156,11 @@ const Admin = () => {
     try {
       const raw = localStorage.getItem('clinicSchedulingSettings');
       if (!raw) return defaultSettings;
+      
       const parsed = JSON.parse(raw);
-      return {
+      
+      // Ensure all required properties exist with proper fallbacks
+      const loadedSettings = {
         ...defaultSettings,
         ...parsed,
         slotIntervalMinutes: Number(parsed.slotIntervalMinutes) || defaultSettings.slotIntervalMinutes,
@@ -166,13 +170,33 @@ const Admin = () => {
         disabledAppointments: Boolean(parsed.disabledAppointments),
         disabledSlots: Array.isArray(parsed.disabledSlots) ? parsed.disabledSlots : defaultSettings.disabledSlots,
       };
-    } catch {
+
+      // Validate and fix daySchedules if needed
+      if (loadedSettings.daySchedules) {
+        for (let i = 0; i <= 6; i++) {
+          if (!loadedSettings.daySchedules[i]) {
+            loadedSettings.daySchedules[i] = defaultSettings.daySchedules[i];
+          } else {
+            // Ensure each day schedule has all required properties
+            loadedSettings.daySchedules[i] = {
+              ...defaultSettings.daySchedules[i],
+              ...loadedSettings.daySchedules[i],
+              slotIntervalMinutes: Number(loadedSettings.daySchedules[i].slotIntervalMinutes) || defaultSettings.daySchedules[i].slotIntervalMinutes,
+            };
+          }
+        }
+      }
+
+      console.log('Settings loaded successfully from localStorage');
+      return loadedSettings;
+    } catch (error) {
+      console.error('Error loading settings from localStorage:', error);
       return defaultSettings;
     }
   };
 
   const [settings, setSettings] = useState<SchedulingSettings>(loadSettings());
-  const [selectedDayForSchedule, setSelectedDayForSchedule] = useState<number | null>(null);
+  const [selectedDayForSchedule, setSelectedDayForSchedule] = useState<number | null>(1); // Default to Monday
 
   const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -218,7 +242,7 @@ const Admin = () => {
     setSettings((s) => ({ ...s, customHolidays: formatted }));
   };
 
-  const updateDaySchedule = (dayIndex: number, field: keyof DaySchedule, value: string | boolean) => {
+  const updateDaySchedule = (dayIndex: number, field: keyof DaySchedule, value: string | boolean | number) => {
     setSettings((prev) => ({
       ...prev,
       daySchedules: {
@@ -253,84 +277,95 @@ const Admin = () => {
   };
 
   const handleCancelAppointment = (appointment: Appointment) => {
-    setAppointments(prev => 
-      prev.map(apt => 
-        apt.id === appointment.id 
-          ? { ...apt, status: 'Cancelled' as const }
-          : apt
-      )
-    );
-    
-    // Send automated email (simulated)
-    console.log(`Sending cancellation email to ${appointment.email}`);
-    
-    setEditDialogOpen(false);
-    setSelectedAppointment(null);
+    if (window.confirm(`Are you sure you want to cancel the appointment for ${appointment.name}? This will send a cancellation email to the patient.`)) {
+      setAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointment.id 
+            ? { ...apt, status: 'Cancelled' as const }
+            : apt
+        )
+      );
+      
+      // Send automated email (simulated)
+      console.log(`Sending cancellation email to ${appointment.email}`);
+      
+      setEditDialogOpen(false);
+      setSelectedAppointment(null);
+    }
   };
 
   const handleRescheduleAppointment = () => {
     if (!selectedAppointment || !rescheduleDate || !rescheduleTime) return;
 
     const newDate = format(rescheduleDate, 'yyyy-MM-dd');
+    const newDateTime = `${newDate} at ${rescheduleTime}`;
     
-    setAppointments(prev => 
-      prev.map(apt => 
-        apt.id === selectedAppointment.id 
-          ? { 
-              ...apt, 
-              status: 'Rescheduled' as const,
-              originalDate: apt.date,
-              originalTime: apt.time,
-              date: newDate,
-              time: rescheduleTime
-            }
-          : apt
-      )
-    );
-    
-    // Send automated email (simulated)
-    console.log(`Sending reschedule email to ${selectedAppointment.email}`);
-    
-    setEditDialogOpen(false);
-    setSelectedAppointment(null);
+    if (window.confirm(`Are you sure you want to reschedule ${selectedAppointment.name}'s appointment from ${selectedAppointment.date} at ${selectedAppointment.time} to ${newDateTime}? This will send a reschedule email to the patient.`)) {
+      setAppointments(prev => 
+        prev.map(apt => 
+          apt.id === selectedAppointment.id 
+            ? { 
+                ...apt, 
+                status: 'Rescheduled' as const,
+                originalDate: apt.date,
+                originalTime: apt.time,
+                date: newDate,
+                time: rescheduleTime
+              }
+            : apt
+        )
+      );
+      
+      // Send automated email (simulated)
+      console.log(`Sending reschedule email to ${selectedAppointment.email}`);
+      
+      setEditDialogOpen(false);
+      setSelectedAppointment(null);
+    }
   };
 
   const handleMarkAsCompleted = (appointment: Appointment) => {
-    setAppointments(prev => 
-      prev.map(apt => 
-        apt.id === appointment.id 
-          ? { ...apt, status: 'Completed' as const }
-          : apt
-      )
-    );
-    
-    // Send completion email (simulated)
-    console.log(`Sending completion email to ${appointment.email}`);
-    
-    setEditDialogOpen(false);
-    setSelectedAppointment(null);
+    if (window.confirm(`Are you sure you want to mark the appointment for ${appointment.name} as completed? This will send a completion email to the patient.`)) {
+      setAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointment.id 
+            ? { ...apt, status: 'Completed' as const }
+            : apt
+        )
+      );
+      
+      // Send completion email (simulated)
+      console.log(`Sending completion email to ${appointment.email}`);
+      
+      setEditDialogOpen(false);
+      setSelectedAppointment(null);
+    }
   };
 
   const handleNewAppointment = () => {
     if (!newAppointment.name || !newAppointment.phone || !newAppointment.date || !newAppointment.time) return;
 
-    const newApt: Appointment = {
-      id: `APT-${Date.now()}`,
-      name: newAppointment.name,
-      phone: newAppointment.phone,
-      email: newAppointment.email,
-      date: newAppointment.date,
-      time: newAppointment.time,
-      status: 'Confirmed'
-    };
+    const appointmentDetails = `${newAppointment.name} - ${newAppointment.date} at ${newAppointment.time}`;
+    
+    if (window.confirm(`Are you sure you want to create a new appointment for ${appointmentDetails}? This will send a confirmation email to ${newAppointment.email || 'the patient'}.`)) {
+      const newApt: Appointment = {
+        id: `APT-${Date.now()}`,
+        name: newAppointment.name,
+        phone: newAppointment.phone,
+        email: newAppointment.email,
+        date: newAppointment.date,
+        time: newAppointment.time,
+        status: 'Confirmed'
+      };
 
-    setAppointments(prev => [...prev, newApt]);
-    
-    // Send confirmation email (simulated)
-    console.log(`Sending confirmation email to ${newAppointment.email}`);
-    
-    setNewAppointmentDialogOpen(false);
-    setNewAppointment({ name: '', phone: '', email: '', date: '', time: '' });
+      setAppointments(prev => [...prev, newApt]);
+      
+      // Send confirmation email (simulated)
+      console.log(`Sending confirmation email to ${newAppointment.email}`);
+      
+      setNewAppointmentDialogOpen(false);
+      setNewAppointment({ name: '', phone: '', email: '', date: '', time: '' });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -343,9 +378,49 @@ const Admin = () => {
     }
   };
 
+  // Debug function to check localStorage data
+  const checkLocalStorageData = () => {
+    const settings = localStorage.getItem('clinicSchedulingSettings');
+    const appointments = localStorage.getItem('clinicAppointments');
+    console.log('Current localStorage data:', {
+      settings: settings ? JSON.parse(settings) : null,
+      appointments: appointments ? JSON.parse(appointments) : null
+    });
+  };
+
+  // Function to clear all data (for debugging)
+  const clearAllData = () => {
+    if (window.confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+      localStorage.removeItem('clinicSchedulingSettings');
+      localStorage.removeItem('clinicAppointments');
+      window.location.reload();
+    }
+  };
+
+  // Save settings to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('clinicSchedulingSettings', JSON.stringify(settings));
   }, [settings]);
+
+  // Save appointments to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('clinicAppointments', JSON.stringify(appointments));
+  }, [appointments]);
+
+  // Load appointments from localStorage on component mount
+  useEffect(() => {
+    const savedAppointments = localStorage.getItem('clinicAppointments');
+    if (savedAppointments) {
+      try {
+        const parsedAppointments = JSON.parse(savedAppointments);
+        if (Array.isArray(parsedAppointments)) {
+          setAppointments(parsedAppointments);
+        }
+      } catch (error) {
+        console.error('Error loading appointments from localStorage:', error);
+      }
+    }
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -363,7 +438,12 @@ const Admin = () => {
               </div>
               <span className="text-xl font-bold ml-[-15px] text-primary-foreground">Jeshna</span>
             </a>
-            <Button variant="outline" onClick={() => { clearAdminSession(); navigate('/admin/login', { replace: true }); }}>Logout</Button>
+            <Button variant="outline" onClick={() => { 
+              if (window.confirm('Are you sure you want to logout? Any unsaved changes will be lost.')) {
+                clearAdminSession(); 
+                navigate('/admin/login', { replace: true }); 
+              }
+            }}>Logout</Button>
           </div>
         </div>
       </header>
@@ -373,6 +453,13 @@ const Admin = () => {
           <div>
             <h1 className="heading-xl text-primary">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage appointments and clinic schedule.</p>
+            {/* Debug section - can be removed in production */}
+            <div className="mt-2 text-xs text-gray-500">
+              <span>Data persistence: Active | </span>
+              <button onClick={checkLocalStorageData} className="text-blue-500 hover:underline">Check Data</button>
+              <span> | </span>
+              <button onClick={clearAllData} className="text-red-500 hover:underline">Clear All</button>
+            </div>
           </div>
 
           {/* Appointments Summary */}
@@ -468,10 +555,10 @@ const Admin = () => {
               <div className="flex flex-wrap gap-2 items-center mt-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2 h-9">
+                    <button className="flex items-center gap-2 h-9 px-3 py-2 bg-white border-2 border-gray-500 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">
                       <CalendarIcon className="h-4 w-4" />
                       {filterDate ? format(filterDate, 'PPP') : 'Filter by Date'}
-                    </Button>
+                    </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar 
@@ -571,102 +658,135 @@ const Admin = () => {
               <CardDescription>Control the appointment window and slot generation.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-6">
-                {/* Basic Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Basic Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="startTime">Start Time</Label>
-                      <Input id="startTime" type="time" value={settings.startTime} onChange={(e) => setSettings(s => ({ ...s, startTime: e.target.value }))} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="endTime">End Time</Label>
-                      <Input id="endTime" type="time" value={settings.endTime} onChange={(e) => setSettings(s => ({ ...s, endTime: e.target.value }))} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="breakStart">Break Start</Label>
-                      <Input id="breakStart" type="time" value={settings.breakStart} onChange={(e) => setSettings(s => ({ ...s, breakStart: e.target.value }))} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="breakEnd">Break End</Label>
-                      <Input id="breakEnd" type="time" value={settings.breakEnd} onChange={(e) => setSettings(s => ({ ...s, breakEnd: e.target.value }))} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="interval">Slot Interval (minutes)</Label>
-                    <Input id="interval" type="number" min={5} step={5} value={settings.slotIntervalMinutes}
-                      onChange={(e) => setSettings(s => ({ ...s, slotIntervalMinutes: Math.max(5, Number(e.target.value) || 5) }))} />
-                  </div>
-                </div>
-
-                {/* Day Schedule Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Day Schedule Settings</h3>
-                  <p className="text-sm text-muted-foreground">Set different schedules for each day of the week</p>
+                              <div className="grid grid-cols-1 gap-6">
+                  {/* Day Schedule Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Day Schedule Settings</h3>
+                    <p className="text-sm text-muted-foreground">Set different schedules for each day of the week</p>
                   
-                  <div className="grid grid-cols-1 gap-4">
-                    {weekdayLabels.map((label, idx) => {
-                      const daySchedule = settings.daySchedules[idx];
-                      return (
-                        <div key={idx} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <Checkbox 
-                                checked={daySchedule.enabled} 
-                                onCheckedChange={(checked) => updateDaySchedule(idx, 'enabled', Boolean(checked))}
-                              />
-                              <span className="font-medium">{label}</span>
-                            </div>
-                            <span className={`text-sm px-2 py-1 rounded-full ${daySchedule.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {daySchedule.enabled ? 'Enabled' : 'Disabled'}
-                            </span>
+                  
+
+                    {/* Day Selection Tabs */}
+                    <div className="flex flex-wrap gap-2">
+                      {weekdayLabels.map((label, idx) => {
+                        const daySchedule = settings.daySchedules[idx];
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedDayForSchedule(idx)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                              selectedDayForSchedule === idx
+                                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                                : daySchedule.enabled
+                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                  {/* Selected Day Schedule */}
+                  {selectedDayForSchedule !== null && (
+                    <div className="border-2 border-gray-300 rounded-lg p-4 bg-white shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-medium">
+                          {weekdayLabels[selectedDayForSchedule]} Schedule
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={settings.daySchedules[selectedDayForSchedule].enabled}
+                            onCheckedChange={(checked) => updateDaySchedule(selectedDayForSchedule, 'enabled', checked)}
+                            className="data-[state=unchecked]:bg-gray-400 data-[state=checked]:bg-blue-600"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {settings.daySchedules[selectedDayForSchedule].enabled ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {settings.daySchedules[selectedDayForSchedule].enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                         <div className="space-y-2">
+                               <Label>Start Time</Label>
+                               <Input 
+                                 type="time" 
+                                 value={settings.daySchedules[selectedDayForSchedule].startTime} 
+                                 onChange={(e) => updateDaySchedule(selectedDayForSchedule, 'startTime', e.target.value)} 
+                                 className="border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                               />
+                             </div>
+                             <div className="space-y-2">
+                               <Label>End Time</Label>
+                               <Input 
+                                 type="time" 
+                                 value={settings.daySchedules[selectedDayForSchedule].endTime} 
+                                 onChange={(e) => updateDaySchedule(selectedDayForSchedule, 'endTime', e.target.value)} 
+                                 className="border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                               />
+                             </div>
                           </div>
                           
-                          {daySchedule.enabled && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Start Time</Label>
-                                <Input 
-                                  type="time" 
-                                  value={daySchedule.startTime} 
-                                  onChange={(e) => updateDaySchedule(idx, 'startTime', e.target.value)} 
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>End Time</Label>
-                                <Input 
-                                  type="time" 
-                                  value={daySchedule.endTime} 
-                                  onChange={(e) => updateDaySchedule(idx, 'endTime', e.target.value)} 
-                                />
-                              </div>
-                              <div className="space-y-2">
+                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                           <div className="space-y-2">
                                 <Label>Break Start</Label>
                                 <Input 
                                   type="time" 
-                                  value={daySchedule.breakStart} 
-                                  onChange={(e) => updateDaySchedule(idx, 'breakStart', e.target.value)} 
+                                  value={settings.daySchedules[selectedDayForSchedule].breakStart} 
+                                  onChange={(e) => updateDaySchedule(selectedDayForSchedule, 'breakStart', e.target.value)} 
+                                  className="border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                 />
                               </div>
                               <div className="space-y-2">
                                 <Label>Break End</Label>
                                 <Input 
                                   type="time" 
-                                  value={daySchedule.breakEnd} 
-                                  onChange={(e) => updateDaySchedule(idx, 'breakEnd', e.target.value)} 
+                                  value={settings.daySchedules[selectedDayForSchedule].breakEnd} 
+                                  onChange={(e) => updateDaySchedule(selectedDayForSchedule, 'breakEnd', e.target.value)} 
+                                  className="border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                 />
                               </div>
+                           </div>
+
+                                                       <div className="space-y-2">
+                              <Label>Slot Interval (minutes)</Label>
+                              <Input 
+                                type="number" 
+                                min={5} 
+                                step={5} 
+                                value={settings.daySchedules[selectedDayForSchedule].slotIntervalMinutes}
+                                onChange={(e) => updateDaySchedule(selectedDayForSchedule, 'slotIntervalMinutes', Math.max(5, Number(e.target.value) || 5))} 
+                                className="max-w-xs border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                              />
                             </div>
-                          )}
+
+                          <div className="pt-3 border-t border-gray-200 bg-gray-50 p-3 rounded-md">
+                            <div className="text-sm text-gray-700">
+                              <strong>Current Schedule:</strong> {settings.daySchedules[selectedDayForSchedule].startTime} - {settings.daySchedules[selectedDayForSchedule].endTime}
+                              {settings.daySchedules[selectedDayForSchedule].breakStart !== settings.daySchedules[selectedDayForSchedule].breakEnd && 
+                                ` (Break: ${settings.daySchedules[selectedDayForSchedule].breakStart} - ${settings.daySchedules[selectedDayForSchedule].breakEnd})`
+                              }
+                              <br />
+                              <span className="text-xs text-gray-500">Slot Interval: {settings.daySchedules[selectedDayForSchedule].slotIntervalMinutes} minutes</span>
+                            </div>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+
+                      {!settings.daySchedules[selectedDayForSchedule].enabled && (
+                        <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                          <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p>This day is currently disabled</p>
+                          <p className="text-sm">Enable it to set custom hours</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
                 </div>
 
                 {/* Disable Settings */}
@@ -681,7 +801,7 @@ const Admin = () => {
                     <Switch 
                       checked={settings.disabledAppointments} 
                       onCheckedChange={(v) => setSettings(s => ({ ...s, disabledAppointments: Boolean(v) }))} 
-                      className="data-[state=unchecked]:bg-gray-300"
+                      className="data-[state=unchecked]:bg-gray-400 data-[state=checked]:bg-blue-600"
                     />
                   </div>
 
@@ -695,7 +815,7 @@ const Admin = () => {
                         onChange={(e) => setSettings(s => ({ ...s, disableUntilDate: e.target.value }))} 
                       />
                     </div>
-                    <div className="space-y-2">
+                <div className="space-y-2">
                       <Label htmlFor="disableUntilTime">Disable Until Time</Label>
                       <Input 
                         id="disableUntilTime" 
@@ -712,11 +832,11 @@ const Admin = () => {
                   <h3 className="text-lg font-semibold">Weekly Holidays</h3>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="justify-between w-full">
+                      <button className="flex justify-between w-full px-3 py-2 bg-white border-2 border-gray-500 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">
                         {settings.weeklyHolidays.length > 0 ?
                           `Selected: ${settings.weeklyHolidays.sort((a,b)=>a-b).map(i => weekdayLabels[i]).join(', ')}` :
                           'Choose days'}
-                      </Button>
+                      </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64">
                       <div className="grid grid-cols-2 gap-2">
@@ -736,7 +856,7 @@ const Admin = () => {
                   <h3 className="text-lg font-semibold">Custom Holidays</h3>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline">Manage Custom Holidays</Button>
+                      <button className="px-3 py-2 bg-white border-2 border-gray-500 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors">Manage Custom Holidays</button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-2" align="start">
                       <Calendar
@@ -773,15 +893,21 @@ const Admin = () => {
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Reschedule Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {rescheduleDate ? format(rescheduleDate, 'PPP') : 'Pick a date'}
-                  </Button>
-                </PopoverTrigger>
+                              <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal border-2 border-gray-400 text-gray-700 hover:bg-gray-50">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {rescheduleDate ? format(rescheduleDate, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={rescheduleDate} onSelect={setRescheduleDate} initialFocus />
+                  <Calendar 
+                    mode="single" 
+                    selected={rescheduleDate} 
+                    onSelect={setRescheduleDate} 
+                    initialFocus 
+                    className="[&_.rdp-day]:!h-9 [&_.rdp-day]:!w-9 [&_.rdp-day]:!rounded-md"
+                  />
                 </PopoverContent>
               </Popover>
             </div>
@@ -872,7 +998,7 @@ const Admin = () => {
               <Label>Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal border-2 border-gray-400 text-gray-700 hover:bg-gray-50">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {newAppointment.date ? format(new Date(newAppointment.date), 'PPP') : 'Pick a date'}
                   </Button>
@@ -883,6 +1009,7 @@ const Admin = () => {
                     selected={newAppointment.date ? new Date(newAppointment.date) : undefined} 
                     onSelect={(date) => setNewAppointment(prev => ({ ...prev, date: date ? format(date, 'yyyy-MM-dd') : '' }))} 
                     initialFocus 
+                    className="[&_.rdp-day]:!h-9 [&_.rdp-day]:!w-9 [&_.rdp-day]:!rounded-md"
                   />
                 </PopoverContent>
               </Popover>
@@ -980,10 +1107,13 @@ FEATURES IMPLEMENTED AND THOUGHT PROCESS:
 8. ENHANCED SCHEDULING SETTINGS:
    - Fixed the disable functionality that wasn't working before
    - Added disable until specific date/time for granular control
+   - Added individual day schedule settings (different times for each day)
+   - Each day can have custom start/end times and break schedules
    - Maintained weekly and custom holiday settings
    - All settings are properly saved to localStorage
    - Added disabledSlots array for future slot-specific disabling
    - Comprehensive time management (start/end times, breaks, intervals)
+   - Fixed calendar icon styling issues (maintains rounded appearance)
 
 9. UI/UX IMPROVEMENTS:
    - Better visual hierarchy with proper spacing and typography
