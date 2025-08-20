@@ -300,11 +300,16 @@ async function setupClinic() {
       .from('scheduling_settings')
       .insert([{
         clinic_id: clinicData.id,
-        appointments_disabled: false,
+        disabled_appointments: false,
         weekly_holidays: weeklyHolidays,
         custom_holidays: ['2024-01-26', '2024-08-15'], // Republic Day, Independence Day
         day_schedules: daySchedules,
-        disabled_slots: {}
+        disabled_slots: [],
+        notification_settings: {
+          email_notifications: true,
+          reminder_hours: 24,
+          auto_confirm: true
+        }
       }])
       .select()
       .single();
