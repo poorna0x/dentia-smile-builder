@@ -71,6 +71,7 @@ const Admin = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterDate, setFilterDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [showSettings, setShowSettings] = useState(false);
   const [selectedDay, setSelectedDay] = useState('Mon');
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -290,7 +291,8 @@ Please confirm by replying "Yes" or "No"`;
                          appointment.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          appointment.phone.includes(searchTerm);
     const matchesStatus = filterStatus === 'all' || appointment.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesDate = !filterDate || appointment.date === filterDate;
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const completedAppointments = realAppointments.filter(apt => apt.status === 'Completed').length;
@@ -299,7 +301,7 @@ Please confirm by replying "Yes" or "No"`;
 
   // Show loading while data is being fetched
   if (isLoading || clinicLoading || appointmentsLoading || settingsLoading) {
-    return (
+  return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -323,7 +325,7 @@ Please confirm by replying "Yes" or "No"`;
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
-            <div>
+          <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600 mt-2">Manage appointments and clinic settings</p>
             </div>
@@ -427,30 +429,90 @@ Please confirm by replying "Yes" or "No"`;
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
               </div>
             </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Confirmed">Confirmed</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="Cancelled">Cancelled</SelectItem>
-                <SelectItem value="Rescheduled">Rescheduled</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              onClick={() => setShowNewAppointmentDialog(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">New Appointment</span>
-            </Button>
+            <div className="flex gap-2">
+              <div className="relative">
+                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  className="pl-10 pr-8 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 min-w-[140px]"
+                />
+                {filterDate && filterDate !== format(new Date(), 'yyyy-MM-dd') && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setFilterDate(format(new Date(), 'yyyy-MM-dd'))}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                    title="Reset to today"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-full sm:w-[180px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Confirmed">Confirmed</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  <SelectItem value="Rescheduled">Rescheduled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={() => setShowNewAppointmentDialog(true)}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">New Appointment</span>
+              </Button>
+            </div>
           </div>
+
+          {/* Filter Summary */}
+          {(searchTerm || filterDate || filterStatus !== 'all') && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  <span className="font-medium">Active Filters:</span>
+                  {searchTerm && (
+                    <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                      Search: "{searchTerm}"
+                    </span>
+                  )}
+                  {filterDate && (
+                    <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                      Date: {format(new Date(filterDate), 'MMM dd, yyyy')}
+                    </span>
+                  )}
+                  {filterStatus !== 'all' && (
+                    <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                      Status: {filterStatus}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterDate(format(new Date(), 'yyyy-MM-dd'));
+                    setFilterStatus('all');
+                  }}
+                  className="text-xs"
+                >
+                  Clear All
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Appointments Table */}
           <Card>
@@ -462,17 +524,17 @@ Please confirm by replying "Yes" or "No"`;
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
+              <Table>
+                <TableHeader>
+                  <TableRow>
                       <TableHead className="min-w-[150px]">Patient Name</TableHead>
                       <TableHead className="min-w-[120px]">Phone</TableHead>
                       <TableHead className="min-w-[140px]">Time Slot</TableHead>
                       <TableHead className="min-w-[100px]">Status</TableHead>
                       <TableHead className="min-w-[100px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                     {filteredAppointments.map((appointment) => (
                       <TableRow key={appointment.id}>
                         <TableCell>
@@ -529,10 +591,10 @@ Please confirm by replying "Yes" or "No"`;
                             </Button>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
               </div>
               
               {filteredAppointments.length === 0 && (
@@ -546,10 +608,10 @@ Please confirm by replying "Yes" or "No"`;
           {/* Settings Section */}
           {showSettings && (
             <Card className="mt-6 md:mt-8">
-              <CardHeader>
-                <CardTitle>Scheduling Settings</CardTitle>
+            <CardHeader>
+              <CardTitle>Scheduling Settings</CardTitle>
                 <CardDescription>Control the appointment window and slot generation</CardDescription>
-              </CardHeader>
+            </CardHeader>
               <CardContent className="space-y-6">
                 {/* Disable Appointments */}
                 <div className="space-y-4">
@@ -558,13 +620,15 @@ Please confirm by replying "Yes" or "No"`;
                       <Label className="text-base font-medium">Disable All Appointments</Label>
                       <p className="text-sm text-gray-600">Temporarily stop accepting new appointments</p>
                     </div>
-                    <Switch
-                      checked={schedulingSettings.appointmentsDisabled}
-                      onCheckedChange={(checked) => setSchedulingSettings(prev => ({
-                        ...prev,
-                        appointmentsDisabled: checked
-                      }))}
-                    />
+                    <div className="border-2 border-gray-300 rounded-lg p-1">
+                      <Switch
+                        checked={schedulingSettings.appointmentsDisabled}
+                        onCheckedChange={(checked) => setSchedulingSettings(prev => ({
+                          ...prev,
+                          appointmentsDisabled: checked
+                        }))}
+                      />
+                    </div>
                   </div>
                   
                   {schedulingSettings.appointmentsDisabled && (
@@ -681,11 +745,13 @@ Please confirm by replying "Yes" or "No"`;
                         <CardTitle className="text-lg">{selectedDay} Schedule</CardTitle>
                         <div className="flex items-center gap-2">
                           <Label htmlFor={`enabled-${selectedDay}`} className="text-sm">Enabled</Label>
-                          <Switch
-                            id={`enabled-${selectedDay}`}
-                            checked={schedulingSettings.daySchedules[selectedDay].enabled}
-                            onCheckedChange={(checked) => handleScheduleUpdate(selectedDay, 'enabled', checked)}
-                          />
+                          <div className="border-2 border-gray-300 rounded-lg p-1">
+                            <Switch
+                              id={`enabled-${selectedDay}`}
+                              checked={schedulingSettings.daySchedules[selectedDay].enabled}
+                              onCheckedChange={(checked) => handleScheduleUpdate(selectedDay, 'enabled', checked)}
+                            />
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
@@ -730,9 +796,9 @@ Please confirm by replying "Yes" or "No"`;
                             onChange={(e) => handleScheduleUpdate(selectedDay, 'breakEnd', e.target.value)}
                           />
                         </div>
-                      </div>
-                      
-                      <div className="space-y-2">
+                </div>
+
+                <div className="space-y-2">
                         <Label htmlFor={`interval-${selectedDay}`}>Slot Interval (minutes)</Label>
                         <Input
                           id={`interval-${selectedDay}`}
@@ -785,9 +851,17 @@ Please confirm by replying "Yes" or "No"`;
                       ) : (
                         <>
                           Connected to Supabase! Appointments update in real-time. 
-                          {realAppointments && realAppointments.length > 0 && (
+                          {filteredAppointments && filteredAppointments.length > 0 && (
                             <span className="ml-2 font-medium">
-                              {realAppointments.length} appointment{realAppointments.length !== 1 ? 's' : ''} loaded
+                              {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''} shown
+                              {realAppointments.length !== filteredAppointments.length && (
+                                <span className="text-green-600"> ({realAppointments.length} total)</span>
+                              )}
+                            </span>
+                          )}
+                          {filteredAppointments.length === 0 && realAppointments.length > 0 && (
+                            <span className="ml-2 font-medium text-orange-600">
+                              No appointments for selected filters ({realAppointments.length} total)
                             </span>
                           )}
                           {clinic && (
@@ -859,8 +933,8 @@ Please confirm by replying "Yes" or "No"`;
                     <SelectItem value="Rescheduled">Rescheduled</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+                        </div>
+        </div>
           )}
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button
