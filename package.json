@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "setup-clinic": "node scripts/setup-clinic.js"
+    "setup-clinic": "node scripts/setup-clinic.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

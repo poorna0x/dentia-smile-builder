@@ -6,18 +6,13 @@
  * This script automates the process of adding a new clinic to the database.
  * It creates the clinic record, scheduling settings, and provides the clinic ID.
  * 
- * Usage: node scripts/setup-clinic.js
+ * Usage: node scripts/setup-clinic.cjs
  */
 
-import { createClient } from '@supabase/supabase-js';
-import readline from 'readline';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Get current directory for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { createClient } = require('@supabase/supabase-js');
+const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
 
 // Create readline interface for user input
 const rl = readline.createInterface({
@@ -54,12 +49,6 @@ function isValidSupabaseUrl(url) {
 // Function to validate Supabase key
 function isValidSupabaseKey(key) {
   return key.startsWith('eyJ') && key.length > 50;
-}
-
-// Function to validate time format
-function isValidTime(time) {
-  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  return timeRegex.test(time);
 }
 
 // Function to validate address
@@ -355,8 +344,6 @@ export const CLINIC_CONFIG = {
 };
 `;
 
-    // Write configuration files
-
     // Create .env.local
     fs.writeFileSync('.env.local', envContent);
     console.log('✅ Created .env.local');
@@ -396,6 +383,8 @@ export const CLINIC_CONFIG = {
 }
 
 // Run the script
-setupClinic();
+if (require.main === module) {
+  setupClinic();
+}
 
-export { setupClinic };
+module.exports = { setupClinic };
