@@ -404,6 +404,53 @@ Please confirm by replying "Yes" or "No"`;
     }));
   };
 
+  const handleSaveDaySchedule = async () => {
+    try {
+      if (clinic?.id) {
+        console.log('Saving day schedule for clinic:', clinic.id);
+        
+        // Convert day schedules to the correct format
+        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
+          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
+          if (dayNumber !== undefined) {
+            acc[dayNumber] = {
+              start_time: schedule.startTime,
+              end_time: schedule.endTime,
+              break_start: schedule.breakStart,
+              break_end: schedule.breakEnd,
+              slot_interval_minutes: schedule.slotInterval,
+              enabled: schedule.enabled
+            };
+          }
+          return acc;
+        }, {} as Record<number, any>);
+
+        const settingsData = {
+          clinic_id: clinic.id,
+          weekly_holidays: (schedulingSettings.weeklyHolidays || []).map(d => dayNumbers[d as keyof typeof dayNumbers]),
+          custom_holidays: (schedulingSettings.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
+          disabled_appointments: schedulingSettings.appointmentsDisabled,
+          disabled_slots: [],
+          day_schedules: daySchedules,
+          notification_settings: {
+            email_notifications: true,
+            reminder_hours: 24,
+            auto_confirm: true
+          }
+        };
+        
+        console.log('Settings data to save:', settingsData);
+        
+        const result = await settingsApi.upsert(settingsData);
+        console.log('Day schedule saved successfully:', result);
+        toast.success('Day schedule saved successfully');
+      }
+    } catch (error) {
+      console.error('Error saving day schedule:', error);
+      toast.error('Failed to save day schedule');
+    }
+  };
+
   const handleWeeklyHolidayToggle = async (day: string) => {
     // Convert day name to number (0=Sunday, 1=Monday, etc.)
     const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
@@ -1125,6 +1172,16 @@ Please confirm by replying "Yes" or "No"`;
                           onChange={(e) => handleScheduleUpdate(selectedDay, 'slotInterval', parseInt(e.target.value))}
                         />
                       </div>
+                      
+                      {/* Save Button */}
+                      <div className="pt-4">
+                        <Button 
+                          onClick={handleSaveDaySchedule}
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                        >
+                          Save Day Schedule
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -1341,6 +1398,12 @@ Please confirm by replying "Yes" or "No"`;
                       }}
                       initialFocus
                       disabled={(date) => date < new Date()}
+                      className={cn("p-3 pointer-events-auto")}
+                      classNames={{
+                        day_selected: "bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:bg-purple-700 !rounded-lg",
+                        day_today: "bg-accent text-accent-foreground rounded-lg !rounded-lg",
+                        day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
+                      }}
                     />
                   </PopoverContent>
                 </Popover>

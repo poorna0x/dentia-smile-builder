@@ -197,26 +197,47 @@ const Appointment = () => {
   };
 
   // Get current settings or use defaults
-  const currentSettings = {
-    startTime: settings?.day_schedules?.[0]?.start_time || '09:00',
-    endTime: settings?.day_schedules?.[0]?.end_time || '20:00',
-    breakStart: settings?.day_schedules?.[0]?.break_start || '13:00',
-    breakEnd: settings?.day_schedules?.[0]?.break_end || '14:00',
-    slotIntervalMinutes: settings?.day_schedules?.[0]?.slot_interval_minutes || 30,
-    weeklyHolidays: settings?.weekly_holidays || [],
-    customHolidays: settings?.custom_holidays || [],
-    disabledAppointments: settings?.disabled_appointments || false,
+  // Get settings for the specific day of the week
+  const getDaySettings = (selectedDate: Date) => {
+    const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daySchedule = settings?.day_schedules?.[dayOfWeek];
+    
+    return {
+      startTime: daySchedule?.start_time || '09:00',
+      endTime: daySchedule?.end_time || '20:00',
+      breakStart: daySchedule?.break_start || '13:00',
+      breakEnd: daySchedule?.break_end || '14:00',
+      slotIntervalMinutes: daySchedule?.slot_interval_minutes || 30,
+      enabled: daySchedule?.enabled ?? true,
+      weeklyHolidays: settings?.weekly_holidays || [],
+      customHolidays: settings?.custom_holidays || [],
+      disabledAppointments: settings?.disabled_appointments || false,
+    };
   };
+
+  const currentSettings = getDaySettings(date);
 
   const isHoliday = (d: Date) => {
     return isDateHoliday(d);
   };
 
   const generateTimeSlots = (dateForSlots: Date) => {
-    const [startH, startM] = currentSettings.startTime.split(':').map(Number);
-    const [endH, endM] = currentSettings.endTime.split(':').map(Number);
-    const [breakStartH, breakStartM] = currentSettings.breakStart.split(':').map(Number);
-    const [breakEndH, breakEndM] = currentSettings.breakEnd.split(':').map(Number);
+    const daySettings = getDaySettings(dateForSlots);
+    
+    // Check if the day is enabled
+    if (!daySettings.enabled) {
+      return [];
+    }
+    
+    // Check if it's a holiday
+    if (isHoliday(dateForSlots)) {
+      return [];
+    }
+    
+    const [startH, startM] = daySettings.startTime.split(':').map(Number);
+    const [endH, endM] = daySettings.endTime.split(':').map(Number);
+    const [breakStartH, breakStartM] = daySettings.breakStart.split(':').map(Number);
+    const [breakEndH, breakEndM] = daySettings.breakEnd.split(':').map(Number);
 
     const start = new Date(dateForSlots);
     start.setHours(startH, startM, 0, 0);
@@ -227,12 +248,8 @@ const Appointment = () => {
     const breakEnd = new Date(dateForSlots);
     breakEnd.setHours(breakEndH, breakEndM, 0, 0);
 
-    const intervalMs = currentSettings.slotIntervalMinutes * 60 * 1000;
+    const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
-
-    if (isHoliday(dateForSlots)) {
-      return slots;
-    }
 
     for (let t = start.getTime(); t < end.getTime(); t += intervalMs) {
       const slotStart = new Date(t);
@@ -601,8 +618,8 @@ const Appointment = () => {
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                           classNames={{
-                            day_selected: "bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:bg-purple-700",
-                            day_today: "bg-accent text-accent-foreground rounded-lg",
+                            day_selected: "bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:bg-purple-700 !rounded-lg",
+                            day_today: "bg-accent text-accent-foreground rounded-lg !rounded-lg",
                             day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed",
                           }}
                         />
@@ -621,7 +638,16 @@ const Appointment = () => {
                       </div>
                     ) : timeSlots.length === 0 ? (
                       <div className="text-sm text-destructive">
-                        Clinic is closed on this date.
+                        {(() => {
+                          const daySettings = getDaySettings(date);
+                          if (!daySettings.enabled) {
+                            return 'Clinic is closed on this day of the week.';
+                          } else if (isHoliday(date)) {
+                            return 'Clinic is closed on this date (holiday).';
+                          } else {
+                            return 'No available time slots for this date.';
+                          }
+                        })()}
                       </div>
                     ) : (
                       <div className="space-y-2">

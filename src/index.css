@@ -4,6 +4,22 @@
 
 /* Dentia Dental Clinic Design System - Mobile-first responsive design */
 
+/* Calendar styling fixes */
+@layer components {
+  /* Force rounded corners for calendar day buttons */
+  .rdp-day {
+    border-radius: 0.5rem !important;
+  }
+  
+  .rdp-day_selected {
+    border-radius: 0.5rem !important;
+  }
+  
+  .rdp-day_today {
+    border-radius: 0.5rem !important;
+  }
+}
+
 @layer base {
   :root {
     /* Main brand colors - HSL format */
