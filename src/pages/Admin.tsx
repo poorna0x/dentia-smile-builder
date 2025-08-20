@@ -586,14 +586,26 @@ Please confirm by replying "Yes" or "No"`;
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
-                              className="h-8 w-8 p-0 text-green-600 border-green-300 hover:bg-green-50 flex-shrink-0"
-                            >
-                              <MessageCircle className="h-3 w-3" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
+                                className="h-8 w-8 p-0 text-blue-600 border-blue-300 hover:bg-blue-50 flex-shrink-0"
+                                title="Call patient"
+                              >
+                                <Phone className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
+                                className="h-8 w-8 p-0 text-green-600 border-green-300 hover:bg-green-50 flex-shrink-0"
+                                title="Send WhatsApp message"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                              </Button>
+                            </div>
                             <span className="text-sm truncate">{appointment.phone}</span>
                           </div>
                         </TableCell>
