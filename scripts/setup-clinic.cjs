@@ -333,6 +333,7 @@ VITE_ADMIN_PASSWORD=your-secure-password
 
 # Clinic Configuration
 VITE_DEFAULT_CLINIC_ID=${clinicData.id}
+VITE_DEFAULT_CLINIC_SLUG=${data.finalSlug}
 `;
 
     const clinicConfigContent = `// Clinic Configuration for ${data.clinicName}

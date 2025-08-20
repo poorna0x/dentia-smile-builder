@@ -30,8 +30,9 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
   const [error, setError] = useState<string | null>(null)
   const [searchParams] = useSearchParams()
 
-  // Get clinic slug from URL parameter or use default
-  const currentClinicSlug = searchParams.get('clinic') || clinicSlug
+  // Get clinic slug from URL parameter, environment variable, or use default
+  const defaultClinicSlug = import.meta.env.VITE_DEFAULT_CLINIC_SLUG || clinicSlug
+  const currentClinicSlug = searchParams.get('clinic') || defaultClinicSlug
 
   useEffect(() => {
     const loadClinic = async () => {
@@ -42,8 +43,9 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
         // If Supabase is not configured, use default clinic
         if (!isSupabaseConfigured) {
           console.log('Supabase not configured, using default clinic data')
+          const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
           setClinic({
-            id: 'default-clinic-id',
+            id: defaultClinicId,
             name: 'Jeshna Dental Clinic',
             slug: currentClinicSlug,
             contact_phone: '6363116263',
@@ -65,8 +67,9 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
         setError(err instanceof Error ? err.message : 'Failed to load clinic')
         
         // Fallback to default clinic data
+        const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
         setClinic({
-          id: 'default-clinic-id',
+          id: defaultClinicId,
           name: 'Jeshna Dental Clinic',
           slug: currentClinicSlug,
           contact_phone: '6363116263',
