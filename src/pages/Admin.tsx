@@ -6,6 +6,7 @@ import { isAdminLoggedIn, clearAdminSession } from '@/lib/auth';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
+import { appointmentsApi } from '@/lib/supabase';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,6 +34,8 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 // Types
 interface Appointment {
@@ -77,12 +80,19 @@ const Admin = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showNewAppointmentDialog, setShowNewAppointmentDialog] = useState(false);
+  const [showNewAppointmentForClient, setShowNewAppointmentForClient] = useState(false);
   const [newAppointmentData, setNewAppointmentData] = useState({
     name: '',
     phone: '',
     email: '',
     date: '',
     time: ''
+  });
+  const [newAppointmentForClient, setNewAppointmentForClient] = useState({
+    date: new Date(),
+    time: '',
+    selectedDate: new Date(),
+    isCalendarOpen: false
   });
 
   // Supabase hooks
@@ -251,6 +261,46 @@ Please confirm by replying "Yes" or "No"`;
       toast.success('Appointment deleted permanently');
     } catch (error) {
       toast.error('Failed to delete appointment');
+    }
+  };
+
+  const handleNewAppointmentForClient = (appointment: Appointment) => {
+    setNewAppointmentForClient({
+      date: new Date(),
+      time: '',
+      selectedDate: new Date(),
+      isCalendarOpen: false
+    });
+    setShowNewAppointmentForClient(true);
+  };
+
+  const handleCreateNewAppointmentForClient = async () => {
+    if (!selectedAppointment || !newAppointmentForClient.time || !clinic?.id) {
+      toast.error('Please select a time slot');
+      return;
+    }
+
+    try {
+      // Create new appointment with same client data but new date/time
+      const newAppointment = {
+        clinic_id: clinic.id,
+        name: selectedAppointment.name,
+        phone: selectedAppointment.phone,
+        email: selectedAppointment.email,
+        date: format(newAppointmentForClient.selectedDate, 'yyyy-MM-dd'),
+        time: newAppointmentForClient.time,
+        status: 'Confirmed' as const
+      };
+
+      // Add to database using the appointments API
+      await appointmentsApi.create(newAppointment);
+      
+      toast.success(`New appointment created for ${selectedAppointment.name} on ${format(newAppointmentForClient.selectedDate, 'MMM dd, yyyy')} at ${newAppointmentForClient.time}`);
+      setShowNewAppointmentForClient(false);
+      setShowEditDialog(false);
+    } catch (error) {
+      console.error('Error creating new appointment:', error);
+      toast.error('Failed to create new appointment');
     }
   };
 
@@ -932,15 +982,15 @@ Please confirm by replying "Yes" or "No"`;
 
       {/* Edit Appointment Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg w-[95vw] sm:w-auto max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Edit Appointment</DialogTitle>
             <DialogDescription>
               Manage appointment for {selectedAppointment?.name}
             </DialogDescription>
           </DialogHeader>
           {selectedAppointment && (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-5 px-2 pb-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Name</Label>
@@ -986,10 +1036,10 @@ Please confirm by replying "Yes" or "No"`;
                         </div>
         </div>
           )}
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-6">
             <Button
               onClick={() => selectedAppointment && handleCompleteAppointment(selectedAppointment.id)}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 w-full h-12"
             >
               <CheckCircle className="h-4 w-4" />
               Complete
@@ -997,18 +1047,135 @@ Please confirm by replying "Yes" or "No"`;
             <Button
               onClick={() => selectedAppointment && handleCancelAppointment(selectedAppointment.id)}
               variant="destructive"
-              className="flex items-center gap-2 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 w-full h-12"
             >
               <X className="h-4 w-4" />
               Cancel
             </Button>
             <Button
-              onClick={() => selectedAppointment && handleWhatsApp(selectedAppointment.phone, 'confirmation', selectedAppointment)}
+              onClick={() => selectedAppointment && handleNewAppointmentForClient(selectedAppointment)}
               variant="outline"
-              className="flex items-center gap-2 text-green-600 border-green-300 hover:bg-green-50 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 text-purple-600 border-purple-300 hover:bg-purple-50 w-full h-12"
             >
-              <MessageCircle className="h-4 w-4" />
-              WhatsApp
+              <Plus className="h-4 w-4" />
+              New Appointment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Appointment for Same Client Dialog */}
+      <Dialog open={showNewAppointmentForClient} onOpenChange={setShowNewAppointmentForClient}>
+        <DialogContent className="sm:max-w-lg w-[95vw] sm:w-auto max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>New Appointment for {selectedAppointment?.name}</DialogTitle>
+            <DialogDescription>
+              Schedule a new appointment for the same client
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAppointment && (
+            <div className="flex-1 overflow-y-auto space-y-5 px-2 pb-2">
+              {/* Client Info Display */}
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium">Name:</span> {selectedAppointment.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Phone:</span> {selectedAppointment.phone}
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="font-medium">Email:</span> {selectedAppointment.email}
+                  </div>
+                </div>
+              </div>
+
+              {/* Date Selection */}
+              <div className="space-y-2">
+                <Label>Select Date</Label>
+                <Popover open={newAppointmentForClient.isCalendarOpen} onOpenChange={(open) => setNewAppointmentForClient(prev => ({ ...prev, isCalendarOpen: open }))}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      onClick={() => setNewAppointmentForClient(prev => ({ ...prev, isCalendarOpen: !prev.isCalendarOpen }))}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newAppointmentForClient.selectedDate ? (
+                        format(newAppointmentForClient.selectedDate, 'PPP')
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={newAppointmentForClient.selectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setNewAppointmentForClient(prev => ({
+                            ...prev,
+                            selectedDate: date,
+                            isCalendarOpen: false
+                          }));
+                        }
+                      }}
+                      initialFocus
+                      disabled={(date) => date < new Date()}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Time Selection */}
+              <div className="space-y-2">
+                <Label>Select Time</Label>
+                <Select 
+                  value={newAppointmentForClient.time} 
+                  onValueChange={(value) => setNewAppointmentForClient(prev => ({ ...prev, time: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select time slot" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="09:00">09:00 AM</SelectItem>
+                    <SelectItem value="09:30">09:30 AM</SelectItem>
+                    <SelectItem value="10:00">10:00 AM</SelectItem>
+                    <SelectItem value="10:30">10:30 AM</SelectItem>
+                    <SelectItem value="11:00">11:00 AM</SelectItem>
+                    <SelectItem value="11:30">11:30 AM</SelectItem>
+                    <SelectItem value="12:00">12:00 PM</SelectItem>
+                    <SelectItem value="12:30">12:30 PM</SelectItem>
+                    <SelectItem value="14:00">02:00 PM</SelectItem>
+                    <SelectItem value="14:30">02:30 PM</SelectItem>
+                    <SelectItem value="15:00">03:00 PM</SelectItem>
+                    <SelectItem value="15:30">03:30 PM</SelectItem>
+                    <SelectItem value="16:00">04:00 PM</SelectItem>
+                    <SelectItem value="16:30">04:30 PM</SelectItem>
+                    <SelectItem value="17:00">05:00 PM</SelectItem>
+                    <SelectItem value="17:30">05:30 PM</SelectItem>
+                    <SelectItem value="18:00">06:00 PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-6">
+            <Button
+              onClick={handleCreateNewAppointmentForClient}
+              className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 w-full h-12"
+            >
+              <Plus className="h-4 w-4" />
+              Create Appointment
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowNewAppointmentForClient(false)}
+              className="flex items-center justify-center gap-2 w-full h-12"
+            >
+              <X className="h-4 w-4" />
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
