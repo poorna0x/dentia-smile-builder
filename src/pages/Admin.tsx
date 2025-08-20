@@ -7,6 +7,7 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { appointmentsApi } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,6 +95,8 @@ const Admin = () => {
     selectedDate: new Date(),
     isCalendarOpen: false
   });
+  const [bookedSlotsForNewAppointment, setBookedSlotsForNewAppointment] = useState<string[]>([]);
+  const [isLoadingSlotsForNewAppointment, setIsLoadingSlotsForNewAppointment] = useState(false);
 
   // Supabase hooks
   const { clinic, loading: clinicLoading } = useClinic();
@@ -265,13 +268,94 @@ Please confirm by replying "Yes" or "No"`;
   };
 
   const handleNewAppointmentForClient = (appointment: Appointment) => {
+    const today = new Date();
     setNewAppointmentForClient({
-      date: new Date(),
+      date: today,
       time: '',
-      selectedDate: new Date(),
+      selectedDate: today,
       isCalendarOpen: false
     });
+    setBookedSlotsForNewAppointment([]);
     setShowNewAppointmentForClient(true);
+    // Check booked slots for today's date when dialog opens
+    checkBookedSlotsForNewAppointment(today);
+  };
+
+  const checkBookedSlotsForNewAppointment = async (date: Date) => {
+    if (!clinic?.id) return;
+    
+    setIsLoadingSlotsForNewAppointment(true);
+    try {
+      const appointmentDate = format(date, 'yyyy-MM-dd');
+      const existingAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
+      
+      // Get booked time slots (exclude cancelled appointments)
+      const booked = existingAppointments
+        .filter(apt => apt.status !== 'Cancelled')
+        .map(apt => apt.time);
+      
+      setBookedSlotsForNewAppointment(booked);
+    } catch (error) {
+      console.error('Error checking booked slots:', error);
+      setBookedSlotsForNewAppointment([]);
+    } finally {
+      setIsLoadingSlotsForNewAppointment(false);
+    }
+  };
+
+  // Generate time slots like the appointment page
+  const generateTimeSlotsForNewAppointment = (dateForSlots: Date) => {
+    // Default settings - same as appointment page
+    const currentSettings = {
+    startTime: '09:00',
+    endTime: '20:00',
+    breakStart: '13:00',
+    breakEnd: '14:00',
+    slotIntervalMinutes: 30,
+    };
+
+    const [startH, startM] = currentSettings.startTime.split(':').map(Number);
+    const [endH, endM] = currentSettings.endTime.split(':').map(Number);
+    const [breakStartH, breakStartM] = currentSettings.breakStart.split(':').map(Number);
+    const [breakEndH, breakEndM] = currentSettings.breakEnd.split(':').map(Number);
+
+    const start = new Date(dateForSlots);
+    start.setHours(startH, startM, 0, 0);
+    const end = new Date(dateForSlots);
+    end.setHours(endH, endM, 0, 0);
+    const breakStart = new Date(dateForSlots);
+    breakStart.setHours(breakStartH, breakStartM, 0, 0);
+    const breakEnd = new Date(dateForSlots);
+    breakEnd.setHours(breakEndH, breakEndM, 0, 0);
+
+    const intervalMs = currentSettings.slotIntervalMinutes * 60 * 1000;
+    const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
+
+    for (let t = start.getTime(); t < end.getTime(); t += intervalMs) {
+      const slotStart = new Date(t);
+      const slotEnd = new Date(t + intervalMs);
+
+      // Exclude slots overlapping the break window
+      const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
+
+      // Disable past times if the selected date is today
+      const now = new Date();
+      const isToday = dateForSlots.toDateString() === now.toDateString();
+      const isPast = isToday && slotStart.getTime() <= now.getTime();
+
+      if (!overlapsBreak && slotEnd <= end) {
+        const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
+        const isBooked = bookedSlotsForNewAppointment.includes(label);
+        slots.push({ 
+          label, 
+          value: label, 
+          disabled: isPast || isBooked,
+          booked: isBooked
+        });
+      }
+    }
+
+    return slots;
   };
 
   const handleCreateNewAppointmentForClient = async () => {
@@ -1117,8 +1201,11 @@ Please confirm by replying "Yes" or "No"`;
                           setNewAppointmentForClient(prev => ({
                             ...prev,
                             selectedDate: date,
-                            isCalendarOpen: false
+                            isCalendarOpen: false,
+                            time: '' // Reset time when date changes
                           }));
+                          // Check booked slots for the selected date
+                          checkBookedSlotsForNewAppointment(date);
                         }
                       }}
                       initialFocus
@@ -1129,35 +1216,43 @@ Please confirm by replying "Yes" or "No"`;
               </div>
 
               {/* Time Selection */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label>Select Time</Label>
-                <Select 
-                  value={newAppointmentForClient.time} 
-                  onValueChange={(value) => setNewAppointmentForClient(prev => ({ ...prev, time: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select time slot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="09:00">09:00 AM</SelectItem>
-                    <SelectItem value="09:30">09:30 AM</SelectItem>
-                    <SelectItem value="10:00">10:00 AM</SelectItem>
-                    <SelectItem value="10:30">10:30 AM</SelectItem>
-                    <SelectItem value="11:00">11:00 AM</SelectItem>
-                    <SelectItem value="11:30">11:30 AM</SelectItem>
-                    <SelectItem value="12:00">12:00 PM</SelectItem>
-                    <SelectItem value="12:30">12:30 PM</SelectItem>
-                    <SelectItem value="14:00">02:00 PM</SelectItem>
-                    <SelectItem value="14:30">02:30 PM</SelectItem>
-                    <SelectItem value="15:00">03:00 PM</SelectItem>
-                    <SelectItem value="15:30">03:30 PM</SelectItem>
-                    <SelectItem value="16:00">04:00 PM</SelectItem>
-                    <SelectItem value="16:30">04:30 PM</SelectItem>
-                    <SelectItem value="17:00">05:00 PM</SelectItem>
-                    <SelectItem value="17:30">05:30 PM</SelectItem>
-                    <SelectItem value="18:00">06:00 PM</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isLoadingSlotsForNewAppointment ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    Checking available slots...
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {generateTimeSlotsForNewAppointment(newAppointmentForClient.selectedDate).map((slot) => (
+                        <Button
+                          key={slot.value}
+                          type="button"
+                          variant={newAppointmentForClient.time === slot.value ? 'default' : 'outline'}
+                          className={cn(
+                            'justify-center text-xs p-2 h-auto',
+                            newAppointmentForClient.time === slot.value ? 'bg-purple-600 hover:bg-purple-700 text-white' : '',
+                            slot.booked ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed' : ''
+                          )}
+                          disabled={slot.disabled}
+                          onClick={() => !slot.booked && setNewAppointmentForClient(prev => ({ ...prev, time: slot.value }))}
+                        >
+                          {slot.label}
+                          {slot.booked && (
+                            <span className="ml-1 text-xs">(Booked)</span>
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+                    {bookedSlotsForNewAppointment.length > 0 && (
+                      <div className="text-xs text-gray-500">
+                        Red slots are already booked. Please select an available time.
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
