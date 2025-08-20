@@ -1,19 +1,33 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Check if Supabase is properly configured
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && 
   supabaseUrl !== 'https://your-project.supabase.co' && 
-  supabaseAnonKey !== 'your-anon-key');
+  supabaseAnonKey !== 'your-anon-key' &&
+  supabaseUrl !== 'undefined' &&
+  supabaseAnonKey !== 'undefined');
 
-// Only throw error in production
-if (import.meta.env.PROD && (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'https://your-project.supabase.co')) {
-  throw new Error('Missing Supabase environment variables')
+// Provide fallback for development
+const fallbackUrl = import.meta.env.DEV ? 'https://your-project.supabase.co' : ''
+const fallbackKey = import.meta.env.DEV ? 'your-anon-key' : ''
+
+// Use fallbacks only in development
+const finalUrl = supabaseUrl || fallbackUrl
+const finalKey = supabaseAnonKey || fallbackKey
+
+// Only throw error in production if variables are missing
+if (import.meta.env.PROD && (!supabaseUrl || !supabaseAnonKey)) {
+  console.error('Missing Supabase environment variables:', {
+    url: supabaseUrl ? 'SET' : 'MISSING',
+    key: supabaseAnonKey ? 'SET' : 'MISSING'
+  });
+  throw new Error('Missing Supabase environment variables. Please check your Netlify environment variables.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(finalUrl, finalKey)
 
 // Database types
 export interface Clinic {

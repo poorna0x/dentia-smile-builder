@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Eye, EyeOff, Lock, User, Save } from 'lucide-react';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -17,12 +18,25 @@ const AdminLogin = () => {
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [savePassword, setSavePassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Redirect if already logged in
     if (isAdminLoggedIn()) {
       navigate('/admin', { replace: true });
+    }
+    
+    // Load saved credentials if available
+    const savedUsername = localStorage.getItem('admin_username');
+    const savedPassword = localStorage.getItem('admin_password');
+    
+    if (savedUsername && savedPassword) {
+      setCredentials({
+        username: savedUsername,
+        password: savedPassword
+      });
+      setSavePassword(true);
     }
   }, [navigate]);
 
@@ -41,6 +55,16 @@ const AdminLogin = () => {
       const isAuthenticated = authenticateAdmin(credentials);
       
       if (isAuthenticated) {
+        // Save credentials if checkbox is checked
+        if (savePassword) {
+          localStorage.setItem('admin_username', credentials.username);
+          localStorage.setItem('admin_password', credentials.password);
+        } else {
+          // Clear saved credentials if not saving
+          localStorage.removeItem('admin_username');
+          localStorage.removeItem('admin_password');
+        }
+        
         toast.success('Login successful!');
         navigate('/admin', { replace: true });
       } else {
@@ -128,6 +152,22 @@ const AdminLogin = () => {
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="save-password"
+                    checked={savePassword}
+                    onCheckedChange={(checked) => setSavePassword(checked as boolean)}
+                    disabled={isLoading}
+                  />
+                  <Label 
+                    htmlFor="save-password" 
+                    className="text-sm text-gray-600 cursor-pointer flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save password for future logins
+                  </Label>
                 </div>
 
                 <Button

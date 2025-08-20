@@ -211,6 +211,9 @@ const Admin = () => {
 
   const handleLogout = () => {
     clearAdminSession();
+    // Clear saved credentials on logout
+    localStorage.removeItem('admin_username');
+    localStorage.removeItem('admin_password');
     navigate('/admin/login');
     toast.success('Logged out successfully');
   };

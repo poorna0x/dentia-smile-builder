@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Documentation files (not committed to repository)
+ADD_NEW_CLINIC_GUIDE.md
+SYSTEM_DOCUMENTATION.md
+NETLIFY_ENV_SETUP.md
+FIXES_SUMMARY.md
+MULTI_TENANT_ARCHITECTURE.md

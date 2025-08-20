@@ -6,7 +6,7 @@ const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
 
 // Session storage keys
 const ADMIN_SESSION_KEY = 'admin_session';
-const ADMIN_SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
+const ADMIN_SESSION_TIMEOUT = 30 * 24 * 60 * 60 * 1000; // 30 days (until manual logout)
 
 export interface AdminCredentials {
   username: string;
@@ -28,12 +28,14 @@ export const isAdminLoggedIn = (): boolean => {
     const session: AdminSession = JSON.parse(sessionData);
     const now = Date.now();
 
-    // Check if session has expired
+    // Check if session has expired (30 days)
     if (now > session.expiresAt) {
       clearAdminSession();
       return false;
     }
 
+    // Extend session on each check (keep logged in)
+    extendAdminSession();
     return true;
   } catch (error) {
     console.error('Error checking admin session:', error);
@@ -102,7 +104,7 @@ export const extendAdminSession = (): boolean => {
     const session = getAdminSession();
     if (!session) return false;
 
-    // Extend session by 24 hours
+    // Extend session by 30 days (keep logged in until manual logout)
     session.expiresAt = Date.now() + ADMIN_SESSION_TIMEOUT;
     sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
     return true;
