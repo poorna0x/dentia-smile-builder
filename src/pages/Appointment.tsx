@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { appointmentsApi } from '@/lib/supabase';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { sendAppointmentConfirmation } from '@/lib/email';
 import { showAppointmentNotification, sendPushNotification } from '@/lib/notifications';
 
@@ -23,6 +24,9 @@ const Appointment = () => {
   const navigate = useNavigate();
   const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
   const { settings, loading: settingsLoading } = useSettings();
+  
+  // Ensure page starts at top
+  useScrollToTop();
 
   // Debug: Log settings structure
   useEffect(() => {
@@ -340,7 +344,8 @@ const Appointment = () => {
 
   const handleConfirmBooking = async () => {
     setIsSubmitting(true);
-    setShowConfirmation(false);
+    // Don't close the dialog immediately - let the loader show
+    // setShowConfirmation(false);
     
     // Format phone number and name for storage (available in try and catch blocks)
     const formattedPhone = formatPhoneNumber(phone);
@@ -410,7 +415,8 @@ const Appointment = () => {
           name: formattedName,
           date: format(date, 'MMMM dd, yyyy'),
           time: selectedTime,
-          email: email.trim()
+          email: email.trim(),
+          phone: formattedPhone
         });
         
         navigate(`/booking-complete?${params.toString()}`);
@@ -428,7 +434,8 @@ const Appointment = () => {
           name: formattedName,
           date: format(date, 'MMMM dd, yyyy'),
           time: selectedTime,
-          email: email.trim()
+          email: email.trim(),
+          phone: formattedPhone
         });
         
         navigate(`/booking-complete?${params.toString()}`);
@@ -452,13 +459,16 @@ const Appointment = () => {
           name: formattedName,
           date: format(date, 'MMMM dd, yyyy'),
           time: selectedTime,
-          email: email.trim()
+          email: email.trim(),
+          phone: formattedPhone
         });
         
         navigate(`/booking-complete?${params.toString()}`);
       }
     } finally {
       setIsSubmitting(false);
+      // Close the dialog after processing is complete
+      setShowConfirmation(false);
     }
   };
 
@@ -775,24 +785,35 @@ const Appointment = () => {
         <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              Confirm Appointment
+              {isSubmitting ? 'Processing Appointment...' : 'Confirm Appointment'}
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          <div className={`space-y-4 py-2 relative transition-opacity duration-300 ${isSubmitting ? 'opacity-50' : 'opacity-100'}`}>
+            {/* Loading Overlay */}
+            {isSubmitting && (
+              <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-lg flex items-center justify-center z-50">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+                  <p className="text-base font-medium text-gray-700">Processing your appointment...</p>
+                  <p className="text-sm text-gray-500 mt-1">Please wait...</p>
+                </div>
+              </div>
+            )}
+            
             {/* Patient Info - Minimal */}
             <div className="space-y-2">
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Name:</span>
-                <span className="font-medium text-gray-900">{name}</span>
+                <span className="font-medium text-gray-900">{formatName(name)}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Email:</span>
-                <span className="font-medium text-gray-900">{email}</span>
+                <span className="font-medium text-gray-900">{email.trim().toLowerCase()}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Phone:</span>
-                <span className="font-medium text-gray-900">{phone}</span>
+                <span className="font-medium text-gray-900">{formatPhoneNumber(phone)}</span>
               </div>
             </div>
             
@@ -813,6 +834,7 @@ const Appointment = () => {
             <Button 
               variant="outline" 
               onClick={() => setShowConfirmation(false)}
+              disabled={isSubmitting}
               className="flex-1"
             >
               Cancel
@@ -820,9 +842,16 @@ const Appointment = () => {
             <Button 
               onClick={handleConfirmBooking}
               disabled={isSubmitting}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400"
             >
-              {isSubmitting ? 'Confirming...' : 'Confirm'}
+              {isSubmitting ? (
+                <div className="flex items-center space-x-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  <span className="font-medium">Processing...</span>
+                </div>
+              ) : (
+                'Confirm'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

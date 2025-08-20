@@ -10,8 +10,11 @@ import Gallery from '@/components/Gallery';
 import FAQ from '@/components/FAQ';
 import Testimonials from '@/components/Testimonials';
 import CTA from '@/components/CTA';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 
 const Home = () => {
+  // Ensure page starts at top
+  useScrollToTop();
   return (
     <div className="min-h-screen">
       <Navigation />

@@ -10,9 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Lock, User, Save } from 'lucide-react';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  
+  // Ensure page starts at top
+  useScrollToTop();
+  
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''

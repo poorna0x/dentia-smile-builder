@@ -6,6 +6,7 @@ import { isAdminLoggedIn, clearAdminSession } from '@/lib/auth';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { appointmentsApi, settingsApi } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,10 @@ interface SchedulingSettings {
 
 const Admin = () => {
   const navigate = useNavigate();
+  
+  // Ensure page starts at top
+  useScrollToTop();
+  
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');

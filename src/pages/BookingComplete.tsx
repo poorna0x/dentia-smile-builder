@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 
 // WhatsApp Icon Component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -29,6 +30,9 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 const BookingComplete: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // Ensure page starts at top
+  useScrollToTop();
   
   // Get appointment details from URL params
   const name = searchParams.get('name') || 'Patient';
@@ -112,13 +116,22 @@ const BookingComplete: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
-                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                  {name.charAt(0).toUpperCase()}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+                  <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Patient Name</p>
+                    <p className="font-semibold text-gray-900">{name}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Patient Name</p>
-                  <p className="font-semibold text-gray-900">{name}</p>
+                <div className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+                  <Phone className="w-6 h-6 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Phone Number</p>
+                    <p className="font-semibold text-gray-900">{searchParams.get('phone') || 'Not provided'}</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -157,7 +170,7 @@ const BookingComplete: React.FC = () => {
                   className="h-16 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:border-blue-400"
                 >
                   <MapPin className="w-6 h-6" />
-                  <span className="font-semibold">Get Directions</span>
+                  <span className="font-semibold">Get Directions to Location</span>
                 </Button>
                 
                 <Button 
