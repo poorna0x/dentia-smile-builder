@@ -1562,21 +1562,18 @@ Please confirm by replying "Yes" or "No"`;
                           className={cn(
                             'justify-center text-xs p-2 h-auto',
                             newAppointmentForClient.time === slot.value ? 'bg-purple-600 hover:bg-purple-700 text-white' : '',
-                            slot.booked ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed' : ''
+                            slot.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
                           )}
-                          disabled={slot.disabled}
+                          disabled={slot.disabled || slot.booked}
                           onClick={() => !slot.booked && setNewAppointmentForClient(prev => ({ ...prev, time: slot.value }))}
                         >
                           {slot.label}
-                          {slot.booked && (
-                            <span className="ml-1 text-xs">(Booked)</span>
-                          )}
                         </Button>
                       ))}
                     </div>
                     {bookedSlotsForNewAppointment.length > 0 && (
                       <div className="text-xs text-gray-500">
-                        Red slots are already booked. Please select an available time.
+                        Red slots are unavailable. Please select an available time.
                       </div>
                     )}
                   </>
