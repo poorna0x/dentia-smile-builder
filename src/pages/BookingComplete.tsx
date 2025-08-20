@@ -8,7 +8,8 @@ import {
   Clock, 
   Calendar,
   ArrowLeft,
-  Home
+  Home,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -198,6 +199,31 @@ const BookingComplete: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Find Appointment Info Again */}
+          <div className="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start space-x-4">
+              <div className="p-2 bg-blue-100 rounded-full flex-shrink-0">
+                <Search className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-800 text-lg mb-2">
+                  Need to check your appointment again?
+                </h3>
+                <p className="text-blue-700 text-sm mb-3">
+                  You can find your appointment details anytime by visiting our homepage and using the "Check Appointment Status" section at the bottom of the page. Just enter your phone number, name, and email to view your upcoming appointments.
+                </p>
+                <Button 
+                  onClick={() => navigate('/?scroll=check-status')}
+                  variant="outline"
+                  className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-400 transition-all duration-300"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Go to Check Appointment Status
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {/* Clinic Information */}
           <Card className="mb-8 shadow-lg border-0 bg-white">

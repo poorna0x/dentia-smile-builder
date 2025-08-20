@@ -711,21 +711,18 @@ const Appointment = () => {
                               className={cn(
                                 'justify-center', 
                                 selectedTime === ts.value ? 'btn-appointment' : '',
-                                ts.booked ? 'bg-red-100 text-red-700 border-red-300 cursor-not-allowed' : ''
+                                ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
                               )}
-                              disabled={ts.disabled}
+                              disabled={ts.disabled || ts.booked}
                               onClick={() => !ts.booked && setSelectedTime(ts.value)}
                             >
                               {ts.label}
-                              {ts.booked && (
-                                <span className="ml-1 text-xs">(Booked)</span>
-                              )}
                             </Button>
                           ))}
                         </div>
                         {bookedSlots.length > 0 && (
                           <div className="text-xs text-muted-foreground">
-                            Red slots are already booked. Please select an available time.
+                            Red slots are unavailable. Please select an available time.
                           </div>
                         )}
                       </div>
