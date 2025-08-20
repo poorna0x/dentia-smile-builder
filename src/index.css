@@ -159,10 +159,47 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    /* Safari-specific fixes */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   html {
     scroll-behavior: smooth;
+  }
+
+  /* Safari-specific fixes for images and text */
+  img {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Fix for Safari text rendering */
+  h1, h2, h3, h4, h5, h6, p, span, div {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fix for Safari button and link tap highlights */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Fix for Safari flexbox issues */
+  .flex {
+    -webkit-box-align: center;
+    -webkit-box-pack: center;
+  }
+
+  /* Fix for Safari grid issues */
+  .grid {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: grid;
   }
 }
 

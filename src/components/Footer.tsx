@@ -12,14 +12,25 @@ const Footer = () => {
           {/* Logo and Description */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center">
-              <div className="w-15 h-14 rounded-full overflow-hidden mr-0">
+              <div className="w-12 h-12 rounded-full overflow-hidden mr-2 flex-shrink-0">
                 <img 
                   src={logo} 
                   alt="Jeshna Dental Logo" 
                   className="w-full h-full object-cover"
+                  style={{ 
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none',
+                    WebkitTapHighlightColor: 'transparent'
+                  }}
                 />
               </div>
-              <span className="text-xl font-bold ml-[-15px]">Jeshna</span>
+              <span className="text-xl font-bold text-primary-foreground" style={{ 
+                WebkitFontSmoothing: 'antialiased',
+                MozOsxFontSmoothing: 'grayscale',
+                textRendering: 'optimizeLegibility'
+              }}>
+                Jeshna
+              </span>
             </Link>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
               Providing exceptional dental care with a personal touch. Your smile is our priority, and we're committed to helping you achieve optimal oral health.
