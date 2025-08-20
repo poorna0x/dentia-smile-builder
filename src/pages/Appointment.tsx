@@ -144,22 +144,49 @@ const Appointment = () => {
     // For now, slots will refresh when date changes or page reloads
   }, [date, clinic?.id]);
 
-  // Phone number validation function
-  const validatePhone = (phoneNumber: string): boolean => {
+  // Phone number formatting function
+  const formatPhoneNumber = (phoneNumber: string): string => {
     // Remove all non-digit characters
-    const cleaned = phoneNumber.replace(/\D/g, '');
+    let cleaned = phoneNumber.replace(/\D/g, '');
     
-    // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
-    if (cleaned.length === 10 && /^[6-9]\d{9}$/.test(cleaned)) {
-      return true;
+    // Handle different input formats
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+      // Remove +91 prefix and return 10 digits
+      return cleaned.substring(2);
+    } else if (cleaned.startsWith('0') && cleaned.length === 11) {
+      // Remove leading 0 and return 10 digits
+      return cleaned.substring(1);
+    } else if (cleaned.length === 10) {
+      // Already 10 digits, return as is
+      return cleaned;
     }
     
-    // Check if it's a valid Indian mobile number with country code (12 digits starting with 91)
-    if (cleaned.length === 12 && cleaned.startsWith('91') && /^91[6-9]\d{9}$/.test(cleaned)) {
+    // Return original if no formatting needed
+    return cleaned;
+  };
+
+  // Phone number validation function
+  const validatePhone = (phoneNumber: string): boolean => {
+    // Format the phone number first
+    const formatted = formatPhoneNumber(phoneNumber);
+    
+    // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
+    if (formatted.length === 10 && /^[6-9]\d{9}$/.test(formatted)) {
       return true;
     }
     
     return false;
+  };
+
+  // Name formatting function
+  const formatName = (name: string): string => {
+    // Remove extra spaces and trim
+    let formatted = name.trim().replace(/\s+/g, ' ');
+    
+    // Convert to title case (first letter of each word capitalized)
+    formatted = formatted.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+    
+    return formatted;
   };
 
   // Email validation function
@@ -168,8 +195,9 @@ const Appointment = () => {
     return emailRegex.test(email);
   };
 
-  // Handle phone input change with validation
+  // Handle phone input change with validation and formatting
   const handlePhoneChange = (value: string) => {
+    // Allow user to type freely, but format for display
     setPhone(value);
     
     if (!value.trim()) {
@@ -177,8 +205,9 @@ const Appointment = () => {
       return;
     }
     
+    // Validate the formatted phone number
     if (!validatePhone(value)) {
-      setPhoneError('Please enter a valid 10-digit mobile number (e.g., 9876543210)');
+      setPhoneError('Please enter a valid 10-digit mobile number (e.g., 9876543210, +91 9876543210, 09876543210)');
     } else {
       setPhoneError('');
     }
@@ -313,9 +342,11 @@ const Appointment = () => {
     setIsSubmitting(true);
     setShowConfirmation(false);
     
+    // Format phone number and name for storage (available in try and catch blocks)
+    const formattedPhone = formatPhoneNumber(phone);
+    const formattedName = formatName(name);
+    
     try {
-      // Format phone number for storage (remove all non-digits)
-      const formattedPhone = phone.replace(/\D/g, '');
       const appointmentDate = format(date, 'yyyy-MM-dd');
       
       // Check for duplicate booking first
@@ -339,7 +370,7 @@ const Appointment = () => {
         
         const newAppointment = await appointmentsApi.create({
           clinic_id: clinic.id,
-          name: name.trim(),
+          name: formattedName,
           email: email.trim().toLowerCase(),
           phone: formattedPhone,
           date: appointmentDate,
@@ -349,7 +380,7 @@ const Appointment = () => {
         
         // Send confirmation email
         const emailSent = await sendAppointmentConfirmation({
-          name: name.trim(),
+          name: formattedName,
           email: email.trim().toLowerCase(),
           phone: formattedPhone,
           date: appointmentDate,
@@ -376,7 +407,7 @@ const Appointment = () => {
 
         // Navigate to booking completion page with appointment details
         const params = new URLSearchParams({
-          name: name.trim(),
+          name: formattedName,
           date: format(date, 'MMMM dd, yyyy'),
           time: selectedTime,
           email: email.trim()
@@ -388,13 +419,13 @@ const Appointment = () => {
         // Fallback to WhatsApp if no clinic ID
         console.log('No clinic ID, falling back to WhatsApp');
         const formattedDate = format(date, 'MMM dd, yyyy');
-        const message = `Hi, I'm ${name} (${email}, ${formattedPhone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
+        const message = `Hi, I'm ${formattedName} (${email}, ${formattedPhone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
         
         // Navigate to booking completion page with appointment details
         const params = new URLSearchParams({
-          name: name.trim(),
+          name: formattedName,
           date: format(date, 'MMMM dd, yyyy'),
           time: selectedTime,
           email: email.trim()
@@ -412,13 +443,13 @@ const Appointment = () => {
       } else {
         // Fallback to WhatsApp if database fails
         const formattedDate = format(date, 'MMM dd, yyyy');
-        const message = `Hi, I'm ${name} (${email}, ${phone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
+        const message = `Hi, I'm ${formattedName} (${email}, ${formattedPhone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
         const encodedMessage = encodeURIComponent(message);
         window.open(`https://wa.me/6363116263?text=${encodedMessage}`, '_blank');
         
         // Navigate to booking completion page with appointment details
         const params = new URLSearchParams({
-          name: name.trim(),
+          name: formattedName,
           date: format(date, 'MMMM dd, yyyy'),
           time: selectedTime,
           email: email.trim()
@@ -565,7 +596,7 @@ const Appointment = () => {
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="Enter your 10-digit mobile number"
+                      placeholder="9876543210, +91 9876543210, or 09876543210"
                       value={phone}
                       onChange={(e) => handlePhoneChange(e.target.value)}
                       required
