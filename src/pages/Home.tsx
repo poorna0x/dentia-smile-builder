@@ -37,7 +37,7 @@ const Home = () => {
       }, 500); // Small delay to ensure page is loaded
     }
   }, [searchParams]);
-  
+
   return (
     <div className="min-h-screen">
       <Navigation />

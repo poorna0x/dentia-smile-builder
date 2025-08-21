@@ -20,6 +20,7 @@ import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { sendAppointmentConfirmation } from '@/lib/email';
 import { showAppointmentNotification, sendPushNotification } from '@/lib/notifications';
 
+
 const Appointment = () => {
   const navigate = useNavigate();
   const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
@@ -53,6 +54,9 @@ const Appointment = () => {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
+
+  // Realtime functionality
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected'>('disconnected');
 
   // Get next available booking date (skip holidays)
   const getNextAvailableDate = (): Date => {
@@ -181,6 +185,119 @@ const Appointment = () => {
       };
     }
   }, [date, clinic?.id]);
+
+  // Enhanced realtime subscription for slot availability
+  useEffect(() => {
+    if (!clinic?.id) return;
+
+    console.log('🔌 Setting up realtime subscriptions for clinic:', clinic.id);
+
+    // Set realtime status to connected when subscription is active
+    setRealtimeStatus('connected');
+
+    // Direct Supabase realtime subscription for appointments
+    const appointmentChannel = supabase
+      .channel(`appointments_realtime_${clinic.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `clinic_id=eq.${clinic.id}`
+        },
+        (payload) => {
+          console.log('🎯 Realtime appointment change detected:', payload);
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          
+          // Only update if the change affects the current date
+          const currentDate = format(date, 'yyyy-MM-dd');
+          const changedDate = newRecord?.date || oldRecord?.date;
+          
+          console.log('📅 Date comparison:', { currentDate, changedDate, matches: changedDate === currentDate });
+          
+          if (changedDate === currentDate) {
+            // Show notification for slot changes
+            if (eventType === 'INSERT') {
+              console.log('🆕 New appointment detected:', newRecord);
+              toast.info(`⏰ Time slot ${newRecord.time} is now booked`, {
+                duration: 3000
+              });
+            } else if (eventType === 'DELETE' && oldRecord?.status === 'Cancelled') {
+              console.log('✅ Cancelled appointment detected:', oldRecord);
+              toast.success(`✅ Time slot ${oldRecord.time} is now available`, {
+                duration: 3000
+              });
+            }
+            
+            // Refresh booked slots immediately
+            setTimeout(() => {
+              console.log('🔄 Refreshing booked slots...');
+              checkBookedSlots();
+            }, 500);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Appointment realtime subscription status:', status);
+        setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 'disconnected');
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Appointment realtime subscription active');
+          toast.success('🔗 Live updates connected', { duration: 2000 });
+        } else {
+          console.log('❌ Appointment realtime subscription failed');
+          toast.error('🔌 Live updates disconnected', { duration: 2000 });
+        }
+      });
+
+    // Direct Supabase realtime subscription for disabled slots
+    const disabledSlotsChannel = supabase
+      .channel(`disabled_slots_realtime_${clinic.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'disabled_slots',
+          filter: `clinic_id=eq.${clinic.id}`
+        },
+        (payload) => {
+          console.log('🚫 Realtime disabled slots change detected:', payload);
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          
+          // Only update if the change affects the current date
+          const currentDate = format(date, 'yyyy-MM-dd');
+          const changedDate = newRecord?.date || oldRecord?.date;
+          
+          if (changedDate === currentDate) {
+            if (eventType === 'INSERT') {
+              toast.warning(`🚫 Time slot ${newRecord.start_time}-${newRecord.end_time} has been disabled`, {
+                duration: 4000
+              });
+            } else if (eventType === 'DELETE') {
+              toast.success(`✅ Time slot ${oldRecord.start_time}-${oldRecord.end_time} is now available`, {
+                duration: 4000
+              });
+            }
+            
+            // Refresh disabled slots immediately
+            setTimeout(() => {
+              loadDisabledSlots(date);
+            }, 500);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Disabled slots realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('🧹 Cleaning up realtime subscriptions');
+      supabase.removeChannel(appointmentChannel);
+      supabase.removeChannel(disabledSlotsChannel);
+    };
+  }, [clinic?.id, date]);
 
   // Phone number formatting function
   const formatPhoneNumber = (phoneNumber: string): string => {
@@ -668,8 +785,6 @@ const Appointment = () => {
                   <p className="text-sm text-muted-foreground">
                     💌 We don't spam! Your email is only used for appointment confirmations and important updates.
                   </p>
-                  
-
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">

@@ -1,78 +1,145 @@
-/**
- * Main Application Component
- * 
- * This is the root component that sets up the application structure and routing.
- * It includes:
- * - Query client provider for data fetching
- * - Tooltip provider for enhanced UI interactions
- * - Toast notifications for user feedback
- * - Browser router for navigation
- * - Route definitions for all pages
- * 
- * Application Structure:
- * - Home page: Main landing page with all sections
- * - Services page: Dedicated page for dental services
- * - Dentists page: Team and professional information
- * - Contact page: Contact information and inquiry form
- * - Appointment page: Appointment booking system
- * - Admin pages: Administrative dashboard and login
- * - 404 page: Not found error handling
- * 
- * Features:
- * - Client-side routing with React Router
- * - Global state management with React Query
- * - Toast notifications for user feedback
- * - Tooltip system for enhanced UX
- * - Error boundary handling
- * - SEO-friendly routing structure
- * 
- * @returns JSX.Element - The main application component
- */
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ClinicProvider } from "./contexts/ClinicContext";
-import ScrollToTop from "./components/ScrollToTop";
-import Home from "./pages/Home";
-import Services from "./pages/Services";
-import Dentists from "./pages/Dentists";
-import Contact from "./pages/Contact";
-import Appointment from "./pages/Appointment";
-import BookingComplete from "./pages/BookingComplete";
-import Admin from "./pages/Admin";
-import AdminLogin from "./pages/AdminLogin";
-import NotFound from "./pages/NotFound";
-// import PWAInstall from "./components/PWAInstall";
+import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
+import { TooltipProvider } from '@radix-ui/react-tooltip'
 
-const queryClient = new QueryClient();
+import { ClinicProvider } from './contexts/ClinicContext'
+import { supabase } from './lib/supabase'
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ScrollToTop />
-        <ClinicProvider>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/dentists" element={<Dentists />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/appointment" element={<Appointment />} />
-            <Route path="/booking-complete" element={<BookingComplete />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<Admin />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </ClinicProvider>
-        {/* <PWAInstall /> */}
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+import Home from './pages/Home'
+import Appointment from './pages/Appointment'
+import Admin from './pages/Admin'
+import AdminLogin from './pages/AdminLogin'
+import Contact from './pages/Contact'
+import Services from './pages/Services'
+import Dentists from './pages/Dentists'
+import NotFound from './pages/NotFound'
+import BookingComplete from './pages/BookingComplete'
+import CheckAppointmentStatus from './components/CheckAppointmentStatus'
 
-export default App;
+import './App.css'
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
+// Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-red-50">
+          <div className="text-center p-8">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">
+              🚨 Something went wrong!
+            </h1>
+            <p className="text-red-800 mb-4">
+              {this.state.error?.message || 'An unexpected error occurred'}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+function App() {
+  console.log('🎯 App component rendering with optimized real-time...')
+  
+  // Initialize optimized real-time system
+  useEffect(() => {
+    const initializeRealtime = async () => {
+      try {
+        console.log('📡 Initializing optimized real-time system...')
+        const { initializeRealtime } = await import('./lib/optimized-realtime')
+        initializeRealtime(supabase)
+        console.log('✅ Optimized real-time system initialized successfully')
+      } catch (error) {
+        console.warn('⚠️ Failed to initialize optimized real-time, using fallback:', error)
+        // Continue without optimized real-time - app will still work
+      }
+    }
+
+    initializeRealtime()
+
+    // Cleanup on unmount
+    return () => {
+      const cleanup = async () => {
+        try {
+          const { cleanupRealtime } = await import('./lib/optimized-realtime')
+          cleanupRealtime()
+          console.log('✅ Real-time cleanup completed')
+        } catch (error) {
+          console.warn('⚠️ Failed to cleanup real-time:', error)
+        }
+      }
+      cleanup()
+    }
+  }, [])
+  
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Router>
+            <ClinicProvider>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/appointment" element={<Appointment />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/dentists" element={<Dentists />} />
+                <Route path="/booking-complete" element={<BookingComplete />} />
+                <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ClinicProvider>
+          </Router>
+          <Toaster 
+            position="top-right"
+            richColors
+            closeButton
+            duration={4000}
+          />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  )
+}
+
+export default App

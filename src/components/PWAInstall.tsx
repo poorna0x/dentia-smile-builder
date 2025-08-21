@@ -1,23 +1,42 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { X, Download, Bell } from 'lucide-react';
-import { isPWAInstalled, installPWA, initializeNotifications } from '@/lib/notifications';
+import { Download, X, Smartphone, Monitor } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
   prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const PWAInstall = () => {
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+export const PWAInstall = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Check if PWA is already installed
-    setIsInstalled(isPWAInstalled());
+    // Check if device is mobile
+    const checkDevice = () => {
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      setIsMobile(mobile);
+      setIsIOS(ios);
+    };
+
+    // Check if app is already installed
+    const checkIfInstalled = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSInstalled = isIOS && (window.navigator as any).standalone;
+      
+      setIsInstalled(isStandalone || isIOSInstalled);
+    };
+
+    checkDevice();
+    checkIfInstalled();
 
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -33,146 +52,140 @@ const PWAInstall = () => {
       setDeferredPrompt(null);
     };
 
-    // Check if notifications are enabled
-    const checkNotificationStatus = () => {
-      if ('Notification' in window && Notification.permission === 'default') {
-        setShowNotificationPrompt(true);
-      }
+    // Listen for display mode changes
+    const handleDisplayModeChange = () => {
+      checkIfInstalled();
     };
-
-    // Initialize notifications
-    initializeNotifications().then(() => {
-      checkNotificationStatus();
-    });
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', handleDisplayModeChange);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      window.matchMedia('(display-mode: standalone)').removeEventListener('change', handleDisplayModeChange);
     };
-  }, []);
+  }, [isIOS]);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
+    if (!deferredPrompt) return;
+
+    try {
+      // Show the install prompt
+      await deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
       const { outcome } = await deferredPrompt.userChoice;
       
       if (outcome === 'accepted') {
-        console.log('PWA installed successfully');
-      }
-      
-      setDeferredPrompt(null);
-      setShowInstallPrompt(false);
-    }
-  };
-
-  const handleNotificationClick = async () => {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        setShowNotificationPrompt(false);
-        // Initialize push notifications
-        await initializeNotifications();
+        console.log('User accepted the install prompt');
+        setIsInstalled(true);
+        setShowInstallPrompt(false);
+      } else {
+        console.log('User dismissed the install prompt');
       }
     } catch (error) {
-      console.error('Failed to request notification permission:', error);
+      console.error('Error showing install prompt:', error);
     }
+
+    setDeferredPrompt(null);
   };
 
-  // Don't show if PWA is already installed
+  const handleDismiss = () => {
+    setShowInstallPrompt(false);
+    setDeferredPrompt(null);
+  };
+
+  // Don't show if already installed
   if (isInstalled) {
     return null;
   }
 
-  return (
-    <>
-      {/* PWA Install Prompt */}
-      {showInstallPrompt && (
-        <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-80">
-          <Card className="shadow-lg border-2 border-blue-200 bg-blue-50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-blue-900">Install App</CardTitle>
+  // Show iOS instructions if on iOS and no install prompt
+  if (isIOS && !deferredPrompt) {
+    return (
+      <div className="fixed bottom-4 left-4 right-4 z-50">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Smartphone className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Install Dentia App
+              </h3>
+              <p className="text-xs text-gray-600 mt-1">
+                Tap the share button <span className="font-mono">⎋</span> then "Add to Home Screen"
+              </p>
+              
+              <div className="flex gap-2 mt-3">
                 <Button
-                  variant="ghost"
                   size="sm"
-                  onClick={() => setShowInstallPrompt(false)}
-                  className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardDescription className="text-blue-700">
-                Install Jeshna Dental Clinic app for quick access and notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleInstallClick}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Install
-                </Button>
-                <Button
                   variant="outline"
-                  onClick={() => setShowInstallPrompt(false)}
-                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  onClick={handleDismiss}
+                  className="flex-1"
                 >
-                  Later
+                  Got it
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* Notification Permission Prompt */}
-      {showNotificationPrompt && (
-        <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-80">
-          <Card className="shadow-lg border-2 border-green-200 bg-green-50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg text-green-900">Enable Notifications</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowNotificationPrompt(false)}
-                  className="h-6 w-6 p-0 text-green-600 hover:text-green-800"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardDescription className="text-green-700">
-                Get notified about new appointments and updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleNotificationClick}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Bell className="h-4 w-4 mr-2" />
-                  Enable
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowNotificationPrompt(false)}
-                  className="text-green-600 border-green-300 hover:bg-green-50"
-                >
-                  Later
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+  // Show Android/Desktop install prompt
+  if (!showInstallPrompt || !deferredPrompt) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-50">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              {isMobile ? <Smartphone className="w-6 h-6 text-white" /> : <Monitor className="w-6 h-6 text-white" />}
+            </div>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Install Dentia App
+            </h3>
+            <p className="text-xs text-gray-600 mt-1">
+              {isMobile 
+                ? 'Get quick access to your dental clinic management system. Works offline and sends notifications.'
+                : 'Install the app for quick access and desktop notifications.'
+              }
+            </p>
+            
+            <div className="flex gap-2 mt-3">
+              <Button
+                size="sm"
+                onClick={handleInstallClick}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Install
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDismiss}
+                className="px-3"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 };
-
-export default PWAInstall;

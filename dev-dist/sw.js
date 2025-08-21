@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-d9a5ed57'], (function (workbox) { 'use strict';
+define(['./workbox-9dc17825'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -82,17 +82,24 @@ define(['./workbox-d9a5ed57'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.u24chkao5tg"
+    "revision": "0.od5p5cmtltg"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
-  workbox.registerRoute(/^https:\/\/fonts\.googleapis\.com\/.*/i, new workbox.CacheFirst({
-    "cacheName": "google-fonts-cache",
+  workbox.registerRoute(/^https:\/\/.*\.supabase\.co\/.*$/, new workbox.NetworkFirst({
+    "cacheName": "supabase-api",
     plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 10,
-      maxAgeSeconds: 31536000
+      maxEntries: 100,
+      maxAgeSeconds: 604800
+    })]
+  }), 'GET');
+  workbox.registerRoute(/^https:\/\/.*\.(png|jpg|jpeg|svg|gif|webp)$/, new workbox.CacheFirst({
+    "cacheName": "images",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 100,
+      maxAgeSeconds: 2592000
     })]
   }), 'GET');
 

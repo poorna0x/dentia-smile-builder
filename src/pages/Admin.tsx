@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { isAdminLoggedIn, clearAdminSession } from '@/lib/auth';
-import { useAppointments } from '@/hooks/useAppointments';
+import { useOptimizedAppointments } from '@/hooks/useOptimizedAppointments'
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
@@ -11,6 +11,8 @@ import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot } from '@/
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
+import { showLocalNotification, requestNotificationPermission } from '@/lib/notifications';
+import { Download, Smartphone, Monitor } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -149,10 +151,23 @@ const Admin = () => {
     appointments, 
     loading: appointmentsLoading, 
     error: appointmentsError,
+    createAppointment,
     updateAppointment,
-    deleteAppointment
-  } = useAppointments();
+    deleteAppointment,
+    refresh: refreshAppointments
+  } = useOptimizedAppointments()
   const { settings, loading: settingsLoading } = useSettings();
+
+  // Realtime functionality
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  
+  // PWA functionality
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isPWAInstalled, setIsPWAInstalled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [serviceWorkerStatus, setServiceWorkerStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
 
   // Default scheduling settings
   const [schedulingSettings, setSchedulingSettings] = useState<SchedulingSettings>({
@@ -186,10 +201,129 @@ const Admin = () => {
       return;
     }
     
+    // Request notification permission for admin
+    const setupNotifications = async () => {
+      const permission = await requestNotificationPermission();
+      setNotificationPermission(permission ? 'granted' : 'denied');
+      
+      if (permission) {
+        console.log('✅ Admin notification permission granted');
+        toast.success('🔔 Web notifications enabled', { duration: 2000 });
+      } else {
+        console.log('❌ Admin notification permission denied');
+        toast.info('🔕 Web notifications disabled - you can enable them in browser settings', { duration: 3000 });
+      }
+    };
+    
+    setupNotifications();
+    
+    // Setup PWA functionality
+    const setupPWA = () => {
+      // Check if device is mobile
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const android = /Android/i.test(navigator.userAgent);
+      
+      setIsMobile(mobile);
+      setIsIOS(ios);
+      
+      // Check if PWA is already installed
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSInstalled = ios && (window.navigator as any).standalone;
+      const isAndroidInstalled = android && window.matchMedia('(display-mode: standalone)').matches;
+      
+      setIsPWAInstalled(isStandalone || isIOSInstalled || isAndroidInstalled);
+      
+      console.log('📱 Mobile PWA Setup:', {
+        mobile,
+        ios,
+        android,
+        isStandalone,
+        isIOSInstalled,
+        isAndroidInstalled,
+        isPWAInstalled: isStandalone || isIOSInstalled || isAndroidInstalled
+      });
+    };
+    
+    setupPWA();
+    
+    // Debug PWA status
+    console.log('🔍 PWA Debug Info:', {
+      userAgent: navigator.userAgent,
+      isChrome: /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent),
+      isEdge: /Edge/.test(navigator.userAgent),
+      hasServiceWorker: 'serviceWorker' in navigator,
+      serviceWorkerStatus,
+      protocol: window.location.protocol,
+      hostname: window.location.hostname,
+      isSecure: window.location.protocol === 'https:' || 
+                window.location.hostname === 'localhost' || 
+                window.location.hostname === '127.0.0.1' ||
+                window.location.hostname.includes('localhost'),
+      isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+      isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+      isDevelopment: import.meta.env.DEV,
+      canInstall: canInstallPWA()
+    });
+    
+    // Check service worker registration
+    if ('serviceWorker' in navigator) {
+      setServiceWorkerStatus('available');
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        console.log('🔧 Service Worker Registrations:', registrations);
+        if (registrations.length > 0) {
+          console.log('✅ Service Worker is registered and active');
+          registrations.forEach((registration, index) => {
+            console.log(`📋 Registration ${index + 1}:`, {
+              scope: registration.scope,
+              active: !!registration.active,
+              waiting: !!registration.waiting,
+              installing: !!registration.installing
+            });
+          });
+        } else {
+          console.log('⚠️ No service worker registrations found');
+          // Try to register service worker manually
+          if (import.meta.env.DEV) {
+            console.log('🔄 Attempting to register service worker manually...');
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+              console.log('✅ Service Worker registered manually:', registration);
+            }).catch(error => {
+              console.log('❌ Failed to register service worker manually:', error);
+            });
+          }
+        }
+      });
+    } else {
+      setServiceWorkerStatus('unavailable');
+    }
+    
+    // Listen for PWA install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      console.log('🎯 PWA install prompt received:', e);
+      setDeferredPrompt(e);
+    };
+    
+    // Listen for PWA installed
+    const handleAppInstalled = () => {
+      console.log('✅ PWA installed successfully');
+      setIsPWAInstalled(true);
+      setDeferredPrompt(null);
+    };
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    
     // Simulate loading
     setTimeout(() => {
       setIsLoading(false);
     }, 1000);
+    
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, [navigate]);
 
   // Sync local state with database settings
@@ -249,6 +383,277 @@ const Admin = () => {
       setSchedulingSettings(convertedSettings);
     }
   }, [settings]);
+
+  // Realtime subscriptions for live updates
+  useEffect(() => {
+    if (!clinic?.id) return;
+
+    console.log('🔌 Setting up admin realtime subscriptions for clinic:', clinic.id);
+
+    // Direct Supabase realtime subscription for appointments
+    const appointmentChannel = supabase
+      .channel(`admin_appointments_${clinic.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `clinic_id=eq.${clinic.id}`
+        },
+        (payload) => {
+          console.log('🎯 Admin realtime appointment change detected:', payload);
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          
+          // Show notification for new appointments
+          if (eventType === 'INSERT') {
+            console.log('🆕 New appointment detected in admin:', newRecord);
+            
+            // Show toast notification
+            toast.success(`🆕 New appointment: ${newRecord.name} - ${newRecord.date} at ${newRecord.time}`, {
+              duration: 5000,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  // Scroll to the new appointment in the list
+                  const appointmentElement = document.getElementById(`appointment-${newRecord.id}`);
+                  if (appointmentElement) {
+                    appointmentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    appointmentElement.classList.add('bg-green-50', 'border-green-200');
+                    setTimeout(() => {
+                      appointmentElement.classList.remove('bg-green-50', 'border-green-200');
+                    }, 3000);
+                  }
+                }
+              }
+            });
+            
+            // Show web notification (works even when tab is not active)
+            if (notificationPermission === 'granted') {
+              showLocalNotification({
+                title: '🆕 New Appointment Booked!',
+                body: `${newRecord.name} - ${newRecord.date} at ${newRecord.time}`,
+                icon: '/logo.png',
+                data: {
+                  url: '/admin',
+                  appointment: newRecord
+                },
+                actions: [
+                  {
+                    action: 'view',
+                    title: 'View Details'
+                  },
+                  {
+                    action: 'call',
+                    title: 'Call Patient'
+                  }
+                ]
+              });
+            }
+          }
+          
+          // Show notification for status changes
+          if (eventType === 'UPDATE' && oldRecord?.status !== newRecord?.status) {
+            console.log('📝 Appointment status change detected:', { old: oldRecord?.status, new: newRecord?.status });
+            
+            // Show toast notification
+            toast.info(`📝 Appointment updated: ${newRecord.name} - Status changed to ${newRecord.status}`, {
+              duration: 4000
+            });
+            
+            // Show web notification for important status changes
+            if (notificationPermission === 'granted' && 
+                (newRecord.status === 'Cancelled' || newRecord.status === 'Completed')) {
+              showLocalNotification({
+                title: `📝 Appointment ${newRecord.status}`,
+                body: `${newRecord.name} - ${newRecord.date} at ${newRecord.time}`,
+                icon: '/logo.png',
+                data: {
+                  url: '/admin',
+                  appointment: newRecord
+                }
+              });
+            }
+          }
+          
+          // Show notification for cancellations
+          if (eventType === 'DELETE') {
+            console.log('❌ Appointment deletion detected:', oldRecord);
+            toast.warning(`❌ Appointment cancelled: ${oldRecord.name} - ${oldRecord.date} at ${oldRecord.time}`, {
+              duration: 4000
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Admin appointment realtime subscription status:', status);
+        setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 'disconnected');
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Admin appointment realtime subscription active');
+          toast.success('🔗 Admin live updates connected', { duration: 2000 });
+        } else {
+          console.log('❌ Admin appointment realtime subscription failed');
+          toast.error('🔌 Admin live updates disconnected', { duration: 2000 });
+        }
+      });
+
+    // Direct Supabase realtime subscription for settings
+    const settingsChannel = supabase
+      .channel(`admin_settings_${clinic.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'scheduling_settings',
+          filter: `clinic_id=eq.${clinic.id}`
+        },
+        (payload) => {
+          console.log('⚙️ Admin realtime settings change detected:', payload);
+          const { eventType, new: newRecord } = payload;
+          
+          if (eventType === 'UPDATE') {
+            toast.info('⚙️ Clinic settings updated', {
+              duration: 3000
+            });
+            // Refresh settings
+            window.location.reload();
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Admin settings realtime subscription status:', status);
+      });
+
+    // Direct Supabase realtime subscription for disabled slots
+    const disabledSlotsChannel = supabase
+      .channel(`admin_disabled_slots_${clinic.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'disabled_slots',
+          filter: `clinic_id=eq.${clinic.id}`
+        },
+        (payload) => {
+          console.log('🚫 Admin realtime disabled slots change detected:', payload);
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+          
+          if (eventType === 'INSERT') {
+            toast.info(`🚫 Time slot disabled: ${newRecord.date} ${newRecord.start_time}-${newRecord.end_time}`, {
+              duration: 4000
+            });
+          }
+          
+          if (eventType === 'DELETE') {
+            toast.success(`✅ Time slot re-enabled: ${oldRecord.date} ${oldRecord.start_time}-${oldRecord.end_time}`, {
+              duration: 4000
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Admin disabled slots realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('🧹 Cleaning up admin realtime subscriptions');
+      supabase.removeChannel(appointmentChannel);
+      supabase.removeChannel(settingsChannel);
+      supabase.removeChannel(disabledSlotsChannel);
+    };
+  }, [clinic?.id]);
+
+  // PWA install functions
+  const handlePWAInstall = async () => {
+    console.log('🚀 PWA Install triggered');
+    console.log('Deferred prompt:', deferredPrompt);
+    console.log('Is mobile:', isMobile);
+    console.log('Is iOS:', isIOS);
+
+    // For iOS, show instructions
+    if (isIOS) {
+      toast.info('📱 For iOS: Tap the Share button ⎋ then "Add to Home Screen"');
+      return;
+    }
+
+    // If we have a deferred prompt, use it
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+          console.log('PWA installed successfully');
+          setIsPWAInstalled(true);
+          setDeferredPrompt(null);
+          toast.success('✅ App installed successfully!');
+        } else {
+          console.log('PWA install dismissed');
+          toast.info('Installation cancelled');
+        }
+      } catch (error) {
+        console.error('Error installing PWA:', error);
+        toast.error('Failed to install app');
+      }
+    } else {
+      // No deferred prompt - show manual instructions
+      if (isMobile) {
+        toast.info('📱 For Android: Tap the menu (⋮) then "Install app" or "Add to Home screen"');
+      } else {
+        toast.info('💻 For Desktop: Look for the install icon in your browser address bar or use Ctrl+Shift+I to open developer tools');
+      }
+    }
+  };
+
+  // Check if PWA can be installed
+  const canInstallPWA = () => {
+    // Check if it's a supported browser
+    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent);
+    const isEdge = /Edge/.test(navigator.userAgent);
+    const isFirefox = /Firefox/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    
+    // Check if service worker is supported and available
+    const hasServiceWorker = 'serviceWorker' in navigator;
+    
+    // Check if it's HTTPS or localhost (required for PWA)
+    const isSecure = window.location.protocol === 'https:' || 
+                    window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname.includes('localhost');
+    
+    // Check if it's not already installed
+    const isNotInstalled = !isPWAInstalled;
+    
+    // For development, be more lenient with service worker check
+    const isDevelopment = import.meta.env.DEV;
+    
+    // Mobile-specific checks
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    // Always allow installation if basic requirements are met
+    const basicRequirements = (isChrome || isEdge || isFirefox || (isSafari && isIOS)) && isSecure && isNotInstalled;
+    
+    const result = isDevelopment ? basicRequirements : 
+                  isMobile ? basicRequirements : 
+                  basicRequirements && hasServiceWorker;
+    
+    // Debug logging
+    if (import.meta.env.DEV) {
+      console.log('🔍 canInstallPWA Debug:', {
+        isChrome, isEdge, isFirefox, isSafari,
+        hasServiceWorker, isSecure, isNotInstalled,
+        isDevelopment, isMobile, isIOS,
+        basicRequirements, result
+      });
+    }
+    
+    return result;
+  };
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -331,8 +736,10 @@ Please confirm by replying "Yes" or "No"`;
         await updateAppointment(appointmentId, { status: newStatus as any });
       }
       
-      // Clear cache to ensure fresh data
-      QueryOptimizer.clearCache('appointments');
+      // Force refresh appointments to get immediate update
+      if (refreshAppointments) {
+        await refreshAppointments();
+      }
       
       // Update the editing appointment state
       if (editingAppointment && editingAppointment.id === appointmentId) {
@@ -464,8 +871,10 @@ Please confirm by replying "Yes" or "No"`;
         await updateAppointment(appointmentId, { status: 'Completed' });
       }
       
-      // Clear cache to ensure fresh data
-      QueryOptimizer.clearCache('appointments');
+      // Force refresh appointments to get immediate update
+      if (refreshAppointments) {
+        await refreshAppointments();
+      }
       
       toast.success('Appointment marked as completed');
     } catch (error) {
@@ -480,8 +889,10 @@ Please confirm by replying "Yes" or "No"`;
           await updateAppointment(appointmentId, { status: 'Cancelled' });
         }
         
-        // Clear cache to ensure fresh data
-        QueryOptimizer.clearCache('appointments');
+        // Force refresh appointments to get immediate update
+        if (refreshAppointments) {
+          await refreshAppointments();
+        }
         
         toast.success('Appointment cancelled');
         
@@ -508,8 +919,10 @@ Please confirm by replying "Yes" or "No"`;
         await deleteAppointment(appointmentId);
       }
       
-      // Clear cache to ensure fresh data
-      QueryOptimizer.clearCache('appointments');
+      // Force refresh appointments to get immediate update
+      if (refreshAppointments) {
+        await refreshAppointments();
+      }
       
       toast.success('Appointment deleted permanently');
     } catch (error) {
@@ -540,8 +953,10 @@ Please confirm by replying "Yes" or "No"`;
         }
       }
 
-      // Clear cache to ensure fresh data
-      QueryOptimizer.clearCache('appointments');
+      // Force refresh appointments to get immediate update
+      if (refreshAppointments) {
+        await refreshAppointments();
+      }
 
       toast.success(`${cancelledAppointments.length} cancelled appointments deleted permanently`);
     } catch (error) {
@@ -1444,11 +1859,47 @@ Please confirm by replying "Yes" or "No"`;
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
-          <div>
+            <div>
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent">Admin Dashboard</h1>
               <p className="text-slate-600 mt-2">Manage appointments and clinic settings</p>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
+              {/* Realtime Status Indicator */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200">
+                <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  realtimeStatus === 'connected' 
+                    ? 'bg-green-500' 
+                    : realtimeStatus === 'connecting' 
+                    ? 'bg-yellow-500' 
+                    : 'bg-red-500'
+                }`} />
+                <span className={`${
+                  realtimeStatus === 'connected' 
+                    ? 'text-green-700 bg-green-50 border-green-200' 
+                    : realtimeStatus === 'connecting' 
+                    ? 'text-yellow-700 bg-yellow-50 border-yellow-200' 
+                    : 'text-red-700 bg-red-50 border-red-200'
+                }`}>
+                  {realtimeStatus === 'connected' ? 'Live' : realtimeStatus === 'connecting' ? 'Connecting...' : 'Offline'}
+                </span>
+              </div>
+              
+              {/* Notification Status Indicator */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200">
+                <div className={`w-2 h-2 rounded-full ${
+                  notificationPermission === 'granted' 
+                    ? 'bg-blue-500' 
+                    : 'bg-gray-400'
+                }`} />
+                <span className={`${
+                  notificationPermission === 'granted' 
+                    ? 'text-blue-700 bg-blue-50 border-blue-200' 
+                    : 'text-gray-600 bg-gray-50 border-gray-200'
+                }`}>
+                  {notificationPermission === 'granted' ? '🔔 Notifications' : '🔕 No Notifications'}
+                </span>
+              </div>
+              
               <Button 
                 onClick={() => {
                   setShowSettings(!showSettings);
@@ -1745,7 +2196,11 @@ Please confirm by replying "Yes" or "No"`;
                 </TableHeader>
                 <TableBody>
                     {filteredAppointments.map((appointment) => (
-                      <TableRow key={appointment.id} className="hover:bg-purple-50/50">
+                      <TableRow 
+                        key={appointment.id} 
+                        id={`appointment-${appointment.id}`}
+                        className="hover:bg-purple-50/50 transition-all duration-200"
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -2233,6 +2688,141 @@ Please confirm by replying "Yes" or "No"`;
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+
+                {/* PWA Install Section */}
+                <div className="space-y-4">
+                  <div className="border-t pt-6">
+                    <Label className="text-base font-medium">Mobile App Installation</Label>
+                    <p className="text-sm text-gray-600 mb-4">Install the dental clinic app on your device for quick access</p>
+                    
+                    {isPWAInstalled ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <Download className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-green-800">App Installed</p>
+                            <p className="text-xs text-green-600">The dental clinic app is installed on your device</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : isIOS ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <Smartphone className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-blue-800">iOS Installation</p>
+                            <p className="text-xs text-blue-600">
+                              Tap the share button <span className="font-mono">⎋</span> then "Add to Home Screen"
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                                        ) : (canInstallPWA() || import.meta.env.DEV) ? (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                              {isMobile ? <Smartphone className="w-4 h-4 text-white" /> : <Monitor className="w-4 h-4 text-white" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-purple-800">
+                                {isMobile ? 'Mobile App' : 'Desktop App'}
+                              </p>
+                              <p className="text-xs text-purple-600">
+                                {isMobile && isIOS 
+                                  ? 'Tap Share → Add to Home Screen'
+                                  : isMobile && !isIOS
+                                  ? 'Tap Menu → Install App'
+                                  : 'Install for quick access and notifications'
+                                }
+                                {deferredPrompt ? ' (Install prompt available)' : ' (Manual install)'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {!isIOS && (
+                              <Button
+                                size="sm"
+                                onClick={handlePWAInstall}
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                {deferredPrompt ? 'Install' : 'Install Guide'}
+                              </Button>
+                            )}
+                            {import.meta.env.DEV && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  console.log('🧪 Manual PWA test triggered');
+                                  console.log('Deferred prompt:', deferredPrompt);
+                                  console.log('Can install:', canInstallPWA());
+                                  console.log('Mobile:', isMobile, 'iOS:', isIOS);
+                                  
+                                  // Try to manually register service worker
+                                  if ('serviceWorker' in navigator) {
+                                    navigator.serviceWorker.register('/sw.js').then(registration => {
+                                      console.log('✅ Service Worker registered manually:', registration);
+                                      toast.success('Service Worker registered!');
+                                    }).catch(error => {
+                                      console.log('❌ Failed to register service worker:', error);
+                                      toast.error('Service Worker registration failed');
+                                    });
+                                  }
+                                }}
+                                className="text-xs"
+                              >
+                                Test
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                            <Monitor className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">Installation Requirements</p>
+                            <p className="text-xs text-gray-600">
+                              {window.location.protocol !== 'https:' && 
+                               window.location.hostname !== 'localhost' && 
+                               window.location.hostname !== '127.0.0.1' &&
+                               !window.location.hostname.includes('localhost')
+                                ? 'HTTPS connection required for app installation'
+                                : isMobile && isIOS
+                                ? 'Use Safari browser and tap Share → Add to Home Screen'
+                                : isMobile && !isIOS
+                                ? 'Use Chrome/Edge browser and tap Menu → Install App'
+                                : !('serviceWorker' in navigator) && !import.meta.env.DEV
+                                ? 'Service Worker not supported in this browser'
+                                : import.meta.env.DEV
+                                ? 'Development mode - PWA install may not work properly'
+                                : 'Browser may not support PWA installation'
+                              }
+                            </p>
+                            {import.meta.env.DEV && (
+                              <p className="text-xs text-red-500 mt-1">
+                                DEBUG: Protocol: {window.location.protocol}, Hostname: {window.location.hostname}, 
+                                IsSecure: {(window.location.protocol === 'https:' || 
+                                           window.location.hostname === 'localhost' || 
+                                           window.location.hostname === '127.0.0.1' ||
+                                           window.location.hostname.includes('localhost')).toString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
