@@ -31,13 +31,13 @@ INSERT INTO scheduling_settings (clinic_id, day_schedules, notification_settings
 SELECT 
   c.id,
   '{
-    "0": {"start_time": "09:00", "end_time": "16:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": false},
-    "1": {"start_time": "08:00", "end_time": "19:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": true},
-    "2": {"start_time": "08:00", "end_time": "19:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": true},
-    "3": {"start_time": "08:00", "end_time": "19:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": true},
-    "4": {"start_time": "08:00", "end_time": "19:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": true},
-    "5": {"start_time": "08:00", "end_time": "17:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": true},
-    "6": {"start_time": "09:00", "end_time": "16:00", "break_start": "13:00", "break_end": "14:00", "slot_interval_minutes": 30, "enabled": false}
+    "0": {"start_time": "09:00", "end_time": "16:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": false},
+    "1": {"start_time": "08:00", "end_time": "19:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": true},
+    "2": {"start_time": "08:00", "end_time": "19:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": true},
+    "3": {"start_time": "08:00", "end_time": "19:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": true},
+    "4": {"start_time": "08:00", "end_time": "19:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": true},
+    "5": {"start_time": "08:00", "end_time": "17:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": true},
+    "6": {"start_time": "09:00", "end_time": "16:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": false}
   }',
   '{"email_notifications": true, "reminder_hours": 48, "auto_confirm": false}'
 FROM clinics c 
@@ -49,13 +49,13 @@ INSERT INTO scheduling_settings (clinic_id, day_schedules, notification_settings
 SELECT 
   c.id,
   '{
-    "0": {"start_time": "11:00", "end_time": "18:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true},
-    "1": {"start_time": "10:00", "end_time": "21:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true},
-    "2": {"start_time": "10:00", "end_time": "21:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true},
-    "3": {"start_time": "10:00", "end_time": "21:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true},
-    "4": {"start_time": "10:00", "end_time": "21:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true},
-    "5": {"start_time": "10:00", "end_time": "20:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true},
-    "6": {"start_time": "11:00", "end_time": "18:00", "break_start": "14:00", "break_end": "15:00", "slot_interval_minutes": 30, "enabled": true}
+    "0": {"start_time": "11:00", "end_time": "18:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
+    "1": {"start_time": "10:00", "end_time": "21:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
+    "2": {"start_time": "10:00", "end_time": "21:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
+    "3": {"start_time": "10:00", "end_time": "21:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
+    "4": {"start_time": "10:00", "end_time": "21:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
+    "5": {"start_time": "10:00", "end_time": "20:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
+    "6": {"start_time": "11:00", "end_time": "18:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true}
   }',
   '{"email_notifications": true, "reminder_hours": 12, "auto_confirm": true}'
 FROM clinics c 

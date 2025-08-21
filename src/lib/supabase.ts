@@ -79,8 +79,8 @@ export interface SchedulingSettings {
 export interface DaySchedule {
   start_time: string
   end_time: string
-  break_start: string
-  break_end: string
+  break_start: string[]  // Changed from string to string[] to support multiple breaks
+  break_end: string[]    // Changed from string to string[] to support multiple breaks
   slot_interval_minutes: number
   enabled: boolean
 }

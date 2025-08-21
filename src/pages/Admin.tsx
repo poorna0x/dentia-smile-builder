@@ -66,8 +66,8 @@ interface DaySchedule {
   enabled: boolean;
   startTime: string;
   endTime: string;
-  breakStart: string;
-  breakEnd: string;
+  breakStart: string[];  // Changed to array to support multiple breaks
+  breakEnd: string[];    // Changed to array to support multiple breaks
   slotInterval: number;
 }
 
@@ -151,13 +151,13 @@ const Admin = () => {
     weeklyHolidays: [],
     customHolidays: [],
     daySchedules: {
-      Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-      Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-      Wed: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-      Thu: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-      Fri: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-      Sat: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-      Sun: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 }
+      Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+      Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+      Wed: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+      Thu: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+      Fri: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+      Sat: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+      Sun: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 }
     }
   });
 
@@ -197,13 +197,13 @@ const Admin = () => {
         }),
         customHolidays: settings.custom_holidays || [],
         daySchedules: {
-          Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-          Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-          Wed: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-          Thu: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-          Fri: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-          Sat: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 },
-          Sun: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: '13:00', breakEnd: '14:00', slotInterval: 30 }
+          Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+          Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+          Wed: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+          Thu: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+          Fri: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+          Sat: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
+          Sun: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 }
         }
       };
 
@@ -213,12 +213,20 @@ const Admin = () => {
           const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
           const dayName = dayNames[parseInt(dayNumber)] || 'Sun';
           
+          // Handle transition from single string to array for breaks
+          const breakStart = Array.isArray(schedule.break_start) 
+            ? schedule.break_start 
+            : [schedule.break_start || '13:00'];
+          const breakEnd = Array.isArray(schedule.break_end) 
+            ? schedule.break_end 
+            : [schedule.break_end || '14:00'];
+          
           convertedSettings.daySchedules[dayName as keyof typeof convertedSettings.daySchedules] = {
             enabled: schedule.enabled ?? true,
             startTime: schedule.start_time || '09:00',
             endTime: schedule.end_time || '18:00',
-            breakStart: schedule.break_start || '13:00',
-            breakEnd: schedule.break_end || '14:00',
+            breakStart: breakStart,
+            breakEnd: breakEnd,
             slotInterval: schedule.slot_interval_minutes || 30
           };
         });
@@ -470,17 +478,28 @@ Please confirm by replying "Yes" or "No"`;
 
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
-    const [breakStartH, breakStartM] = daySettings.breakStart.split(':').map(Number);
-    const [breakEndH, breakEndM] = daySettings.breakEnd.split(':').map(Number);
 
     const start = new Date(dateForSlots);
     start.setHours(startH, startM, 0, 0);
     const end = new Date(dateForSlots);
     end.setHours(endH, endM, 0, 0);
-    const breakStart = new Date(dateForSlots);
-    breakStart.setHours(breakStartH, breakStartM, 0, 0);
-    const breakEnd = new Date(dateForSlots);
-    breakEnd.setHours(breakEndH, breakEndM, 0, 0);
+
+    // Convert break arrays to Date objects for multiple breaks
+    // Handle both old single string format and new array format
+    const breakStartArray = Array.isArray(daySettings.breakStart) ? daySettings.breakStart : [daySettings.breakStart];
+    const breakEndArray = Array.isArray(daySettings.breakEnd) ? daySettings.breakEnd : [daySettings.breakEnd];
+    
+    const breakPeriods = breakStartArray.map((breakStart, index) => {
+      const [breakStartH, breakStartM] = breakStart.split(':').map(Number);
+      const [breakEndH, breakEndM] = breakEndArray[index].split(':').map(Number);
+      
+      const breakStartDate = new Date(dateForSlots);
+      breakStartDate.setHours(breakStartH, breakStartM, 0, 0);
+      const breakEndDate = new Date(dateForSlots);
+      breakEndDate.setHours(breakEndH, breakEndM, 0, 0);
+      
+      return { start: breakStartDate, end: breakEndDate };
+    });
 
     const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
@@ -489,8 +508,10 @@ Please confirm by replying "Yes" or "No"`;
       const slotStart = new Date(t);
       const slotEnd = new Date(t + intervalMs);
 
-      // Exclude slots overlapping the break window
-      const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
+      // Check if slot overlaps with any break period
+      const overlapsBreak = breakPeriods.some(breakPeriod => 
+        slotStart < breakPeriod.end && slotEnd > breakPeriod.start
+      );
 
       // Disable past times if the selected date is today
       const now = new Date();
@@ -808,17 +829,28 @@ Please confirm by replying "Yes" or "No"`;
 
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
-    const [breakStartH, breakStartM] = daySettings.breakStart.split(':').map(Number);
-    const [breakEndH, breakEndM] = daySettings.breakEnd.split(':').map(Number);
 
     const start = new Date(dateForSlots);
     start.setHours(startH, startM, 0, 0);
     const end = new Date(dateForSlots);
     end.setHours(endH, endM, 0, 0);
-    const breakStart = new Date(dateForSlots);
-    breakStart.setHours(breakStartH, breakStartM, 0, 0);
-    const breakEnd = new Date(dateForSlots);
-    breakEnd.setHours(breakEndH, breakEndM, 0, 0);
+
+    // Convert break arrays to Date objects for multiple breaks
+    // Handle both old single string format and new array format
+    const breakStartArray = Array.isArray(daySettings.breakStart) ? daySettings.breakStart : [daySettings.breakStart];
+    const breakEndArray = Array.isArray(daySettings.breakEnd) ? daySettings.breakEnd : [daySettings.breakEnd];
+    
+    const breakPeriods = breakStartArray.map((breakStart, index) => {
+      const [breakStartH, breakStartM] = breakStart.split(':').map(Number);
+      const [breakEndH, breakEndM] = breakEndArray[index].split(':').map(Number);
+      
+      const breakStartDate = new Date(dateForSlots);
+      breakStartDate.setHours(breakStartH, breakStartM, 0, 0);
+      const breakEndDate = new Date(dateForSlots);
+      breakEndDate.setHours(breakEndH, breakEndM, 0, 0);
+      
+      return { start: breakStartDate, end: breakEndDate };
+    });
 
     const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
@@ -827,7 +859,10 @@ Please confirm by replying "Yes" or "No"`;
       const slotStart = new Date(t);
       const slotEnd = new Date(t + intervalMs);
 
-      const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
+      // Check if slot overlaps with any break period
+      const overlapsBreak = breakPeriods.some(breakPeriod => 
+        slotStart < breakPeriod.end && slotEnd > breakPeriod.start
+      );
 
       const now = new Date();
       const isToday = dateForSlots.toDateString() === now.toDateString();
@@ -1903,26 +1938,75 @@ Please confirm by replying "Yes" or "No"`;
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor={`break-start-${selectedDay}`}>Break Start</Label>
-                          <Input
-                            id={`break-start-${selectedDay}`}
-                            type="time"
-                            value={schedulingSettings.daySchedules[selectedDay].breakStart}
-                            onChange={(e) => handleScheduleUpdate(selectedDay, 'breakStart', e.target.value)}
-                          />
+                                            <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label>Break Periods</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentBreaks = schedulingSettings.daySchedules[selectedDay].breakStart;
+                              const newBreaks = [...currentBreaks, '13:00'];
+                              const newBreakEnds = [...schedulingSettings.daySchedules[selectedDay].breakEnd, '14:00'];
+                              handleScheduleUpdate(selectedDay, 'breakStart', newBreaks);
+                              handleScheduleUpdate(selectedDay, 'breakEnd', newBreakEnds);
+                            }}
+                            className="h-8"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Break
+                          </Button>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`break-end-${selectedDay}`}>Break End</Label>
-                          <Input
-                            id={`break-end-${selectedDay}`}
-                            type="time"
-                            value={schedulingSettings.daySchedules[selectedDay].breakEnd}
-                            onChange={(e) => handleScheduleUpdate(selectedDay, 'breakEnd', e.target.value)}
-                          />
-                        </div>
-                </div>
+                        
+                        {schedulingSettings.daySchedules[selectedDay].breakStart.map((breakStart, index) => (
+                          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div className="space-y-2">
+                              <Label htmlFor={`break-start-${selectedDay}-${index}`}>Break {index + 1} Start</Label>
+                              <Input
+                                id={`break-start-${selectedDay}-${index}`}
+                                type="time"
+                                value={breakStart}
+                                onChange={(e) => {
+                                  const newBreaks = [...schedulingSettings.daySchedules[selectedDay].breakStart];
+                                  newBreaks[index] = e.target.value;
+                                  handleScheduleUpdate(selectedDay, 'breakStart', newBreaks);
+                                }}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`break-end-${selectedDay}-${index}`}>Break {index + 1} End</Label>
+                              <Input
+                                id={`break-end-${selectedDay}-${index}`}
+                                type="time"
+                                value={schedulingSettings.daySchedules[selectedDay].breakEnd[index]}
+                                onChange={(e) => {
+                                  const newBreakEnds = [...schedulingSettings.daySchedules[selectedDay].breakEnd];
+                                  newBreakEnds[index] = e.target.value;
+                                  handleScheduleUpdate(selectedDay, 'breakEnd', newBreakEnds);
+                                }}
+                              />
+                            </div>
+                            <div className="flex justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newBreaks = schedulingSettings.daySchedules[selectedDay].breakStart.filter((_, i) => i !== index);
+                                  const newBreakEnds = schedulingSettings.daySchedules[selectedDay].breakEnd.filter((_, i) => i !== index);
+                                  handleScheduleUpdate(selectedDay, 'breakStart', newBreaks);
+                                  handleScheduleUpdate(selectedDay, 'breakEnd', newBreakEnds);
+                                }}
+                                className="h-10 w-10 p-0"
+                                disabled={schedulingSettings.daySchedules[selectedDay].breakStart.length === 1}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
 
                 <div className="space-y-2">
                         <Label htmlFor={`interval-${selectedDay}`}>Slot Interval (minutes)</Label>

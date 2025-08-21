@@ -28,11 +28,10 @@ const Appointment = () => {
   // Ensure page starts at top
   useScrollToTop();
 
-  // Debug: Log settings structure
+  // Debug: Log settings structure (simplified)
   useEffect(() => {
     if (settings) {
-      console.log('Settings object:', settings);
-      console.log('Settings keys:', Object.keys(settings));
+      console.log('Settings loaded successfully');
     }
   }, [settings]);
   
@@ -268,11 +267,15 @@ const Appointment = () => {
     const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const daySchedule = settings?.day_schedules?.[dayOfWeek];
     
+    // For now, use simple single break format to get the page working
+    const breakStart = daySchedule?.break_start || '13:00';
+    const breakEnd = daySchedule?.break_end || '14:00';
+    
     return {
       startTime: daySchedule?.start_time || '09:00',
       endTime: daySchedule?.end_time || '20:00',
-      breakStart: daySchedule?.break_start || '13:00',
-      breakEnd: daySchedule?.break_end || '14:00',
+      breakStart: breakStart,
+      breakEnd: breakEnd,
       slotIntervalMinutes: daySchedule?.slot_interval_minutes || 30,
       enabled: daySchedule?.enabled ?? true,
       weeklyHolidays: settings?.weekly_holidays || [],
@@ -302,17 +305,28 @@ const Appointment = () => {
     
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
-    const [breakStartH, breakStartM] = daySettings.breakStart.split(':').map(Number);
-    const [breakEndH, breakEndM] = daySettings.breakEnd.split(':').map(Number);
 
     const start = new Date(dateForSlots);
     start.setHours(startH, startM, 0, 0);
     const end = new Date(dateForSlots);
     end.setHours(endH, endM, 0, 0);
-    const breakStart = new Date(dateForSlots);
-    breakStart.setHours(breakStartH, breakStartM, 0, 0);
-    const breakEnd = new Date(dateForSlots);
-    breakEnd.setHours(breakEndH, breakEndM, 0, 0);
+
+    // Handle break periods - convert arrays to Date objects
+    // Handle both old single string format and new array format
+    const breakStartArray = Array.isArray(daySettings.breakStart) ? daySettings.breakStart : [daySettings.breakStart];
+    const breakEndArray = Array.isArray(daySettings.breakEnd) ? daySettings.breakEnd : [daySettings.breakEnd];
+    
+    const breakPeriods = breakStartArray.map((breakStart, index) => {
+      const [breakStartH, breakStartM] = breakStart.split(':').map(Number);
+      const [breakEndH, breakEndM] = breakEndArray[index].split(':').map(Number);
+      
+      const breakStartDate = new Date(dateForSlots);
+      breakStartDate.setHours(breakStartH, breakStartM, 0, 0);
+      const breakEndDate = new Date(dateForSlots);
+      breakEndDate.setHours(breakEndH, breakEndM, 0, 0);
+      
+      return { start: breakStartDate, end: breakEndDate };
+    });
 
     const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
@@ -321,8 +335,10 @@ const Appointment = () => {
       const slotStart = new Date(t);
       const slotEnd = new Date(t + intervalMs);
 
-      // Exclude slots overlapping the break window
-      const overlapsBreak = slotStart < breakEnd && slotEnd > breakStart;
+      // Check if slot overlaps with any break period
+      const overlapsBreak = breakPeriods.some(breakPeriod => 
+        slotStart < breakPeriod.end && slotEnd > breakPeriod.start
+      );
 
       // Disable past times and times within 1 hour if the selected date is today
       const now = new Date();
@@ -538,6 +554,27 @@ const Appointment = () => {
   }
 
   // Show error if clinic failed to load
+  if (clinicLoading || settingsLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <main className="py-12 lg:py-20">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="text-center">
+                <p className="text-muted-foreground">Loading appointment booking...</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Clinic loading: {clinicLoading ? 'Yes' : 'No'}, 
+                  Settings loading: {settingsLoading ? 'Yes' : 'No'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (clinicError) {
     return (
       <div className="min-h-screen">
@@ -555,6 +592,26 @@ const Appointment = () => {
     );
   }
 
+  // Simple fallback if something goes wrong
+  if (!clinic && !clinicLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <main className="py-12 lg:py-20">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="text-center">
+                <h1 className="text-2xl font-bold mb-4">Appointment Booking</h1>
+                <p className="text-muted-foreground">Loading clinic data...</p>
+                <p className="text-sm text-gray-500 mt-2">If this persists, please refresh the page.</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen">
       <Navigation />
@@ -575,6 +632,7 @@ const Appointment = () => {
                   <p className="text-sm text-muted-foreground">
                     💌 We don't spam! Your email is only used for appointment confirmations and important updates.
                   </p>
+                  
 
                 </div>
 
