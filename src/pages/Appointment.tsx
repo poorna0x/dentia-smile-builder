@@ -122,68 +122,38 @@ const Appointment = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Check for booked slots and disabled slots when date changes or appointments update
-  useEffect(() => {
-    const checkBookedSlots = async () => {
-      if (!clinic?.id) return;
+  // Check for booked slots and disabled slots when date changes
+  const checkBookedSlots = async () => {
+    if (!clinic?.id) return;
+    
+    setIsLoadingSlots(true);
+    try {
+      const appointmentDate = format(date, 'yyyy-MM-dd');
       
-      setIsLoadingSlots(true);
-      try {
-        const appointmentDate = format(date, 'yyyy-MM-dd');
-        
-        // Force refresh to get latest data (bypass cache)
-        const existingAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
-        
-        // Get booked time slots (exclude cancelled appointments)
-        const booked = existingAppointments
-          .filter(apt => apt.status !== 'Cancelled')
-          .map(apt => apt.time);
-        
-        setBookedSlots(booked);
-        
-        // Load disabled slots for this date
-        await loadDisabledSlots(date);
-      } catch (error) {
-        console.error('Error checking booked slots:', error);
-        setBookedSlots([]);
-      } finally {
-        setIsLoadingSlots(false);
-      }
-    };
-
-    checkBookedSlots();
-
-    // Set up real-time subscription for appointments with optimization
-    if (clinic?.id) {
-      const channel = supabase
-        .channel(`appointments_${clinic.id}_${format(date, 'yyyy-MM-dd')}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'appointments',
-            filter: `clinic_id=eq.${clinic.id} AND date=eq.${format(date, 'yyyy-MM-dd')}`
-          },
-          (payload) => {
-            console.log('Appointment change detected:', payload);
-            // Debounced refresh to avoid excessive calls
-            setTimeout(() => {
-              checkBookedSlots();
-            }, 500);
-          }
-        )
-        .subscribe();
-
-      // Reduced periodic refresh to 2 minutes instead of 30 seconds
-      const refreshInterval = setInterval(checkBookedSlots, 120000);
-
-      // Cleanup subscription and interval on unmount
-      return () => {
-        supabase.removeChannel(channel);
-        clearInterval(refreshInterval);
-      };
+      // Force refresh to get latest data (bypass cache)
+      const existingAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
+      
+      // Get booked time slots (exclude cancelled appointments)
+      const booked = existingAppointments
+        .filter(apt => apt.status !== 'Cancelled')
+        .map(apt => apt.time);
+      
+      console.log('📋 Updated booked slots:', booked);
+      setBookedSlots(booked);
+      
+      // Load disabled slots for this date
+      await loadDisabledSlots(date);
+    } catch (error) {
+      console.error('Error checking booked slots:', error);
+      setBookedSlots([]);
+    } finally {
+      setIsLoadingSlots(false);
     }
+  };
+
+  // Initial load when date or clinic changes
+  useEffect(() => {
+    checkBookedSlots();
   }, [date, clinic?.id]);
 
   // Enhanced realtime subscription for slot availability
@@ -231,10 +201,8 @@ const Appointment = () => {
             }
             
             // Refresh booked slots immediately
-            setTimeout(() => {
-              console.log('🔄 Refreshing booked slots...');
-              checkBookedSlots();
-            }, 500);
+            console.log('🔄 Refreshing booked slots...');
+            checkBookedSlots();
           }
         }
       )
@@ -250,6 +218,13 @@ const Appointment = () => {
           toast.error('🔌 Live updates disconnected', { duration: 2000 });
         }
       });
+
+    // Cleanup function
+    return () => {
+      console.log('🧹 Cleaning up realtime subscriptions');
+      supabase.removeChannel(appointmentChannel);
+      supabase.removeChannel(disabledSlotsChannel);
+    };
 
     // Direct Supabase realtime subscription for disabled slots
     const disabledSlotsChannel = supabase
