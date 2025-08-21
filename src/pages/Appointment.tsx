@@ -18,7 +18,7 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { sendAppointmentConfirmation } from '@/lib/email';
-import { showAppointmentNotification, sendPushNotification } from '@/lib/notifications';
+
 
 
 const Appointment = () => {
@@ -187,17 +187,10 @@ const Appointment = () => {
           console.log('📅 Date comparison:', { currentDate, changedDate, matches: changedDate === currentDate });
           
           if (changedDate === currentDate) {
-            // Show notification for slot changes
             if (eventType === 'INSERT') {
               console.log('🆕 New appointment detected:', newRecord);
-              toast.info(`⏰ Time slot ${newRecord.time} is now booked`, {
-                duration: 3000
-              });
             } else if (eventType === 'DELETE' && oldRecord?.status === 'Cancelled') {
               console.log('✅ Cancelled appointment detected:', oldRecord);
-              toast.success(`✅ Time slot ${oldRecord.time} is now available`, {
-                duration: 3000
-              });
             }
             
             // Refresh booked slots immediately
@@ -212,10 +205,8 @@ const Appointment = () => {
         
         if (status === 'SUBSCRIBED') {
           console.log('✅ Appointment realtime subscription active');
-          toast.success('🔗 Live updates connected', { duration: 2000 });
         } else {
           console.log('❌ Appointment realtime subscription failed');
-          toast.error('🔌 Live updates disconnected', { duration: 2000 });
         }
       });
 
@@ -240,13 +231,9 @@ const Appointment = () => {
           
           if (changedDate === currentDate) {
             if (eventType === 'INSERT') {
-              toast.warning(`🚫 Time slot ${newRecord.start_time}-${newRecord.end_time} has been disabled`, {
-                duration: 4000
-              });
+              console.log('🚫 Time slot disabled:', newRecord);
             } else if (eventType === 'DELETE') {
-              toast.success(`✅ Time slot ${oldRecord.start_time}-${oldRecord.end_time} is now available`, {
-                duration: 4000
-              });
+              console.log('✅ Time slot enabled:', oldRecord);
             }
             
             // Refresh disabled slots immediately
@@ -562,19 +549,7 @@ const Appointment = () => {
           clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
         });
         
-        // Show local notification
-        await showAppointmentNotification(newAppointment);
-        
-        // Send push notification to all subscribers
-        await sendPushNotification({
-          title: 'New Appointment Booked! 🦷',
-          body: `${newAppointment.name} - ${newAppointment.date} at ${newAppointment.time}`,
-          icon: '/logo.png',
-          data: {
-            url: '/admin',
-            appointment: newAppointment
-          }
-        });
+
 
         // Navigate to booking completion page with appointment details
         const params = new URLSearchParams({
