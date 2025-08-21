@@ -177,7 +177,6 @@ CREATE TABLE IF NOT EXISTS disabled_slots (
   date DATE NOT NULL,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
-  reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(clinic_id, date, start_time, end_time)
@@ -226,6 +225,7 @@ CREATE POLICY "Allow all operations on push_subscriptions" ON push_subscriptions
 -- ✅ clinics table with default "Jeshna Dental Clinic"
 -- ✅ appointments table (ready for multi-clinic data)
 -- ✅ scheduling_settings table (clinic-specific settings)
+-- ✅ disabled_slots table (temporary slot disabling)
 -- ✅ push_subscriptions table (PWA notifications)
 -- ✅ All necessary indexes and triggers
 -- ✅ Row Level Security enabled
@@ -234,39 +234,10 @@ CREATE POLICY "Allow all operations on push_subscriptions" ON push_subscriptions
 -- 1. Test the appointment booking: http://localhost:8083/appointment
 -- 2. Check admin panel: http://localhost:8083/admin
 -- 3. Add more clinics using the setup script
-
--- Push Subscriptions Table for PWA Notifications
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
-    endpoint TEXT NOT NULL,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_push_subscriptions_clinic_id ON push_subscriptions(clinic_id);
-CREATE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);
-
--- RLS Policies for push_subscriptions
-ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Enable read access for authenticated users" ON push_subscriptions
-    FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Enable insert access for authenticated users" ON push_subscriptions
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "Enable update access for authenticated users" ON push_subscriptions
-    FOR UPDATE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Enable delete access for authenticated users" ON push_subscriptions
-    FOR DELETE USING (auth.role() = 'authenticated');
 -- 
 -- MULTI-TENANT READY:
 -- ✅ Each clinic will have separate data
+-- ✅ All features work for new clinics automatically
 -- ✅ Clinic IDs are automatically generated
 -- ✅ No data mixing between clinics
 -- =====================================================

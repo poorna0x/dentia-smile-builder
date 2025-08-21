@@ -138,8 +138,7 @@ const Admin = () => {
   const [newDisabledSlot, setNewDisabledSlot] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '10:00',
-    endTime: '11:00',
-    reason: ''
+    endTime: '11:00'
   });
   
 
@@ -398,16 +397,14 @@ Please confirm by replying "Yes" or "No"`;
         clinic_id: clinic.id,
         date: newDisabledSlot.date,
         start_time: newDisabledSlot.startTime,
-        end_time: newDisabledSlot.endTime,
-        reason: newDisabledSlot.reason || undefined
+        end_time: newDisabledSlot.endTime
       });
 
       const slot = await disabledSlotsApi.create({
         clinic_id: clinic.id,
         date: newDisabledSlot.date,
         start_time: newDisabledSlot.startTime,
-        end_time: newDisabledSlot.endTime,
-        reason: newDisabledSlot.reason || undefined
+        end_time: newDisabledSlot.endTime
       });
       
       console.log('Disabled slot created successfully:', slot);
@@ -417,8 +414,7 @@ Please confirm by replying "Yes" or "No"`;
       setNewDisabledSlot({
         date: format(new Date(), 'yyyy-MM-dd'),
         startTime: '10:00',
-        endTime: '11:00',
-        reason: ''
+        endTime: '11:00'
       });
       toast.success('Time slot disabled successfully');
     } catch (error) {
@@ -2043,7 +2039,7 @@ Please confirm by replying "Yes" or "No"`;
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-base font-medium">Disabled Time Slots</Label>
-                      <p className="text-sm text-gray-600">Temporarily disable specific time slots (e.g., personal appointments, meetings)</p>
+                      <p className="text-sm text-gray-600">Temporarily disable specific time slots</p>
                     </div>
                     <Button 
                       size="sm" 
@@ -2067,9 +2063,7 @@ Please confirm by replying "Yes" or "No"`;
                             <div className="font-medium text-red-800">
                               {format(new Date(slot.date), 'MMM dd, yyyy')} • {slot.start_time} - {slot.end_time}
                             </div>
-                            {slot.reason && (
-                              <div className="text-sm text-red-600 mt-1">{slot.reason}</div>
-                            )}
+
                           </div>
                           <Button 
                             size="sm" 
@@ -2748,7 +2742,7 @@ Please confirm by replying "Yes" or "No"`;
           <DialogHeader>
             <DialogTitle>Disable Time Slot</DialogTitle>
             <DialogDescription>
-              Temporarily disable a specific time slot (e.g., for personal appointments, meetings)
+              Temporarily disable a specific time slot
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -2782,15 +2776,7 @@ Please confirm by replying "Yes" or "No"`;
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="disabled-reason">Reason (Optional)</Label>
-              <Input
-                id="disabled-reason"
-                placeholder="e.g., Personal appointment, Meeting"
-                value={newDisabledSlot.reason}
-                onChange={(e) => setNewDisabledSlot(prev => ({ ...prev, reason: e.target.value }))}
-              />
-            </div>
+
           </div>
           <DialogFooter className="flex gap-2">
             <Button

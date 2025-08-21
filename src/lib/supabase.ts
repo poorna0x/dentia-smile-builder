@@ -98,7 +98,6 @@ export interface DisabledSlot {
   date: string
   start_time: string
   end_time: string
-  reason?: string
   created_at: string
   updated_at: string
 }
