@@ -219,13 +219,6 @@ const Appointment = () => {
         }
       });
 
-    // Cleanup function
-    return () => {
-      console.log('🧹 Cleaning up realtime subscriptions');
-      supabase.removeChannel(appointmentChannel);
-      supabase.removeChannel(disabledSlotsChannel);
-    };
-
     // Direct Supabase realtime subscription for disabled slots
     const disabledSlotsChannel = supabase
       .channel(`disabled_slots_realtime_${clinic.id}`)
