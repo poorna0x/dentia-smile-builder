@@ -143,8 +143,8 @@ const AdminLogin = () => {
       [field]: value
     }));
     
-    // Reset CAPTCHA completion when user changes credentials
-    if (captchaCompleted) {
+    // Only reset CAPTCHA completion when username changes, not password
+    if (captchaCompleted && field === 'username') {
       setCaptchaCompleted(false);
     }
   };
