@@ -27,7 +27,7 @@ VALUES (
 ) ON CONFLICT (slug) DO NOTHING;
 
 -- Insert scheduling settings for Smile Dental
-INSERT INTO scheduling_settings (clinic_id, day_schedules, notification_settings) 
+INSERT INTO scheduling_settings (clinic_id, day_schedules, notification_settings, show_stats_cards) 
 SELECT 
   c.id,
   '{
@@ -39,13 +39,14 @@ SELECT
     "5": {"start_time": "08:00", "end_time": "17:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": true},
     "6": {"start_time": "09:00", "end_time": "16:00", "break_start": ["13:00"], "break_end": ["14:00"], "slot_interval_minutes": 30, "enabled": false}
   }',
-  '{"email_notifications": true, "reminder_hours": 48, "auto_confirm": false}'
+  '{"email_notifications": true, "reminder_hours": 48, "auto_confirm": false}',
+  true
 FROM clinics c 
 WHERE c.slug = 'smile-dental'
 ON CONFLICT (clinic_id) DO NOTHING;
 
 -- Insert scheduling settings for Pearl Dental
-INSERT INTO scheduling_settings (clinic_id, day_schedules, notification_settings) 
+INSERT INTO scheduling_settings (clinic_id, day_schedules, notification_settings, show_stats_cards) 
 SELECT 
   c.id,
   '{
@@ -57,7 +58,8 @@ SELECT
     "5": {"start_time": "10:00", "end_time": "20:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true},
     "6": {"start_time": "11:00", "end_time": "18:00", "break_start": ["14:00"], "break_end": ["15:00"], "slot_interval_minutes": 30, "enabled": true}
   }',
-  '{"email_notifications": true, "reminder_hours": 12, "auto_confirm": true}'
+  '{"email_notifications": true, "reminder_hours": 12, "auto_confirm": true}',
+  true
 FROM clinics c 
 WHERE c.slug = 'pearl-dental'
 ON CONFLICT (clinic_id) DO NOTHING;
@@ -68,7 +70,8 @@ SELECT
   c.slug,
   c.contact_phone,
   c.contact_email,
-  CASE WHEN ss.id IS NOT NULL THEN '✅' ELSE '❌' END as settings_configured
+  CASE WHEN ss.id IS NOT NULL THEN '✅' ELSE '❌' END as settings_configured,
+  ss.show_stats_cards as stats_enabled
 FROM clinics c
 LEFT JOIN scheduling_settings ss ON c.id = ss.clinic_id
 ORDER BY c.created_at;

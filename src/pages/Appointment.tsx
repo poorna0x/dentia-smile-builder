@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dentistChildImage from '@/assets/dentist-patient.jpg';
 import { toast } from 'sonner';
-import { appointmentsApi, supabase } from '@/lib/supabase';
+import { appointmentsApi, supabase, disabledSlotsApi, DisabledSlot } from '@/lib/supabase';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
@@ -52,6 +52,7 @@ const Appointment = () => {
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
 
   // Get next available booking date (skip holidays)
   const getNextAvailableDate = (): Date => {
@@ -117,7 +118,7 @@ const Appointment = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Check for booked slots when date changes or appointments update
+  // Check for booked slots and disabled slots when date changes or appointments update
   useEffect(() => {
     const checkBookedSlots = async () => {
       if (!clinic?.id) return;
@@ -135,6 +136,9 @@ const Appointment = () => {
           .map(apt => apt.time);
         
         setBookedSlots(booked);
+        
+        // Load disabled slots for this date
+        await loadDisabledSlots(date);
       } catch (error) {
         console.error('Error checking booked slots:', error);
         setBookedSlots([]);
@@ -286,6 +290,19 @@ const Appointment = () => {
 
   const currentSettings = getDaySettings(date);
 
+  // Load disabled slots for a specific date
+  const loadDisabledSlots = async (targetDate: Date) => {
+    if (!clinic?.id) return;
+    
+    try {
+      const dateString = format(targetDate, 'yyyy-MM-dd');
+      const slots = await disabledSlotsApi.getByClinicAndDate(clinic.id, dateString);
+      setDisabledSlots(slots);
+    } catch (error) {
+      console.error('Error loading disabled slots:', error);
+    }
+  };
+
   const isHoliday = (d: Date) => {
     return isDateHoliday(d);
   };
@@ -302,6 +319,10 @@ const Appointment = () => {
     if (isHoliday(dateForSlots)) {
       return [];
     }
+
+    // Get disabled slots for this date
+    const dateString = format(dateForSlots, 'yyyy-MM-dd');
+    const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
     
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
@@ -340,13 +361,26 @@ const Appointment = () => {
         slotStart < breakPeriod.end && slotEnd > breakPeriod.start
       );
 
+      // Check if slot overlaps with any disabled slot
+      const overlapsDisabledSlot = disabledSlotsForDate.some(disabledSlot => {
+        const [disabledStartH, disabledStartM] = disabledSlot.start_time.split(':').map(Number);
+        const [disabledEndH, disabledEndM] = disabledSlot.end_time.split(':').map(Number);
+        
+        const disabledStart = new Date(dateForSlots);
+        disabledStart.setHours(disabledStartH, disabledStartM, 0, 0);
+        const disabledEnd = new Date(dateForSlots);
+        disabledEnd.setHours(disabledEndH, disabledEndM, 0, 0);
+        
+        return slotStart < disabledEnd && slotEnd > disabledStart;
+      });
+
       // Disable past times and times within 1 hour if the selected date is today
       const now = new Date();
       const isToday = dateForSlots.toDateString() === now.toDateString();
       const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
       const isPast = isToday && slotStart.getTime() <= oneHourFromNow.getTime();
 
-      if (!overlapsBreak && slotEnd <= end) {
+      if (!overlapsBreak && !overlapsDisabledSlot && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
         const isBooked = bookedSlots.includes(label);
         slots.push({ 

@@ -71,6 +71,7 @@ export interface SchedulingSettings {
   disable_until_date?: string
   disable_until_time?: string
   disabled_slots: string[]
+  show_stats_cards?: boolean
   notification_settings: NotificationSettings
   created_at: string
   updated_at: string
@@ -89,6 +90,17 @@ export interface NotificationSettings {
   email_notifications: boolean
   reminder_hours: number
   auto_confirm: boolean
+}
+
+export interface DisabledSlot {
+  id: string
+  clinic_id: string
+  date: string
+  start_time: string
+  end_time: string
+  reason?: string
+  created_at: string
+  updated_at: string
 }
 
 // Database helper functions
@@ -307,6 +319,92 @@ export const subscribeToSettings = (callback: (payload: any) => void) => {
     .channel('settings_changes')
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'scheduling_settings' }, 
+      callback
+    )
+    .subscribe()
+}
+
+// Disabled slots API
+export const disabledSlotsApi = {
+  // Get disabled slots for a clinic and date range
+  async getByClinicAndDateRange(clinicId: string, startDate: string, endDate: string) {
+    const { data, error } = await supabase
+      .from('disabled_slots')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+      .order('start_time', { ascending: true })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get disabled slots for a specific date
+  async getByClinicAndDate(clinicId: string, date: string) {
+    const { data, error } = await supabase
+      .from('disabled_slots')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .eq('date', date)
+      .order('start_time', { ascending: true })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Add a disabled slot
+  async create(slot: Omit<DisabledSlot, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('disabled_slots')
+      .insert([slot])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Update a disabled slot
+  async update(id: string, updates: Partial<DisabledSlot>) {
+    const { data, error } = await supabase
+      .from('disabled_slots')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Delete a disabled slot
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('disabled_slots')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+  },
+
+  // Bulk delete disabled slots
+  async bulkDelete(ids: string[]) {
+    const { error } = await supabase
+      .from('disabled_slots')
+      .delete()
+      .in('id', ids)
+    
+    if (error) throw error
+  }
+}
+
+export const subscribeToDisabledSlots = (callback: (payload: any) => void) => {
+  return supabase
+    .channel('disabled_slots_changes')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'disabled_slots' }, 
       callback
     )
     .subscribe()

@@ -7,7 +7,7 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
-import { appointmentsApi, settingsApi } from '@/lib/supabase';
+import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
@@ -78,6 +78,7 @@ interface SchedulingSettings {
   disableUntilTime: string;
   weeklyHolidays: string[];
   customHolidays: string[];
+  showStatsCards: boolean;
   daySchedules: {
     [key: string]: DaySchedule;
   };
@@ -129,6 +130,17 @@ const Admin = () => {
   const [bookedSlotsForGeneral, setBookedSlotsForGeneral] = useState<string[]>([]);
   const [isLoadingSlotsForGeneral, setIsLoadingSlotsForGeneral] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Disabled slots state
+  const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
+  const [showDisabledSlotsDialog, setShowDisabledSlotsDialog] = useState(false);
+  const [newDisabledSlot, setNewDisabledSlot] = useState({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    startTime: '10:00',
+    endTime: '11:00',
+    reason: ''
+  });
   
 
 
@@ -151,6 +163,7 @@ const Admin = () => {
     disableUntilTime: '',
     weeklyHolidays: [],
     customHolidays: [],
+    showStatsCards: true,
     daySchedules: {
       Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
       Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -197,6 +210,7 @@ const Admin = () => {
           return dayNames[dayNumber] || 'Sun';
         }),
         customHolidays: settings.custom_holidays || [],
+        showStatsCards: settings.show_stats_cards !== false, // Default to true if not set
         daySchedules: {
           Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
           Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -331,6 +345,122 @@ Please confirm by replying "Yes" or "No"`;
       toast.error('Failed to update appointment status');
     }
   };
+
+  // Load disabled slots for the current month
+  const loadDisabledSlots = async () => {
+    if (!clinic?.id) return;
+    
+    try {
+      const startDate = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd');
+      const endDate = format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), 'yyyy-MM-dd');
+      const slots = await disabledSlotsApi.getByClinicAndDateRange(clinic.id, startDate, endDate);
+      setDisabledSlots(slots);
+    } catch (error) {
+      console.error('Error loading disabled slots:', error);
+      toast.error('Failed to load disabled slots');
+    }
+  };
+
+  // Add a new disabled slot
+  const handleAddDisabledSlot = async () => {
+    if (!clinic?.id) {
+      toast.error('Clinic information not available');
+      return;
+    }
+
+    // Validate inputs
+    if (!newDisabledSlot.date) {
+      toast.error('Please select a date');
+      return;
+    }
+
+    if (!newDisabledSlot.startTime || !newDisabledSlot.endTime) {
+      toast.error('Please select start and end times');
+      return;
+    }
+
+    if (newDisabledSlot.startTime >= newDisabledSlot.endTime) {
+      toast.error('End time must be after start time');
+      return;
+    }
+
+    // Check if date is in the past
+    const selectedDate = new Date(newDisabledSlot.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      toast.error('Cannot disable slots in the past');
+      return;
+    }
+    
+    try {
+      console.log('Creating disabled slot with data:', {
+        clinic_id: clinic.id,
+        date: newDisabledSlot.date,
+        start_time: newDisabledSlot.startTime,
+        end_time: newDisabledSlot.endTime,
+        reason: newDisabledSlot.reason || undefined
+      });
+
+      const slot = await disabledSlotsApi.create({
+        clinic_id: clinic.id,
+        date: newDisabledSlot.date,
+        start_time: newDisabledSlot.startTime,
+        end_time: newDisabledSlot.endTime,
+        reason: newDisabledSlot.reason || undefined
+      });
+      
+      console.log('Disabled slot created successfully:', slot);
+      
+      setDisabledSlots(prev => [...prev, slot]);
+      setShowDisabledSlotsDialog(false);
+      setNewDisabledSlot({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        startTime: '10:00',
+        endTime: '11:00',
+        reason: ''
+      });
+      toast.success('Time slot disabled successfully');
+    } catch (error) {
+      console.error('Error adding disabled slot:', error);
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('duplicate')) {
+          toast.error('This time slot is already disabled');
+        } else if (error.message.includes('foreign key')) {
+          toast.error('Invalid clinic ID');
+        } else if (error.message.includes('permission')) {
+          toast.error('Permission denied. Please check your database permissions.');
+        } else {
+          toast.error(`Failed to disable time slot: ${error.message}`);
+        }
+      } else {
+        toast.error('Failed to disable time slot. Please check if the database table exists.');
+      }
+    }
+  };
+
+  // Remove a disabled slot
+  const handleRemoveDisabledSlot = async (slotId: string) => {
+    try {
+      await disabledSlotsApi.delete(slotId);
+      setDisabledSlots(prev => prev.filter(slot => slot.id !== slotId));
+      toast.success('Time slot re-enabled');
+    } catch (error) {
+      console.error('Error removing disabled slot:', error);
+      toast.error('Failed to re-enable time slot');
+    }
+  };
+
+  // Load disabled slots when clinic changes
+  useEffect(() => {
+    if (clinic?.id) {
+      loadDisabledSlots();
+    }
+  }, [clinic?.id]);
+
+
 
   const handleCompleteAppointment = async (appointmentId: string) => {
     try {
@@ -482,6 +612,10 @@ Please confirm by replying "Yes" or "No"`;
       return [];
     }
 
+    // Get disabled slots for this date
+    const dateString = format(dateForSlots, 'yyyy-MM-dd');
+    const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
+
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
 
@@ -519,18 +653,31 @@ Please confirm by replying "Yes" or "No"`;
         slotStart < breakPeriod.end && slotEnd > breakPeriod.start
       );
 
+      // Check if slot overlaps with any disabled slot
+      const overlapsDisabledSlot = disabledSlotsForDate.some(disabledSlot => {
+        const [disabledStartH, disabledStartM] = disabledSlot.start_time.split(':').map(Number);
+        const [disabledEndH, disabledEndM] = disabledSlot.end_time.split(':').map(Number);
+        
+        const disabledStart = new Date(dateForSlots);
+        disabledStart.setHours(disabledStartH, disabledStartM, 0, 0);
+        const disabledEnd = new Date(dateForSlots);
+        disabledEnd.setHours(disabledEndH, disabledEndM, 0, 0);
+        
+        return slotStart < disabledEnd && slotEnd > disabledStart;
+      });
+
       // Disable past times if the selected date is today
       const now = new Date();
       const isToday = dateForSlots.toDateString() === now.toDateString();
       const isPast = isToday && slotStart.getTime() <= now.getTime();
 
-      if (!overlapsBreak && slotEnd <= end) {
+      if (!overlapsBreak && !overlapsDisabledSlot && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
         const isBooked = bookedSlotsForNewAppointment.includes(label);
         slots.push({ 
           label, 
           value: label, 
-          disabled: isPast || isBooked,
+          disabled: isPast || isBooked || overlapsDisabledSlot,
           booked: isBooked
         });
       }
@@ -833,6 +980,10 @@ Please confirm by replying "Yes" or "No"`;
       return [];
     }
 
+    // Get disabled slots for this date
+    const dateString = format(dateForSlots, 'yyyy-MM-dd');
+    const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
+
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
 
@@ -870,11 +1021,24 @@ Please confirm by replying "Yes" or "No"`;
         slotStart < breakPeriod.end && slotEnd > breakPeriod.start
       );
 
+      // Check if slot overlaps with any disabled slot
+      const overlapsDisabledSlot = disabledSlotsForDate.some(disabledSlot => {
+        const [disabledStartH, disabledStartM] = disabledSlot.start_time.split(':').map(Number);
+        const [disabledEndH, disabledEndM] = disabledSlot.end_time.split(':').map(Number);
+        
+        const disabledStart = new Date(dateForSlots);
+        disabledStart.setHours(disabledStartH, disabledStartM, 0, 0);
+        const disabledEnd = new Date(dateForSlots);
+        disabledEnd.setHours(disabledEndH, disabledEndM, 0, 0);
+        
+        return slotStart < disabledEnd && slotEnd > disabledStart;
+      });
+
       const now = new Date();
       const isToday = dateForSlots.toDateString() === now.toDateString();
       const isPast = isToday && slotStart.getTime() <= now.getTime();
 
-      if (!overlapsBreak && slotEnd <= end) {
+      if (!overlapsBreak && !overlapsDisabledSlot && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
         const isBooked = bookedSlotsForGeneral.includes(label);
         
@@ -883,7 +1047,7 @@ Please confirm by replying "Yes" or "No"`;
         slots.push({ 
           label, 
           value: label, // Store the full time range format instead of just HH:mm
-          disabled: isPast || isBooked,
+          disabled: isPast || isBooked || overlapsDisabledSlot,
           booked: isBooked
         });
       }
@@ -892,17 +1056,80 @@ Please confirm by replying "Yes" or "No"`;
     return slots;
   };
 
+  // Debounced auto-save function
+  const debouncedAutoSave = (settingsToSave: SchedulingSettings) => {
+    // Clear existing timeout
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+    }
+
+    // Set new timeout for auto-save
+    const timeout = setTimeout(async () => {
+      try {
+        if (clinic?.id) {
+          console.log('Auto-saving settings...');
+          
+          // Convert day schedules to the correct format
+          const daySchedules = Object.entries(settingsToSave.daySchedules).reduce((acc, [day, schedule]) => {
+            const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
+            if (dayNumber !== undefined) {
+              acc[dayNumber] = {
+                start_time: schedule.startTime,
+                end_time: schedule.endTime,
+                break_start: schedule.breakStart,
+                break_end: schedule.breakEnd,
+                slot_interval_minutes: schedule.slotInterval,
+                enabled: schedule.enabled
+              };
+            }
+            return acc;
+          }, {} as Record<number, any>);
+
+          const settingsData = {
+            clinic_id: clinic.id,
+            weekly_holidays: (settingsToSave.weeklyHolidays || []).map(d => dayNumbers[d as keyof typeof dayNumbers]),
+            custom_holidays: (settingsToSave.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
+            disabled_appointments: settingsToSave.appointmentsDisabled,
+            disabled_slots: [],
+            show_stats_cards: settingsToSave.showStatsCards,
+            day_schedules: daySchedules,
+            notification_settings: {
+              email_notifications: true,
+              reminder_hours: 24,
+              auto_confirm: true
+            }
+          };
+          
+          console.log('Attempting to save settings data:', settingsData);
+          const result = await settingsApi.upsert(settingsData);
+          console.log('Settings auto-saved successfully:', result);
+          toast.success('Settings saved automatically');
+        }
+      } catch (error) {
+        console.error('Error auto-saving settings:', error);
+        toast.error('Failed to auto-save settings');
+      }
+    }, 2000); // 2 second delay
+
+    setAutoSaveTimeout(timeout);
+  };
+
   const handleScheduleUpdate = (day: string, field: keyof DaySchedule, value: any) => {
-    setSchedulingSettings(prev => ({
-      ...prev,
+    const updatedSettings = {
+      ...schedulingSettings,
       daySchedules: {
-        ...prev.daySchedules,
+        ...schedulingSettings.daySchedules,
         [day]: {
-          ...prev.daySchedules[day],
+          ...schedulingSettings.daySchedules[day],
           [field]: value
         }
       }
-    }));
+    };
+    
+    setSchedulingSettings(updatedSettings);
+    
+    // Trigger auto-save
+    debouncedAutoSave(updatedSettings);
   };
 
   const handleSaveDaySchedule = async () => {
@@ -1001,212 +1228,71 @@ Please confirm by replying "Yes" or "No"`;
     runAutomaticCleanup();
   }, []);
 
-  const handleDisableAppointmentsToggle = async (checked: boolean) => {
-    setSchedulingSettings(prev => ({
-      ...prev,
-      appointmentsDisabled: checked
-    }));
-    
-    // Save to database
-    try {
-      if (clinic?.id) {
-        console.log('Saving disable appointments setting:', checked);
-        
-        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
-          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
-          if (dayNumber !== undefined) {
-            acc[dayNumber] = {
-              start_time: schedule.startTime,
-              end_time: schedule.endTime,
-              break_start: schedule.breakStart,
-              break_end: schedule.breakEnd,
-              slot_interval_minutes: schedule.slotInterval,
-              enabled: schedule.enabled
-            };
-          }
-          return acc;
-        }, {} as Record<number, any>);
-
-        const settingsData = {
-          clinic_id: clinic.id,
-          weekly_holidays: (schedulingSettings.weeklyHolidays || []).map(d => dayNumbers[d as keyof typeof dayNumbers]),
-          custom_holidays: (schedulingSettings.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
-          disabled_appointments: checked,
-          disabled_slots: [],
-          day_schedules: daySchedules,
-          notification_settings: {
-            email_notifications: true,
-            reminder_hours: 24,
-            auto_confirm: true
-          }
-        };
-        
-        console.log('Settings data to save:', settingsData);
-        
-        const result = await settingsApi.upsert(settingsData);
-        console.log('Disable appointments setting saved successfully:', result);
-        toast.success(checked ? 'Appointments disabled' : 'Appointments enabled');
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
       }
-    } catch (error) {
-      console.error('Error saving disable appointments setting:', error);
-      toast.error('Failed to save setting');
-    }
+    };
+  }, [autoSaveTimeout]);
+
+  const handleDisableAppointmentsToggle = (checked: boolean) => {
+    const updatedSettings = {
+      ...schedulingSettings,
+      appointmentsDisabled: checked
+    };
+    
+    setSchedulingSettings(updatedSettings);
+    
+    // Trigger auto-save
+    debouncedAutoSave(updatedSettings);
   };
 
-  const handleWeeklyHolidayToggle = async (day: string) => {
-    // Convert day name to number (0=Sunday, 1=Monday, etc.)
-    const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
-    
+  const handleWeeklyHolidayToggle = (day: string) => {
     const currentWeeklyHolidays = schedulingSettings.weeklyHolidays || [];
     const updatedWeeklyHolidays = currentWeeklyHolidays.includes(day)
       ? currentWeeklyHolidays.filter(d => d !== day)
       : [...currentWeeklyHolidays, day];
     
-    // Convert to numbers for database
-    const weeklyHolidayNumbers = updatedWeeklyHolidays.map(d => dayNumbers[d as keyof typeof dayNumbers]);
-    
-    setSchedulingSettings(prev => ({
-      ...prev,
+    const updatedSettings = {
+      ...schedulingSettings,
       weeklyHolidays: updatedWeeklyHolidays
-    }));
+    };
     
-    // Save to database
-    try {
-      if (clinic?.id) {
-        console.log('Saving weekly holidays for clinic:', clinic.id);
-        console.log('Weekly holiday numbers:', weeklyHolidayNumbers);
-        
-        // Convert day schedules to the correct format
-        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
-          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
-          if (dayNumber !== undefined) {
-            acc[dayNumber] = {
-              start_time: schedule.startTime,
-              end_time: schedule.endTime,
-              break_start: schedule.breakStart,
-              break_end: schedule.breakEnd,
-              slot_interval_minutes: schedule.slotInterval,
-              enabled: schedule.enabled
-            };
-          }
-          return acc;
-        }, {} as Record<number, any>);
-
-        const settingsData = {
-          clinic_id: clinic.id,
-          weekly_holidays: weeklyHolidayNumbers,
-          custom_holidays: (schedulingSettings.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
-          disabled_appointments: schedulingSettings.appointmentsDisabled,
-          disabled_slots: [],
-          day_schedules: daySchedules,
-          notification_settings: {
-            email_notifications: true,
-            reminder_hours: 24,
-            auto_confirm: true
-          }
-        };
-        
-        console.log('Settings data to save:', settingsData);
-        
-        const result = await settingsApi.upsert(settingsData);
-        console.log('Settings saved successfully:', result);
-        toast.success('Weekly holidays updated');
-      }
-    } catch (error) {
-      console.error('Error saving weekly holidays:', error);
-      toast.error('Failed to save weekly holidays');
-    }
+    setSchedulingSettings(updatedSettings);
+    
+    // Trigger auto-save
+    debouncedAutoSave(updatedSettings);
   };
 
   const [newCustomHoliday, setNewCustomHoliday] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  const handleAddCustomHoliday = async () => {
+  const handleAddCustomHoliday = () => {
     if (newCustomHoliday) {
-      const updatedCustomHolidays = [...schedulingSettings.customHolidays, newCustomHoliday];
+      const updatedSettings = {
+        ...schedulingSettings,
+        customHolidays: [...schedulingSettings.customHolidays, newCustomHoliday]
+      };
       
-      setSchedulingSettings(prev => ({
-        ...prev,
-        customHolidays: updatedCustomHolidays
-      }));
+      setSchedulingSettings(updatedSettings);
       setNewCustomHoliday('');
       
-      // Save to database
-      try {
-        if (clinic?.id) {
-          await settingsApi.upsert({
-            clinic_id: clinic.id,
-            weekly_holidays: schedulingSettings.weeklyHolidays.map(d => dayNumbers[d as keyof typeof dayNumbers]),
-            custom_holidays: updatedCustomHolidays.map(date => new Date(date).toISOString().split('T')[0]), // Convert to DATE format
-            disabled_appointments: schedulingSettings.appointmentsDisabled,
-            disabled_slots: [],
-            day_schedules: {},
-            notification_settings: {
-              email_notifications: true,
-              reminder_hours: 24,
-              auto_confirm: true
-            }
-          });
-          toast.success('Custom holiday added');
-        }
-      } catch (error) {
-        console.error('Error saving custom holiday:', error);
-        toast.error('Failed to save custom holiday');
-      }
+      // Trigger auto-save
+      debouncedAutoSave(updatedSettings);
     }
   };
 
-  const handleRemoveCustomHoliday = async (holiday: string) => {
-    const updatedCustomHolidays = schedulingSettings.customHolidays.filter(h => h !== holiday);
+  const handleRemoveCustomHoliday = (holiday: string) => {
+    const updatedSettings = {
+      ...schedulingSettings,
+      customHolidays: schedulingSettings.customHolidays.filter(h => h !== holiday)
+    };
     
-    setSchedulingSettings(prev => ({
-      ...prev,
-      customHolidays: updatedCustomHolidays
-    }));
+    setSchedulingSettings(updatedSettings);
     
-    // Save to database
-    try {
-      if (clinic?.id) {
-        console.log('Removing custom holiday:', holiday);
-        
-        const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
-          const dayNumber = dayNumbers[day as keyof typeof dayNumbers];
-          if (dayNumber !== undefined) {
-            acc[dayNumber] = {
-              start_time: schedule.startTime,
-              end_time: schedule.endTime,
-              break_start: schedule.breakStart,
-              break_end: schedule.breakEnd,
-              slot_interval_minutes: schedule.slotInterval,
-              enabled: schedule.enabled
-            };
-          }
-          return acc;
-        }, {} as Record<number, any>);
-
-        const settingsData = {
-          clinic_id: clinic.id,
-          weekly_holidays: (schedulingSettings.weeklyHolidays || []).map(d => dayNumbers[d as keyof typeof dayNumbers]),
-          custom_holidays: updatedCustomHolidays.map(date => new Date(date).toISOString().split('T')[0]),
-          disabled_appointments: schedulingSettings.appointmentsDisabled,
-          disabled_slots: [],
-          day_schedules: daySchedules,
-          notification_settings: {
-            email_notifications: true,
-            reminder_hours: 24,
-            auto_confirm: true
-          }
-        };
-        
-        console.log('Settings data after removing custom holiday:', settingsData);
-        
-        const result = await settingsApi.upsert(settingsData);
-        console.log('Settings updated successfully after removing custom holiday:', result);
-        toast.success('Custom holiday removed');
-      }
-    } catch (error) {
-      console.error('Error removing custom holiday:', error);
-      toast.error('Failed to remove custom holiday');
-    }
+    // Trigger auto-save
+    debouncedAutoSave(updatedSettings);
   };
 
   // Use real appointments data if available, otherwise use empty array
@@ -1399,40 +1485,42 @@ Please confirm by replying "Yes" or "No"`;
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-            <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-blue-800">Total Appointments</CardTitle>
-                <CalendarIcon className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-900">{totalAppointments}</div>
-                <p className="text-xs text-blue-700">All time</p>
-              </CardContent>
-            </Card>
+          {schedulingSettings.showStatsCards && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+              <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-blue-800">Total Appointments</CardTitle>
+                  <CalendarIcon className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-900">{totalAppointments}</div>
+                  <p className="text-xs text-blue-700">All time</p>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-green-800">Completed Today</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-900">{completedAppointments}</div>
-                <p className="text-xs text-green-700">Finished appointments</p>
-              </CardContent>
-            </Card>
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-green-800">Completed Today</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-900">{completedAppointments}</div>
+                  <p className="text-xs text-green-700">Finished appointments</p>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-red-800">Cancelled Today</CardTitle>
-                <X className="h-4 w-4 text-red-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-900">{cancelledAppointments}</div>
-                <p className="text-xs text-red-700">Cancelled appointments</p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card className="bg-gradient-to-br from-red-50 to-rose-100 border-red-200 shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-red-800">Cancelled Today</CardTitle>
+                  <X className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-900">{cancelledAppointments}</div>
+                  <p className="text-xs text-red-700">Cancelled appointments</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Cancelled Appointments Section */}
           {cancelledAppointments > 0 && (
@@ -1875,6 +1963,30 @@ Please confirm by replying "Yes" or "No"`;
                   </div>
                 </div>
 
+                {/* Show Stats Cards */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Show Stats Cards</Label>
+                      <p className="text-sm text-gray-600">Display total, completed, and cancelled appointment statistics</p>
+                    </div>
+                    <div className="border-2 border-gray-300 rounded-lg p-1 bg-white">
+                      <Switch
+                        checked={schedulingSettings.showStatsCards}
+                        onCheckedChange={(checked) => {
+                          const updatedSettings = {
+                            ...schedulingSettings,
+                            showStatsCards: checked
+                          };
+                          setSchedulingSettings(updatedSettings);
+                          debouncedAutoSave(updatedSettings);
+                        }}
+                        className="border-2 border-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Weekly Holidays */}
                 <div className="space-y-3">
                   <Label className="text-base font-medium">Weekly Holidays</Label>
@@ -1923,6 +2035,53 @@ Please confirm by replying "Yes" or "No"`;
                         </Button>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Disabled Time Slots */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Disabled Time Slots</Label>
+                      <p className="text-sm text-gray-600">Temporarily disable specific time slots (e.g., personal appointments, meetings)</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => setShowDisabledSlotsDialog(true)}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Slot
+                    </Button>
+                  </div>
+                  
+                  {/* Display current disabled slots */}
+                  <div className="space-y-2">
+                    {disabledSlots.length === 0 ? (
+                      <div className="text-sm text-gray-500 italic">No disabled slots</div>
+                    ) : (
+                      disabledSlots.map((slot) => (
+                        <div key={slot.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex-1">
+                            <div className="font-medium text-red-800">
+                              {format(new Date(slot.date), 'MMM dd, yyyy')} • {slot.start_time} - {slot.end_time}
+                            </div>
+                            {slot.reason && (
+                              <div className="text-sm text-red-600 mt-1">{slot.reason}</div>
+                            )}
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleRemoveDisabledSlot(slot.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:bg-red-100"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -2069,14 +2228,14 @@ Please confirm by replying "Yes" or "No"`;
                         />
                       </div>
                       
-                      {/* Save Button */}
+                      {/* Auto-save indicator */}
                       <div className="pt-4">
-                        <Button 
-                          onClick={handleSaveDaySchedule}
-                          className="w-full bg-blue-600 hover:bg-blue-700"
-                        >
-                          Save Day Schedule
-                        </Button>
+                        <div className="text-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <span>Changes will be saved automatically</span>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -2578,6 +2737,74 @@ Please confirm by replying "Yes" or "No"`;
             >
               <X className="h-4 w-4" />
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disabled Slots Dialog */}
+      <Dialog open={showDisabledSlotsDialog} onOpenChange={setShowDisabledSlotsDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Disable Time Slot</DialogTitle>
+            <DialogDescription>
+              Temporarily disable a specific time slot (e.g., for personal appointments, meetings)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="disabled-date">Date</Label>
+              <Input
+                id="disabled-date"
+                type="date"
+                value={newDisabledSlot.date}
+                onChange={(e) => setNewDisabledSlot(prev => ({ ...prev, date: e.target.value }))}
+                min={format(new Date(), 'yyyy-MM-dd')}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="disabled-start">Start Time</Label>
+                <Input
+                  id="disabled-start"
+                  type="time"
+                  value={newDisabledSlot.startTime}
+                  onChange={(e) => setNewDisabledSlot(prev => ({ ...prev, startTime: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="disabled-end">End Time</Label>
+                <Input
+                  id="disabled-end"
+                  type="time"
+                  value={newDisabledSlot.endTime}
+                  onChange={(e) => setNewDisabledSlot(prev => ({ ...prev, endTime: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="disabled-reason">Reason (Optional)</Label>
+              <Input
+                id="disabled-reason"
+                placeholder="e.g., Personal appointment, Meeting"
+                value={newDisabledSlot.reason}
+                onChange={(e) => setNewDisabledSlot(prev => ({ ...prev, reason: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDisabledSlotsDialog(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddDisabledSlot}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              Disable Slot
             </Button>
           </DialogFooter>
         </DialogContent>
