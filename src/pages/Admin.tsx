@@ -128,6 +128,7 @@ const Admin = () => {
   });
   const [bookedSlotsForGeneral, setBookedSlotsForGeneral] = useState<string[]>([]);
   const [isLoadingSlotsForGeneral, setIsLoadingSlotsForGeneral] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
 
 
@@ -237,12 +238,17 @@ const Admin = () => {
   }, [settings]);
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     clearAdminSession();
     // Clear saved credentials on logout
     localStorage.removeItem('admin_username');
     localStorage.removeItem('admin_password');
     navigate('/admin/login');
     toast.success('Logged out successfully');
+    setShowLogoutConfirm(false);
   };
 
   // WhatsApp message templates
@@ -1362,9 +1368,25 @@ Please confirm by replying "Yes" or "No"`;
             </div>
             <div className="flex items-center gap-2 md:gap-4">
               <Button 
-                onClick={() => setShowSettings(!showSettings)} 
+                onClick={() => {
+                  setShowSettings(!showSettings);
+                  // Scroll to settings section after a short delay to ensure it's rendered
+                  setTimeout(() => {
+                    const settingsSection = document.getElementById('settings-section');
+                    if (settingsSection) {
+                      settingsSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                      });
+                    }
+                  }, 100);
+                }} 
                 variant="outline" 
-                className="flex items-center gap-2 text-sm border-2 border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-500 shadow-sm transition-all duration-200"
+                className={`flex items-center gap-2 text-sm border-2 transition-all duration-200 ${
+                  showSettings 
+                    ? 'border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 hover:border-emerald-500 shadow-md' 
+                    : 'border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-500 shadow-sm'
+                }`}
               >
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Settings</span>
@@ -1498,41 +1520,64 @@ Please confirm by replying "Yes" or "No"`;
 
 
           {/* Search and Filter */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 p-4 bg-gradient-to-br from-slate-50 to-gray-100 rounded-lg border border-slate-200 shadow-sm">
-            <div className="flex-1">
+          <div className="flex flex-col gap-4 mb-6 p-4 bg-gradient-to-br from-slate-50 to-gray-100 rounded-lg border border-slate-200 shadow-sm">
+            {/* Search Bar - Full Width */}
+            <div className="w-full">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80"
+                  className="pl-10 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80 w-full"
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            
+            {/* Filter Controls - Responsive Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Date Filter */}
               <div className="relative">
                 <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   type="date"
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
-                  className="pl-10 pr-16 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 min-w-[140px] sm:min-w-[160px] bg-white/80"
+                  className="pl-10 pr-12 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80 w-full"
                 />
                 {filterDate && filterDate !== format(new Date(), 'yyyy-MM-dd') && (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setFilterDate(format(new Date(), 'yyyy-MM-dd'))}
-                    className="absolute right-5 sm:right-6 top-1/2 transform -translate-y-1/2 h-6 w-6 sm:h-5 sm:w-5 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded"
+                    className="absolute right-8 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded"
                     title="Reset to today"
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 )}
               </div>
+              
+              {/* Tomorrow Button */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  setFilterDate(format(tomorrow, 'yyyy-MM-dd'));
+                  // Also update upcoming appointments to show tomorrow
+                  setUpcomingPeriod('tomorrow');
+                }}
+                className="text-xs border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-400 transition-colors w-full"
+                title="Filter for tomorrow"
+              >
+                Tomorrow
+              </Button>
+              
+              {/* Status Filter */}
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-[180px] border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80">
+                <SelectTrigger className="w-full border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1543,12 +1588,15 @@ Please confirm by replying "Yes" or "No"`;
                   <SelectItem value="Rescheduled">Rescheduled</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* New Appointment Button */}
               <Button 
                 onClick={handleOpenGeneralAppointmentDialog}
-                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg border-2 border-blue-500"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg border-2 border-blue-500 w-full"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">New Appointment</span>
+                <span className="sm:hidden">New Apt</span>
               </Button>
             </div>
           </div>
@@ -1804,7 +1852,7 @@ Please confirm by replying "Yes" or "No"`;
 
           {/* Settings Section */}
           {showSettings && (
-            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-emerald-50 to-teal-100 border-emerald-200 shadow-lg">
+            <Card id="settings-section" className="mt-6 md:mt-8 bg-gradient-to-br from-emerald-50 to-teal-100 border-emerald-200 shadow-lg">
             <CardHeader>
               <CardTitle className="text-emerald-800">Scheduling Settings</CardTitle>
                 <CardDescription className="text-emerald-700">Control the appointment window and slot generation</CardDescription>
@@ -2530,6 +2578,33 @@ Please confirm by replying "Yes" or "No"`;
             >
               <X className="h-4 w-4" />
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Logout Confirmation Dialog */}
+      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Confirm Logout</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to logout? Any unsaved changes will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmLogout}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              Logout
             </Button>
           </DialogFooter>
         </DialogContent>
