@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dentistChildImage from '@/assets/dentist-patient.jpg';
 import { toast } from 'sonner';
-import { appointmentsApi } from '@/lib/supabase';
+import { appointmentsApi, supabase } from '@/lib/supabase';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
@@ -126,6 +126,8 @@ const Appointment = () => {
       setIsLoadingSlots(true);
       try {
         const appointmentDate = format(date, 'yyyy-MM-dd');
+        
+        // Force refresh to get latest data (bypass cache)
         const existingAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
         
         // Get booked time slots (exclude cancelled appointments)
@@ -144,8 +146,35 @@ const Appointment = () => {
 
     checkBookedSlots();
 
-    // Note: Real-time subscription will be implemented later
-    // For now, slots will refresh when date changes or page reloads
+    // Set up real-time subscription for appointments
+    if (clinic?.id) {
+      const channel = supabase
+        .channel(`appointments_${clinic.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'appointments',
+            filter: `clinic_id=eq.${clinic.id}`
+          },
+          (payload) => {
+            console.log('Appointment change detected:', payload);
+            // Refresh booked slots when appointments change
+            checkBookedSlots();
+          }
+        )
+        .subscribe();
+
+      // Set up periodic refresh every 30 seconds as backup
+      const refreshInterval = setInterval(checkBookedSlots, 30000);
+
+      // Cleanup subscription and interval on unmount
+      return () => {
+        supabase.removeChannel(channel);
+        clearInterval(refreshInterval);
+      };
+    }
   }, [date, clinic?.id]);
 
   // Phone number formatting function

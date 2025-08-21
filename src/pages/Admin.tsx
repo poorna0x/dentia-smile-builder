@@ -450,19 +450,28 @@ Please confirm by replying "Yes" or "No"`;
 
   // Generate time slots like the appointment page
   const generateTimeSlotsForNewAppointment = (dateForSlots: Date) => {
-    // Default settings - same as appointment page
-    const currentSettings = {
-    startTime: '09:00',
-    endTime: '20:00',
-    breakStart: '13:00',
-    breakEnd: '14:00',
-    slotIntervalMinutes: 30,
-    };
+    // Get actual settings from database for the specific day
+    const daySettings = getDaySettingsForGeneral(dateForSlots);
+    
+    // Check if the day is enabled
+    if (!daySettings.enabled) {
+      return [];
+    }
+    
+    // Check if it's a holiday
+    if (isDateHolidayForGeneral(dateForSlots)) {
+      return [];
+    }
+    
+    // Check if appointments are disabled globally
+    if (daySettings.disabledAppointments) {
+      return [];
+    }
 
-    const [startH, startM] = currentSettings.startTime.split(':').map(Number);
-    const [endH, endM] = currentSettings.endTime.split(':').map(Number);
-    const [breakStartH, breakStartM] = currentSettings.breakStart.split(':').map(Number);
-    const [breakEndH, breakEndM] = currentSettings.breakEnd.split(':').map(Number);
+    const [startH, startM] = daySettings.startTime.split(':').map(Number);
+    const [endH, endM] = daySettings.endTime.split(':').map(Number);
+    const [breakStartH, breakStartM] = daySettings.breakStart.split(':').map(Number);
+    const [breakEndH, breakEndM] = daySettings.breakEnd.split(':').map(Number);
 
     const start = new Date(dateForSlots);
     start.setHours(startH, startM, 0, 0);
@@ -473,7 +482,7 @@ Please confirm by replying "Yes" or "No"`;
     const breakEnd = new Date(dateForSlots);
     breakEnd.setHours(breakEndH, breakEndM, 0, 0);
 
-    const intervalMs = currentSettings.slotIntervalMinutes * 60 * 1000;
+    const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
 
     for (let t = start.getTime(); t < end.getTime(); t += intervalMs) {
@@ -509,6 +518,25 @@ Please confirm by replying "Yes" or "No"`;
       return;
     }
 
+    // Check if selected date is a holiday
+    if (isDateHolidayForGeneral(newAppointmentForClient.selectedDate)) {
+      toast.error('Clinic is closed on the selected date. Please choose another date.');
+      return;
+    }
+
+    // Check if appointments are disabled
+    const daySettings = getDaySettingsForGeneral(newAppointmentForClient.selectedDate);
+    if (daySettings.disabledAppointments) {
+      toast.error('Appointments are currently disabled. Please try again later.');
+      return;
+    }
+
+    // Check if the day is enabled
+    if (!daySettings.enabled) {
+      toast.error('Clinic is closed on this day of the week. Please choose another date.');
+      return;
+    }
+
     try {
       // Create new appointment with same client data but new date/time
       const newAppointment = {
@@ -523,6 +551,13 @@ Please confirm by replying "Yes" or "No"`;
 
       // Add to database using the appointments API
       await appointmentsApi.create(newAppointment);
+      
+      // Clear cache to ensure fresh data
+      QueryOptimizer.clearCache('appointments');
+      
+      // Also clear specific date cache for immediate reflection
+      const appointmentDate = format(newAppointmentForClient.selectedDate, 'yyyy-MM-dd');
+      QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
       
       toast.success(`New appointment created for ${selectedAppointment.name} on ${format(newAppointmentForClient.selectedDate, 'MMM dd, yyyy')} at ${newAppointmentForClient.time}`);
       setShowNewAppointmentForClient(false);
@@ -632,6 +667,10 @@ Please confirm by replying "Yes" or "No"`;
       // Clear cache to ensure fresh data
       QueryOptimizer.clearCache('appointments');
       
+      // Also clear specific date cache for immediate reflection
+      const appointmentDate = format(generalNewAppointment.selectedDate, 'yyyy-MM-dd');
+      QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
+      
       toast.success(`New appointment created for ${generalNewAppointment.name} on ${format(generalNewAppointment.selectedDate, 'MMM dd, yyyy')} at ${generalNewAppointment.time}`);
       setShowNewAppointmentDialog(false);
       
@@ -690,27 +729,14 @@ Please confirm by replying "Yes" or "No"`;
       const existingAppointments = freshAppointments.filter(apt => apt.status !== 'Cancelled');
       console.log('Existing appointments (excluding cancelled):', existingAppointments);
       
-      // Extract just the start times from the time ranges
-      const booked = existingAppointments.map(apt => {
-        const timeRange = apt.time; // e.g., "05:30 PM - 06:00 PM"
-        const startTime = timeRange.split(' - ')[0]; // e.g., "05:30 PM"
-        
-        // Convert 12-hour format to 24-hour format
-        const [time, period] = startTime.split(' ');
-        const [hours, minutes] = time.split(':').map(Number);
-        
-        let hour24 = hours;
-        if (period === 'PM' && hours !== 12) hour24 += 12;
-        if (period === 'AM' && hours === 12) hour24 = 0;
-        
-        return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      });
+      // Extract the full time ranges for comparison
+      const booked = existingAppointments.map(apt => apt.time);
       
-      console.log('Booked time slots (converted to 24-hour):', booked);
+      console.log('Booked time slots (full format):', booked);
       console.log('Current bookedSlotsForGeneral state:', bookedSlotsForGeneral);
       
       // Test time format matching
-      const testTime = '09:00';
+      const testTime = '09:00 AM - 09:30 AM';
       console.log(`Testing if '${testTime}' is in booked slots:`, booked.includes(testTime));
       console.log('Sample appointment time format:', existingAppointments[0]?.time);
       
@@ -809,14 +835,13 @@ Please confirm by replying "Yes" or "No"`;
 
       if (!overlapsBreak && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
-        const timeValue = format(slotStart, 'HH:mm');
-        const isBooked = bookedSlotsForGeneral.includes(timeValue);
+        const isBooked = bookedSlotsForGeneral.includes(label);
         
-        console.log(`Slot ${timeValue}: isBooked = ${isBooked}, bookedSlotsForGeneral =`, bookedSlotsForGeneral);
+        console.log(`Slot ${label}: isBooked = ${isBooked}, bookedSlotsForGeneral =`, bookedSlotsForGeneral);
         
         slots.push({ 
           label, 
-          value: timeValue, 
+          value: label, // Store the full time range format instead of just HH:mm
           disabled: isPast || isBooked,
           booked: isBooked
         });
@@ -1304,12 +1329,12 @@ Please confirm by replying "Yes" or "No"`;
               <Button 
                 onClick={() => setShowSettings(!showSettings)} 
                 variant="outline" 
-                className="flex items-center gap-2 text-sm border-2 border-slate-400 text-slate-700 hover:bg-slate-50 hover:border-slate-500 shadow-sm"
+                className="flex items-center gap-2 text-sm border-2 border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-500 shadow-sm transition-all duration-200"
               >
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Settings</span>
               </Button>
-              <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 text-sm border-2 border-red-400 text-red-700 hover:bg-red-50 hover:border-red-500 shadow-sm">
+              <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 text-sm border-2 border-red-400 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-500 shadow-sm transition-all duration-200">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
@@ -1369,7 +1394,7 @@ Please confirm by replying "Yes" or "No"`;
                         handleDeleteAllCancelledAppointments();
                       }
                     }}
-                    className="text-red-700 border-red-400 hover:bg-red-100 hover:text-red-800 hover:border-red-500"
+                    className="text-red-700 border-2 border-red-400 hover:bg-red-100 hover:text-red-800 hover:border-red-500 shadow-sm transition-all duration-200"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Delete All
@@ -1397,7 +1422,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
-                            className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 shadow-sm"
+                            className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-500 shadow-sm transition-all duration-200"
                             title="Call patient"
                           >
                             <Phone className="h-4 w-4" />
@@ -1407,7 +1432,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => handleWhatsApp(appointment.phone, 'cancellation', appointment)}
-                            className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-50 hover:border-green-500 shadow-sm"
+                            className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-100 hover:text-green-700 hover:border-green-500 shadow-sm transition-all duration-200"
                             title="Send WhatsApp message"
                           >
                             <WhatsAppIcon className="h-4 w-4" />
@@ -1421,7 +1446,7 @@ Please confirm by replying "Yes" or "No"`;
                                 handleDeleteAppointment(appointment.id);
                               }
                             }}
-                            className="flex items-center gap-2 text-red-600 border-2 border-red-400 hover:bg-red-50 hover:border-red-500 shadow-sm"
+                            className="flex items-center gap-2 text-red-600 border-2 border-red-400 hover:bg-red-100 hover:text-red-700 hover:border-red-500 shadow-sm transition-all duration-200"
                             title="Delete appointment"
                           >
                             <X className="h-4 w-4" />
@@ -1570,7 +1595,7 @@ Please confirm by replying "Yes" or "No"`;
                                 size="sm"
                                 variant="outline"
                                 onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
-                                className="h-8 w-8 p-0 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 flex-shrink-0 shadow-sm"
+                                className="h-8 w-8 p-0 text-blue-600 border-2 border-blue-400 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-500 flex-shrink-0 shadow-sm transition-all duration-200"
                                 title="Call patient"
                               >
                                 <Phone className="h-3 w-3" />
@@ -1579,7 +1604,7 @@ Please confirm by replying "Yes" or "No"`;
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
-                                className="h-8 w-8 p-0 text-green-600 border-2 border-green-400 hover:bg-green-50 hover:border-green-500 flex-shrink-0 shadow-sm"
+                                className="h-8 w-8 p-0 text-green-600 border-2 border-green-400 hover:bg-green-100 hover:text-green-700 hover:border-green-500 flex-shrink-0 shadow-sm transition-all duration-200"
                                 title="Send WhatsApp message"
                               >
                                 <WhatsAppIcon className="h-3 w-3" />
@@ -1613,7 +1638,7 @@ Please confirm by replying "Yes" or "No"`;
                               size="sm" 
                               variant="outline" 
                               onClick={() => handleEditAppointment(appointment)}
-                              className="h-8 px-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 text-xs shadow-sm"
+                              className="h-8 px-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-500 text-xs shadow-sm transition-all duration-200"
                             >
                               <Edit className="h-3 w-3 mr-1" />
                               <span className="hidden sm:inline">Edit</span>
@@ -1702,7 +1727,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => window.open(`tel:${appointment.phone}`, '_self')}
-                            className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-50 hover:border-blue-500 shadow-sm"
+                            className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-500 shadow-sm transition-all duration-200"
                             title="Call patient"
                           >
                             <Phone className="h-4 w-4" />
@@ -1712,7 +1737,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
-                            className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-50 hover:border-green-500 shadow-sm"
+                            className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-100 hover:text-green-700 hover:border-green-500 shadow-sm transition-all duration-200"
                             title="Send WhatsApp message"
                           >
                             <WhatsAppIcon className="h-4 w-4" />
@@ -1722,7 +1747,7 @@ Please confirm by replying "Yes" or "No"`;
                             size="sm"
                             variant="outline"
                             onClick={() => handleEditAppointment(appointment)}
-                            className="flex items-center gap-2 text-purple-600 border-2 border-purple-400 hover:bg-purple-50 hover:border-purple-500 shadow-sm"
+                            className="flex items-center gap-2 text-purple-600 border-2 border-purple-400 hover:bg-purple-100 hover:text-purple-700 hover:border-purple-500 shadow-sm transition-all duration-200"
                             title="Edit appointment"
                           >
                             <Edit className="h-4 w-4" />
@@ -2106,6 +2131,24 @@ Please confirm by replying "Yes" or "No"`;
               {/* Date Selection */}
               <div className="space-y-2">
                 <Label>Select Date</Label>
+                
+                {/* Holiday/Clinic Closed Messages */}
+                {newAppointmentForClient.selectedDate && (
+                  <>
+                    {isDateHolidayForGeneral(newAppointmentForClient.selectedDate) && (
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+                        <AlertCircle className="h-4 w-4 inline mr-1" />
+                        Clinic is closed on this date
+                      </div>
+                    )}
+                    {getDaySettingsForGeneral(newAppointmentForClient.selectedDate).disabledAppointments && (
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+                        <AlertCircle className="h-4 w-4 inline mr-1" />
+                        Appointments are currently disabled
+                      </div>
+                    )}
+                  </>
+                )}
                 <Popover open={newAppointmentForClient.isCalendarOpen} onOpenChange={(open) => setNewAppointmentForClient(prev => ({ ...prev, isCalendarOpen: open }))}>
                   <PopoverTrigger asChild>
                     <Button
@@ -2138,7 +2181,11 @@ Please confirm by replying "Yes" or "No"`;
                         }
                       }}
                       initialFocus
-                      disabled={(date) => date < new Date()}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today || isDateHolidayForGeneral(date);
+                      }}
                       className={cn("p-3 pointer-events-auto")}
 
                     />
@@ -2331,7 +2378,7 @@ Please confirm by replying "Yes" or "No"`;
                     disabled={(date) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
-                      return date < today;
+                      return date < today || isDateHolidayForGeneral(date);
                     }}
                     className={cn("p-3 pointer-events-auto")}
                   />
