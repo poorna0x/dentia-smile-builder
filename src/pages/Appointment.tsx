@@ -18,6 +18,12 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { sendAppointmentConfirmation } from '@/lib/email';
+import CaptchaModal from '@/components/CaptchaModal';
+import { 
+  checkSecurityStatus, 
+  recordAppointmentAttempt, 
+  resetSecurityOnSuccess 
+} from '@/lib/security';
 
 
 
@@ -54,6 +60,12 @@ const Appointment = () => {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState<{
+    requiresCaptcha: boolean;
+    reason: string;
+    cooldownRemaining?: number;
+  }>({ requiresCaptcha: false, reason: '' });
 
   // Realtime functionality
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected'>('disconnected');
@@ -491,7 +503,26 @@ const Appointment = () => {
       return;
     }
     
+    // Check security status before proceeding
+    const status = checkSecurityStatus();
+    setSecurityStatus(status);
+    
+    if (status.requiresCaptcha) {
+      setShowCaptcha(true);
+      return;
+    }
+    
+    // Record appointment attempt for security tracking
+    recordAppointmentAttempt(email, phone);
+    
     // Show confirmation dialog instead of proceeding directly
+    setShowConfirmation(true);
+  };
+
+  const handleCaptchaSuccess = () => {
+    setShowCaptcha(false);
+    // Record appointment attempt and show confirmation
+    recordAppointmentAttempt(email, phone);
     setShowConfirmation(true);
   };
 
@@ -547,9 +578,10 @@ const Appointment = () => {
           clinicName: clinic.name || 'Jeshna Dental Clinic',
           clinicPhone: clinic.contact_phone || '6363116263',
           clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
-        });
-        
+                });
 
+        // Reset security on successful booking
+        resetSecurityOnSuccess();
 
         // Navigate to booking completion page with appointment details
         const params = new URLSearchParams({
@@ -1036,6 +1068,15 @@ const Appointment = () => {
       </Dialog>
 
       <Footer />
+      
+      {/* CAPTCHA Modal */}
+      <CaptchaModal
+        isOpen={showCaptcha}
+        onClose={() => setShowCaptcha(false)}
+        onSuccess={handleCaptchaSuccess}
+        reason={securityStatus.reason}
+        cooldownRemaining={securityStatus.cooldownRemaining}
+      />
     </div>
   );
 };

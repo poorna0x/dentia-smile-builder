@@ -11,6 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Lock, User, Save } from 'lucide-react';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
+import CaptchaModal from '@/components/CaptchaModal';
+import { 
+  checkSecurityStatus, 
+  recordFailedLogin, 
+  resetSecurityOnSuccess
+} from '@/lib/security';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -25,6 +31,13 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [savePassword, setSavePassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaCompleted, setCaptchaCompleted] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState<{
+    requiresCaptcha: boolean;
+    reason: string;
+    cooldownRemaining?: number;
+  }>({ requiresCaptcha: false, reason: '' });
 
   useEffect(() => {
     // Redirect if already logged in
@@ -43,10 +56,28 @@ const AdminLogin = () => {
       });
       setSavePassword(true);
     }
+    
+    // Check security status on component mount
+    const status = checkSecurityStatus();
+    setSecurityStatus(status);
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check security status before proceeding
+    const status = checkSecurityStatus();
+    setSecurityStatus(status);
+    
+    if (status.requiresCaptcha && !captchaCompleted) {
+      setShowCaptcha(true);
+      return;
+    }
+    
+    await performLogin();
+  };
+
+  const performLogin = async () => {
     setIsLoading(true);
 
     try {
@@ -60,6 +91,10 @@ const AdminLogin = () => {
       const isAuthenticated = authenticateAdmin(credentials);
       
       if (isAuthenticated) {
+        // Reset security on successful login
+        resetSecurityOnSuccess();
+        setCaptchaCompleted(false); // Reset CAPTCHA completion
+        
         // Save credentials if checkbox is checked
         if (savePassword) {
           localStorage.setItem('admin_username', credentials.username);
@@ -73,7 +108,18 @@ const AdminLogin = () => {
         toast.success('Login successful!');
         navigate('/admin', { replace: true });
       } else {
+        // Record failed login attempt
+        recordFailedLogin(credentials.username);
         toast.error('Invalid username or password');
+        
+        // Check if CAPTCHA should be required now
+        const newStatus = checkSecurityStatus();
+        setSecurityStatus(newStatus);
+        
+        // If CAPTCHA is now required, show it
+        if (newStatus.requiresCaptcha) {
+          setShowCaptcha(true);
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -83,11 +129,24 @@ const AdminLogin = () => {
     }
   };
 
+  const handleCaptchaSuccess = () => {
+    setShowCaptcha(false);
+    setCaptchaCompleted(true);
+    // Don't automatically login - user still needs to enter correct password
+    // Just allow them to proceed with the login attempt
+    toast.success('Security verification passed. Please enter correct credentials.');
+  };
+
   const handleInputChange = (field: 'username' | 'password', value: string) => {
     setCredentials(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Reset CAPTCHA completion when user changes credentials
+    if (captchaCompleted) {
+      setCaptchaCompleted(false);
+    }
   };
 
   return (
@@ -105,6 +164,20 @@ const AdminLogin = () => {
               <CardDescription className="text-gray-600">
                 Access the dental clinic administration panel
               </CardDescription>
+              
+              {/* CAPTCHA Status Indicator */}
+              {captchaCompleted && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                  <p className="text-sm md:text-base text-green-800 font-semibold mb-1">
+                    Security verification completed
+                  </p>
+                  <p className="text-xs md:text-sm text-green-600">
+                    Please enter correct credentials to continue
+                  </p>
+                </div>
+              )}
+              
+
             </CardHeader>
             
             <CardContent>
@@ -202,6 +275,15 @@ const AdminLogin = () => {
       </main>
 
       <Footer />
+      
+      {/* CAPTCHA Modal */}
+      <CaptchaModal
+        isOpen={showCaptcha}
+        onClose={() => setShowCaptcha(false)}
+        onSuccess={handleCaptchaSuccess}
+        reason={securityStatus.reason}
+        cooldownRemaining={securityStatus.cooldownRemaining}
+      />
     </div>
   );
 };
