@@ -181,33 +181,38 @@ export const useAppointments = () => {
     }
   }, [clinic?.id])
 
-  // Optimized real-time subscription with debouncing
+  // Optimized real-time subscription with debouncing and reduced frequency
   useEffect(() => {
     if (!clinic?.id) return
     
     loadAppointments()
 
-    // Debounced cache invalidation
+    // Debounced cache invalidation with longer delay
     const debouncedCacheInvalidation = debounce(() => {
       const cacheKey = `appointments_${clinic.id}`
       appointmentsCache.delete(cacheKey)
-    }, 1000)
+    }, 2000) // Increased from 1000ms to 2000ms
 
     const subscription = subscribeToAppointments((payload) => {
       // Only handle events for current clinic
       if (payload.new?.clinic_id === clinic.id || payload.old?.clinic_id === clinic.id) {
-        if (payload.eventType === 'INSERT') {
-          setAppointments(prev => [payload.new, ...prev])
-          debouncedCacheInvalidation()
-        } else if (payload.eventType === 'UPDATE') {
-          setAppointments(prev => 
-            prev.map(apt => apt.id === payload.new.id ? payload.new : apt)
-          )
-          debouncedCacheInvalidation()
-        } else if (payload.eventType === 'DELETE') {
-          setAppointments(prev => prev.filter(apt => apt.id !== payload.old.id))
-          debouncedCacheInvalidation()
-        }
+        // Debounced state updates to reduce re-renders
+        const debouncedUpdate = debounce(() => {
+          if (payload.eventType === 'INSERT') {
+            setAppointments(prev => [payload.new, ...prev])
+            debouncedCacheInvalidation()
+          } else if (payload.eventType === 'UPDATE') {
+            setAppointments(prev => 
+              prev.map(apt => apt.id === payload.new.id ? payload.new : apt)
+            )
+            debouncedCacheInvalidation()
+          } else if (payload.eventType === 'DELETE') {
+            setAppointments(prev => prev.filter(apt => apt.id !== payload.old.id))
+            debouncedCacheInvalidation()
+          }
+        }, 1000) // 1 second debounce for state updates
+        
+        debouncedUpdate()
       }
     })
 

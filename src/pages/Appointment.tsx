@@ -149,28 +149,30 @@ const Appointment = () => {
 
     checkBookedSlots();
 
-    // Set up real-time subscription for appointments
+    // Set up real-time subscription for appointments with optimization
     if (clinic?.id) {
       const channel = supabase
-        .channel(`appointments_${clinic.id}`)
+        .channel(`appointments_${clinic.id}_${format(date, 'yyyy-MM-dd')}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'appointments',
-            filter: `clinic_id=eq.${clinic.id}`
+            filter: `clinic_id=eq.${clinic.id} AND date=eq.${format(date, 'yyyy-MM-dd')}`
           },
           (payload) => {
             console.log('Appointment change detected:', payload);
-            // Refresh booked slots when appointments change
-            checkBookedSlots();
+            // Debounced refresh to avoid excessive calls
+            setTimeout(() => {
+              checkBookedSlots();
+            }, 500);
           }
         )
         .subscribe();
 
-      // Set up periodic refresh every 30 seconds as backup
-      const refreshInterval = setInterval(checkBookedSlots, 30000);
+      // Reduced periodic refresh to 2 minutes instead of 30 seconds
+      const refreshInterval = setInterval(checkBookedSlots, 120000);
 
       // Cleanup subscription and interval on unmount
       return () => {
