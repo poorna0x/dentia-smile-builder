@@ -95,6 +95,9 @@ export const emailTemplates = {
                 <a href="tel:${data.clinicPhone}" style="display: block; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 20px 16px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 18px; text-align: center; margin: 15px 0; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                   📞 Call Clinic
                 </a>
+                <a href="https://wa.me/${data.clinicPhone}?text=Hi, I have an appointment scheduled for ${format(new Date(data.date), 'MMM dd, yyyy')} at ${data.time}. My name is ${data.name}. I have a question about my appointment." style="display: block; background: linear-gradient(135deg, #25D366, #128C7E); color: white; padding: 20px 16px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 18px; text-align: center; margin: 15px 0; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  📱 WhatsApp Clinic
+                </a>
                 <a href="https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore" style="display: block; background: white; color: #1e40af; padding: 20px 16px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 18px; text-align: center; margin: 15px 0; border: 2px solid #1e40af; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                   📍 Get Directions
                 </a>
