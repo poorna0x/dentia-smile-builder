@@ -12,11 +12,13 @@ import Testimonials from '@/components/Testimonials';
 import CTA from '@/components/CTA';
 import CheckAppointmentStatus from '@/components/CheckAppointmentStatus';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
+import { useClinic } from '@/contexts/ClinicContext';
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 const Home = () => {
   const [searchParams] = useSearchParams();
+  const { clinic, loading, error } = useClinic();
   
   // Ensure page starts at top
   useScrollToTop();
@@ -37,6 +39,37 @@ const Home = () => {
       }, 500); // Small delay to ensure page is loaded
     }
   }, [searchParams]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Loading clinic data...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait while we set up your experience</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Clinic</h1>
+          <p className="text-red-800 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

@@ -1,5 +1,9 @@
 // Email sending functionality for appointment confirmations
 import { format } from 'date-fns';
+import { Resend } from 'resend';
+
+// Initialize Resend
+const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
 
 export interface EmailConfig {
   host: string;
@@ -133,6 +137,130 @@ This email was sent to ${data.email}
     `
   }),
 
+  dentistNotification: (data: AppointmentEmailData) => ({
+    subject: `New Appointment Booked - ${data.name} on ${format(new Date(data.date), 'MMM dd, yyyy')} at ${data.time}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Appointment Booked</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
+          .patient-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669; }
+          .detail-row { display: flex; justify-content: space-between; margin: 10px 0; }
+          .label { font-weight: bold; color: #64748b; }
+          .value { color: #1e293b; }
+          .footer { text-align: center; margin-top: 30px; color: #64748b; font-size: 14px; }
+          .contact-buttons { display: flex; gap: 10px; margin: 20px 0; }
+          .contact-btn { padding: 10px 20px; border-radius: 6px; text-decoration: none; color: white; font-weight: bold; }
+          .email-btn { background: #2563eb; }
+          .phone-btn { background: #059669; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📅 New Appointment Booked</h1>
+            <p>${data.clinicName}</p>
+          </div>
+          
+          <div class="content">
+            <p>Hello Doctor,</p>
+            
+            <p>A new appointment has been booked. Here are the details:</p>
+            
+            <div class="patient-details">
+              <h3>👤 Patient Information</h3>
+              <div class="detail-row">
+                <span class="label">Name:</span>
+                <span class="value">${data.name}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Phone:</span>
+                <span class="value">${data.phone}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Email:</span>
+                <span class="value">${data.email}</span>
+              </div>
+              
+              <h3>📅 Appointment Details</h3>
+              <div class="detail-row">
+                <span class="label">Date:</span>
+                <span class="value">${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Time:</span>
+                <span class="value">${data.time}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Status:</span>
+                <span class="value">${data.status}</span>
+              </div>
+            </div>
+            
+            <div class="contact-buttons">
+              <a href="mailto:${data.email}" class="contact-btn email-btn">📧 Email Patient</a>
+              <a href="tel:${data.phone}" class="contact-btn phone-btn">📞 Call Patient</a>
+            </div>
+            
+            <p><strong>Quick Actions:</strong></p>
+            <ul>
+              <li>Review patient details above</li>
+              <li>Contact patient if needed</li>
+              <li>Prepare for the appointment</li>
+              <li>Check admin dashboard for more details</li>
+            </ul>
+            
+            <p>Best regards,<br>
+            <strong>${data.clinicName} Booking System</strong></p>
+          </div>
+          
+          <div class="footer">
+            <p>This notification was sent to the clinic staff</p>
+            <p>© ${new Date().getFullYear()} ${data.clinicName}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+New Appointment Booked - ${data.clinicName}
+
+Hello Doctor,
+
+A new appointment has been booked.
+
+PATIENT INFORMATION:
+Name: ${data.name}
+Phone: ${data.phone}
+Email: ${data.email}
+
+APPOINTMENT DETAILS:
+Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}
+Time: ${data.time}
+Status: ${data.status}
+
+QUICK ACTIONS:
+- Review patient details above
+- Contact patient if needed: ${data.phone} or ${data.email}
+- Prepare for the appointment
+- Check admin dashboard for more details
+
+Best regards,
+${data.clinicName} Booking System
+
+---
+This notification was sent to the clinic staff
+© ${new Date().getFullYear()} ${data.clinicName}. All rights reserved.
+    `
+  }),
+
   reminder: (data: AppointmentEmailData) => ({
     subject: `Appointment Reminder - ${data.clinicName}`,
     html: `
@@ -234,7 +362,7 @@ This email was sent to ${data.email}
   })
 };
 
-// Send email using SMTP (simplified version)
+// Send email using Resend
 export const sendEmail = async (
   to: string, 
   subject: string, 
@@ -242,26 +370,65 @@ export const sendEmail = async (
   text: string
 ): Promise<boolean> => {
   try {
-    // For now, we'll simulate email sending
-    // In production, you'd use a service like SendGrid, AWS SES, or Nodemailer
-    
-    console.log('📧 Email would be sent:');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    console.log('HTML:', html.substring(0, 200) + '...');
-    console.log('Text:', text.substring(0, 200) + '...');
-    
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    // Debug: Check API key
+    console.log('🔍 Email Debug Info:', {
+      hasApiKey: !!import.meta.env.VITE_RESEND_API_KEY,
+      apiKeyLength: import.meta.env.VITE_RESEND_API_KEY?.length || 0,
+      apiKeyStart: import.meta.env.VITE_RESEND_API_KEY?.substring(0, 3) || 'none'
+    });
+
+    // Check if Resend API key is available
+    if (!import.meta.env.VITE_RESEND_API_KEY) {
+      console.log('📧 Resend API key not found, simulating email send');
+      console.log('To:', to);
+      console.log('Subject:', subject);
+      console.log('HTML:', html.substring(0, 200) + '...');
+      console.log('Text:', text.substring(0, 200) + '...');
+      
+      // Simulate email sending delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return true;
+    }
+
+    // In development, simulate email sending due to CORS restrictions
+    if (import.meta.env.DEV) {
+      console.log('📧 Development Mode - Simulating email send:');
+      console.log('To:', to);
+      console.log('Subject:', subject);
+      console.log('HTML Preview:', html.substring(0, 200) + '...');
+      console.log('Text Preview:', text.substring(0, 200) + '...');
+      
+      // Simulate email sending delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('✅ Email simulation completed successfully');
+      return true;
+    }
+
+    // In production, send real email using Resend
+    const { data, error } = await resend.emails.send({
+      from: 'Jeshna Dental Clinic <appointments@resend.dev>',
+      to: [to],
+      reply_to: 'poorna.shetty@outlook.com', // Dentist's email for replies
+      subject: subject,
+      html: html,
+      text: text,
+    });
+
+    if (error) {
+      console.error('❌ Resend API Error:', error);
+      return false;
+    }
+
+    console.log('📧 Email sent successfully:', data);
     return true;
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('❌ Failed to send email:', error);
     return false;
   }
 };
 
-// Send appointment confirmation email
+// Send appointment confirmation email to patient
 export const sendAppointmentConfirmation = async (
   appointmentData: AppointmentEmailData
 ): Promise<boolean> => {
@@ -269,6 +436,20 @@ export const sendAppointmentConfirmation = async (
   
   return await sendEmail(
     appointmentData.email,
+    template.subject,
+    template.html,
+    template.text
+  );
+};
+
+// Send appointment notification email to dentist
+export const sendDentistNotification = async (
+  appointmentData: AppointmentEmailData
+): Promise<boolean> => {
+  const template = emailTemplates.dentistNotification(appointmentData);
+  
+  return await sendEmail(
+    'poorna.shetty@outlook.com', // Dentist's email
     template.subject,
     template.html,
     template.text

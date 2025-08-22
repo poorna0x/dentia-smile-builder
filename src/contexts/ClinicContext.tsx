@@ -37,12 +37,13 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
   useEffect(() => {
     const loadClinic = async () => {
       try {
+        console.log('🔄 Loading clinic data...')
         setLoading(true)
         setError(null)
         
         // If Supabase is not configured, use default clinic
         if (!isSupabaseConfigured) {
-          console.log('Supabase not configured, using default clinic data')
+          console.log('⚠️ Supabase not configured, using default clinic data')
           const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
           setClinic({
             id: defaultClinicId,
@@ -56,14 +57,17 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
+          setLoading(false)
           return
         }
         
         // Try to get clinic by slug
+        console.log('🔍 Fetching clinic data from Supabase...')
         const clinicData = await clinicsApi.getBySlug(currentClinicSlug)
+        console.log('✅ Clinic data loaded:', clinicData)
         setClinic(clinicData)
       } catch (err) {
-        console.error('Failed to load clinic:', err)
+        console.error('❌ Failed to load clinic:', err)
         setError(err instanceof Error ? err.message : 'Failed to load clinic')
         
         // Fallback to default clinic data
@@ -81,6 +85,7 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
           updated_at: new Date().toISOString(),
         })
       } finally {
+        console.log('✅ Clinic loading completed, setting loading to false')
         setLoading(false)
       }
     }
