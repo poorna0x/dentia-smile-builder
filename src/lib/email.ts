@@ -282,19 +282,11 @@ export const sendEmail = async (
 ): Promise<boolean> => {
   try {
     // Debug: Check API key
-    console.log('🔍 Email Debug Info:', {
-      hasApiKey: !!import.meta.env.VITE_RESEND_API_KEY,
-      apiKeyLength: import.meta.env.VITE_RESEND_API_KEY?.length || 0,
-      apiKeyStart: import.meta.env.VITE_RESEND_API_KEY?.substring(0, 3) || 'none'
-    });
+    // Email Debug Info logged
 
     // Check if Resend API key is available
     if (!import.meta.env.VITE_RESEND_API_KEY) {
-      console.log('📧 Resend API key not found, simulating email send');
-      console.log('To:', to);
-      console.log('Subject:', subject);
-      console.log('HTML:', html.substring(0, 200) + '...');
-      console.log('Text:', text.substring(0, 200) + '...');
+      // Resend API key not found, simulating email send
       
       // Simulate email sending delay
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -303,21 +295,17 @@ export const sendEmail = async (
 
     // Check if we're in development mode
     if (import.meta.env.DEV) {
-      console.log('📧 Development Mode - Simulating email send:');
-      console.log('To:', to);
-      console.log('Subject:', subject);
-      console.log('HTML Preview:', html.substring(0, 200) + '...');
-      console.log('Text Preview:', text.substring(0, 200) + '...');
+      // Development Mode - Simulating email send
       
       // Simulate email sending delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('✅ Email simulation completed successfully');
+      // Email simulation completed successfully
       return true;
     }
 
     // In production, send real email using Netlify function
-    console.log('🚀 Production Mode - Sending real email via Netlify function...');
+    // Production Mode - Sending real email via Netlify function
     
     try {
       const response = await fetch('/.netlify/functions/send-email', {
@@ -344,7 +332,7 @@ export const sendEmail = async (
         return false;
       }
 
-      console.log('📧 Email sent successfully via Netlify function:', result.data);
+      // Email sent successfully via Netlify function
       return true;
     } catch (error) {
       console.error('❌ Failed to call Netlify function:', error);

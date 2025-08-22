@@ -38,9 +38,7 @@ const Appointment = () => {
 
   // Debug: Log settings structure (simplified)
   useEffect(() => {
-    if (settings) {
-      console.log('Settings loaded successfully');
-    }
+    // Settings loaded successfully
   }, [settings]);
   
   const [name, setName] = useState('');
@@ -109,14 +107,7 @@ const Appointment = () => {
     const customHolidays = settings.custom_holidays || [];
     const isCustomHoliday = customHolidays.includes(isoDate);
     
-    console.log('Holiday check:', {
-      date: isoDate,
-      dayOfWeek,
-      weeklyHolidays,
-      customHolidays,
-      isWeeklyHoliday,
-      isCustomHoliday
-    });
+    // Holiday check completed
     
     return isWeeklyHoliday || isCustomHoliday;
   };
@@ -161,7 +152,7 @@ const Appointment = () => {
         .filter(apt => apt.status !== 'Cancelled')
         .map(apt => apt.time);
       
-      console.log('📋 Updated booked slots:', booked);
+      // Updated booked slots
       setBookedSlots(booked);
       
       // Load disabled slots for this date
@@ -183,7 +174,7 @@ const Appointment = () => {
   useEffect(() => {
     if (!clinic?.id) return;
 
-    console.log('🔌 Setting up lightweight real-time simulation for clinic:', clinic.id);
+    // Setting up lightweight real-time simulation for clinic
 
     const setupLightweightRealtime = async () => {
       try {
@@ -192,7 +183,7 @@ const Appointment = () => {
 
         // Subscribe to appointments with smart polling
         const unsubscribeAppointments = await subscribeToAppointments((update) => {
-          console.log('🎯 Appointment lightweight update:', update.type);
+          // Appointment lightweight update
           if (update.type === 'UPDATED') {
             // Check if any changes affect the current date
             const currentDate = format(date, 'yyyy-MM-dd');
@@ -201,7 +192,7 @@ const Appointment = () => {
             );
             
             if (hasRelevantChanges) {
-              console.log('🔄 Refreshing booked slots due to appointment changes...');
+              // Refreshing booked slots due to appointment changes
               checkBookedSlots();
             }
           }
@@ -210,7 +201,7 @@ const Appointment = () => {
 
         // Subscribe to disabled slots with date-specific polling
         const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
-          console.log('🚫 Disabled slots lightweight update:', update.type);
+          // Disabled slots lightweight update
           if (update.type === 'UPDATED') {
             // Check if any changes affect the current date
             const currentDate = format(date, 'yyyy-MM-dd');
@@ -219,18 +210,18 @@ const Appointment = () => {
             );
             
             if (hasRelevantChanges) {
-              console.log('🔄 Refreshing disabled slots due to changes...');
+              // Refreshing disabled slots due to changes
               loadDisabledSlots(date);
             }
           }
         }, format(date, 'yyyy-MM-dd'));
 
         setRealtimeStatus('connected');
-        console.log('✅ Appointment lightweight real-time simulation active');
+        // Appointment lightweight real-time simulation active
 
         // Cleanup function
         return () => {
-          console.log('🧹 Cleaning up appointment lightweight real-time subscriptions');
+          // Cleaning up appointment lightweight real-time subscriptions
           unsubscribeAppointments();
           unsubscribeDisabledSlots();
         };
@@ -520,7 +511,7 @@ const Appointment = () => {
       
       // Check for duplicate booking first
       if (clinic?.id) {
-        console.log('Checking for duplicate booking...');
+        // Checking for duplicate booking
         
         // Get existing appointments for the same date and time
         const existingAppointments = await appointmentsApi.getByDateAndTime(
@@ -535,7 +526,7 @@ const Appointment = () => {
           return;
         }
         
-        console.log('No duplicate found, proceeding with booking...');
+        // No duplicate found, proceeding with booking
         
         const newAppointment = await appointmentsApi.create({
           clinic_id: clinic.id,
@@ -550,7 +541,7 @@ const Appointment = () => {
         // Send push notification for new appointment
         try {
           await sendNewAppointmentNotification(newAppointment);
-          console.log('Push notification sent for new appointment');
+          // Push notification sent for new appointment
         } catch (error) {
           console.error('Error sending push notification:', error);
         }
@@ -569,11 +560,7 @@ const Appointment = () => {
         });
 
         // Log email status
-        if (patientEmailSent) {
-          console.log('✅ Patient confirmation email sent');
-        } else {
-          console.log('❌ Failed to send patient confirmation email');
-        }
+        // Email status handled
 
         // Reset security on successful booking
         resetSecurityOnSuccess();
@@ -591,7 +578,7 @@ const Appointment = () => {
         
       } else {
         // Fallback to WhatsApp if no clinic ID
-        console.log('No clinic ID, falling back to WhatsApp');
+        // No clinic ID, falling back to WhatsApp
         const formattedDate = format(date, 'MMM dd, yyyy');
         const message = `Hi, I'm ${formattedName} (${email}, ${formattedPhone}) and I want an appointment on ${formattedDate}. Preferred time: ${selectedTime}.`;
         const encodedMessage = encodeURIComponent(message);

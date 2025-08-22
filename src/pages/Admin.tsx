@@ -218,9 +218,9 @@ const Admin = () => {
       setNotificationPermission(permission ? 'granted' : 'denied');
       
       if (permission) {
-        console.log('✅ Admin notification permission granted');
+        // Admin notification permission granted
       } else {
-        console.log('❌ Admin notification permission denied');
+        // Admin notification permission denied
       }
     };
     
@@ -239,7 +239,7 @@ const Admin = () => {
   // Sync local state with database settings
   useEffect(() => {
     if (settings) {
-      console.log('Syncing settings from database:', settings);
+      // Syncing settings from database
       
       // Convert database format to frontend format
       const convertedSettings: SchedulingSettings = {
@@ -298,7 +298,7 @@ const Admin = () => {
   useEffect(() => {
     if (!clinic?.id) return;
 
-    console.log('🔌 Setting up admin lightweight real-time simulation for clinic:', clinic.id);
+    // Setting up admin lightweight real-time simulation for clinic
 
     const setupLightweightRealtime = async () => {
       try {
@@ -330,11 +330,11 @@ const Admin = () => {
           }
         });
 
-        console.log('✅ Admin lightweight real-time simulation active (silent)');
+        // Admin lightweight real-time simulation active (silent)
 
         // Cleanup function
         return () => {
-          console.log('🧹 Cleaning up admin lightweight real-time subscriptions');
+          // Cleaning up admin lightweight real-time subscriptions
           unsubscribeAppointments();
           unsubscribeSettings();
           unsubscribeDisabledSlots();
@@ -538,12 +538,7 @@ Jeshna Dental Clinic Team`;
     }
     
     try {
-      console.log('Creating disabled slot with data:', {
-        clinic_id: clinic.id,
-        date: newDisabledSlot.date,
-        start_time: newDisabledSlot.startTime,
-        end_time: newDisabledSlot.endTime
-      });
+      // Creating disabled slot
 
       const slot = await disabledSlotsApi.create({
         clinic_id: clinic.id,
@@ -552,7 +547,7 @@ Jeshna Dental Clinic Team`;
         end_time: newDisabledSlot.endTime
       });
       
-      console.log('Disabled slot created successfully:', slot);
+      // Disabled slot created successfully
       
       setDisabledSlots(prev => [...prev, slot]);
       setShowDisabledSlotsDialog(false);
@@ -1062,27 +1057,25 @@ Jeshna Dental Clinic Team`;
     setIsLoadingSlotsForGeneral(true);
     try {
       const appointmentDate = format(date, 'yyyy-MM-dd');
-      console.log('Checking booked slots for date:', appointmentDate);
+      // Checking booked slots for date
       
       // Force refresh appointments data to get latest bookings
       // This bypasses cache to ensure we get real-time data
       const freshAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
-      console.log('Fresh appointments for date:', freshAppointments);
+              // Fresh appointments for date
       
       // Filter out cancelled appointments
       const existingAppointments = freshAppointments.filter(apt => apt.status !== 'Cancelled');
-      console.log('Existing appointments (excluding cancelled):', existingAppointments);
+              // Existing appointments (excluding cancelled)
       
       // Extract the full time ranges for comparison
       const booked = existingAppointments.map(apt => apt.time);
       
-      console.log('Booked time slots (full format):', booked);
-      console.log('Current bookedSlotsForGeneral state:', bookedSlotsForGeneral);
+              // Booked time slots processed
       
       // Test time format matching
       const testTime = '09:00 AM - 09:30 AM';
-      console.log(`Testing if '${testTime}' is in booked slots:`, booked.includes(testTime));
-      console.log('Sample appointment time format:', existingAppointments[0]?.time);
+              // Time format testing completed
       
       setBookedSlotsForGeneral(booked);
     } catch (error) {
@@ -1130,8 +1123,7 @@ Jeshna Dental Clinic Team`;
   };
 
   const generateTimeSlotsForGeneral = (dateForSlots: Date) => {
-    console.log('generateTimeSlotsForGeneral called with date:', dateForSlots);
-    console.log('Current bookedSlotsForGeneral state:', bookedSlotsForGeneral);
+    // generateTimeSlotsForGeneral called
     
     const daySettings = getDaySettingsForGeneral(dateForSlots);
     
@@ -1212,7 +1204,7 @@ Jeshna Dental Clinic Team`;
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
         const isBooked = bookedSlotsForGeneral.includes(label);
         
-        console.log(`Slot ${label}: isBooked = ${isBooked}, bookedSlotsForGeneral =`, bookedSlotsForGeneral);
+        // Slot booking status checked
         
         slots.push({ 
           label, 
@@ -1237,7 +1229,7 @@ Jeshna Dental Clinic Team`;
     const timeout = setTimeout(async () => {
       try {
         if (clinic?.id) {
-          console.log('Auto-saving settings...');
+          // Auto-saving settings
           
           // Convert day schedules to the correct format
           const daySchedules = Object.entries(settingsToSave.daySchedules).reduce((acc, [day, schedule]) => {
@@ -1270,9 +1262,9 @@ Jeshna Dental Clinic Team`;
             }
           };
           
-          console.log('Attempting to save settings data:', settingsData);
+          // Attempting to save settings data
           const result = await settingsApi.upsert(settingsData);
-          console.log('Settings auto-saved successfully:', result);
+                      // Settings auto-saved successfully
           toast.success('Settings saved automatically');
         }
       } catch (error) {
@@ -1305,7 +1297,7 @@ Jeshna Dental Clinic Team`;
   const handleSaveDaySchedule = async () => {
     try {
       if (clinic?.id) {
-        console.log('Saving day schedule for clinic:', clinic.id);
+        // Saving day schedule for clinic
         
         // Convert day schedules to the correct format
         const daySchedules = Object.entries(schedulingSettings.daySchedules).reduce((acc, [day, schedule]) => {
@@ -1337,10 +1329,10 @@ Jeshna Dental Clinic Team`;
           }
         };
         
-        console.log('Settings data to save:', settingsData);
+        // Settings data to save
         
         const result = await settingsApi.upsert(settingsData);
-        console.log('Day schedule saved successfully:', result);
+        // Day schedule saved successfully
         toast.success('Day schedule saved successfully');
       }
     } catch (error) {
@@ -1379,11 +1371,11 @@ Jeshna Dental Clinic Team`;
       
       // Only show success message if data was actually cleaned
       if (deletedCount > 0) {
-        console.log(`Automatic cleanup: Removed ${deletedCount} old appointments`);
+        // Automatic cleanup: Removed old appointments
         // Optionally show a subtle notification
         toast.success(`Cleaned up ${deletedCount} old appointments automatically`);
       } else {
-        console.log('Automatic cleanup: No old data to clean');
+        // Automatic cleanup: No old data to clean
       }
     } catch (error) {
       console.error('Error in automatic cleanup:', error);
