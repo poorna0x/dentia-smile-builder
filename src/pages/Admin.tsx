@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
 import { showLocalNotification, requestNotificationPermission } from '@/lib/notifications';
-import { Download, Smartphone, Monitor } from 'lucide-react';
+
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -177,12 +177,7 @@ const Admin = () => {
       // Lightweight real-time simulation (silent)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   
-  // PWA functionality
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isPWAInstalled, setIsPWAInstalled] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [serviceWorkerStatus, setServiceWorkerStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+
 
   // Default scheduling settings
   const [schedulingSettings, setSchedulingSettings] = useState<SchedulingSettings>({
@@ -230,88 +225,14 @@ const Admin = () => {
     
     setupNotifications();
     
-    // Setup PWA functionality (temporarily disabled)
-    const setupPWA = () => {
-      // Temporarily disabled to test navigation
-      setIsMobile(false);
-      setIsIOS(false);
-      setIsPWAInstalled(false);
-    };
-    
-    setupPWA();
-    
-    // Debug PWA status
-    console.log('🔍 PWA Debug Info:', {
-      userAgent: navigator.userAgent,
-      isChrome: /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent),
-      isEdge: /Edge/.test(navigator.userAgent),
-      hasServiceWorker: 'serviceWorker' in navigator,
-      serviceWorkerStatus,
-      protocol: window.location.protocol,
-      hostname: window.location.hostname,
-      isSecure: window.location.protocol === 'https:' || 
-                window.location.hostname === 'localhost' || 
-                window.location.hostname === '127.0.0.1' ||
-                window.location.hostname.includes('localhost'),
-      isStandalone: window.matchMedia('(display-mode: standalone)').matches,
-      isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-      isDevelopment: import.meta.env.DEV,
-      canInstall: canInstallPWA()
-    });
-    
-    // Check service worker registration
-    if ('serviceWorker' in navigator) {
-      setServiceWorkerStatus('available');
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        console.log('🔧 Service Worker Registrations:', registrations);
-        if (registrations.length > 0) {
-          console.log('✅ Service Worker is registered and active');
-          registrations.forEach((registration, index) => {
-            console.log(`📋 Registration ${index + 1}:`, {
-              scope: registration.scope,
-              active: !!registration.active,
-              waiting: !!registration.waiting,
-              installing: !!registration.installing
-            });
-          });
-        } else {
-          console.log('⚠️ No service worker registrations found');
-          // Try to register service worker manually (temporarily disabled)
-          if (import.meta.env.DEV) {
-            console.log('🔄 Service worker registration temporarily disabled for testing');
-          }
-        }
-      });
-    } else {
-      setServiceWorkerStatus('unavailable');
-    }
-    
-    // Listen for PWA install prompt
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      console.log('🎯 PWA install prompt received:', e);
-      setDeferredPrompt(e);
-    };
-    
-    // Listen for PWA installed
-    const handleAppInstalled = () => {
-      console.log('✅ PWA installed successfully');
-      setIsPWAInstalled(true);
-      setDeferredPrompt(null);
-    };
-    
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+
     
     // Simulate loading
     setTimeout(() => {
       setIsLoading(false);
     }, 1000);
     
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
+
   }, [navigate]);
 
   // Sync local state with database settings
@@ -430,52 +351,7 @@ const Admin = () => {
     // };
   }, [clinic?.id, refreshAppointments, refreshSettings]);
 
-  // PWA install functions
-  const handlePWAInstall = async () => {
-    console.log('🚀 PWA Install triggered');
-    console.log('Deferred prompt:', deferredPrompt);
-    console.log('Is mobile:', isMobile);
-    console.log('Is iOS:', isIOS);
 
-    // For iOS, show instructions
-    if (isIOS) {
-      toast.info('📱 For iOS: Tap the Share button ⎋ then "Add to Home Screen"');
-      return;
-    }
-
-    // If we have a deferred prompt, use it
-    if (deferredPrompt) {
-      try {
-        await deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        if (outcome === 'accepted') {
-          console.log('PWA installed successfully');
-          setIsPWAInstalled(true);
-          setDeferredPrompt(null);
-          toast.success('✅ App installed successfully!');
-        } else {
-          console.log('PWA install dismissed');
-          toast.info('Installation cancelled');
-        }
-      } catch (error) {
-        console.error('Error installing PWA:', error);
-        toast.error('Failed to install app');
-      }
-    } else {
-      // No deferred prompt - show manual instructions
-      if (isMobile) {
-        toast.info('📱 For Android: Tap the menu (⋮) then "Install app" or "Add to Home screen"');
-      } else {
-        toast.info('💻 For Desktop: Look for the install icon in your browser address bar or use Ctrl+Shift+I to open developer tools');
-      }
-    }
-  };
-
-      // Check if PWA can be installed (temporarily disabled)
-    const canInstallPWA = () => {
-      return false; // Temporarily disabled to test navigation
-    };
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -1903,10 +1779,7 @@ Please confirm by replying "Yes" or "No"`;
                     onBlur={(e) => {
                       e.target.setAttribute('autocomplete', 'new-password');
                     }}
-                    style={{
-                      WebkitAppearance: 'none',
-                      WebkitAutofill: 'off'
-                    }}
+
                   />
                 </div>
             </div>
@@ -2532,134 +2405,8 @@ Please confirm by replying "Yes" or "No"`;
                   </Card>
                 </div>
 
-                {/* PWA Install Section */}
-                <div className="space-y-4">
-                  <div className="border-t pt-6">
-                    <Label className="text-base font-medium">Mobile App Installation</Label>
-                    <p className="text-sm text-gray-600 mb-4">Install the dental clinic app on your device for quick access</p>
-                    
-                    {isPWAInstalled ? (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                            <Download className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-green-800">App Installed</p>
-                            <p className="text-xs text-green-600">The dental clinic app is installed on your device</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : isIOS ? (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <Smartphone className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-blue-800">iOS Installation</p>
-                            <p className="text-xs text-blue-600">
-                              Tap the share button <span className="font-mono">⎋</span> then "Add to Home Screen"
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                                        ) : (canInstallPWA() || import.meta.env.DEV) ? (
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                              {isMobile ? <Smartphone className="w-4 h-4 text-white" /> : <Monitor className="w-4 h-4 text-white" />}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-purple-800">
-                                {isMobile ? 'Mobile App' : 'Desktop App'}
-                              </p>
-                              <p className="text-xs text-purple-600">
-                                {isMobile && isIOS 
-                                  ? 'Tap Share → Add to Home Screen'
-                                  : isMobile && !isIOS
-                                  ? 'Tap Menu → Install App'
-                                  : 'Install for quick access and notifications'
-                                }
-                                {deferredPrompt ? ' (Install prompt available)' : ' (Manual install)'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            {!isIOS && (
-                              <Button
-                                size="sm"
-                                onClick={handlePWAInstall}
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
-                              >
-                                <Download className="w-4 h-4 mr-2" />
-                                {deferredPrompt ? 'Install' : 'Install Guide'}
-                              </Button>
-                            )}
-                            {import.meta.env.DEV && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  console.log('🧪 Manual PWA test triggered');
-                                  console.log('Deferred prompt:', deferredPrompt);
-                                  console.log('Can install:', canInstallPWA());
-                                  console.log('Mobile:', isMobile, 'iOS:', isIOS);
-                                  
-                                  // Try to manually register service worker (temporarily disabled)
-                                  if ('serviceWorker' in navigator) {
-                                    console.log('🔄 Service worker registration temporarily disabled for testing');
-                                  }
-                                }}
-                                className="text-xs"
-                              >
-                                Test
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
-                            <Monitor className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">Installation Requirements</p>
-                            <p className="text-xs text-gray-600">
-                              {window.location.protocol !== 'https:' && 
-                               window.location.hostname !== 'localhost' && 
-                               window.location.hostname !== '127.0.0.1' &&
-                               !window.location.hostname.includes('localhost')
-                                ? 'HTTPS connection required for app installation'
-                                : isMobile && isIOS
-                                ? 'Use Safari browser and tap Share → Add to Home Screen'
-                                : isMobile && !isIOS
-                                ? 'Use Chrome/Edge browser and tap Menu → Install App'
-                                : !('serviceWorker' in navigator) && !import.meta.env.DEV
-                                ? 'Service Worker not supported in this browser'
-                                : import.meta.env.DEV
-                                ? 'Development mode - PWA install may not work properly'
-                                : 'Browser may not support PWA installation'
-                              }
-                            </p>
-                            {import.meta.env.DEV && (
-                              <p className="text-xs text-red-500 mt-1">
-                                DEBUG: Protocol: {window.location.protocol}, Hostname: {window.location.hostname}, 
-                                IsSecure: {(window.location.protocol === 'https:' || 
-                                           window.location.hostname === 'localhost' || 
-                                           window.location.hostname === '127.0.0.1' ||
-                                           window.location.hostname.includes('localhost')).toString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                
+
               </CardContent>
             </Card>
           )}
