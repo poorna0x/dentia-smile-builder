@@ -404,7 +404,7 @@ export const sendEmail = async (
           text,
           type: 'appointment',
           from: 'Jeshna Dental Clinic <appointments@resend.dev>',
-          replyTo: 'poorna.shetty@hotmail.com'
+          replyTo: 'poorn8105@gmail.com'
         }),
       });
 
@@ -449,16 +449,6 @@ export const sendDentistNotification = async (
   
   console.log('📧 Sending dentist notification to: poorn8105@gmail.com');
   console.log('📧 Dentist email subject:', template.subject);
-  
-  // For testing, also send to your email to verify the function works
-  const testResult = await sendEmail(
-    'poorna8105@gmail.com', // Test email to your address
-    `TEST - ${template.subject}`,
-    template.html,
-    template.text
-  );
-  
-  console.log('📧 Test dentist notification result:', testResult);
   
   const result = await sendEmail(
     'poorn8105@gmail.com', // Dentist's email
