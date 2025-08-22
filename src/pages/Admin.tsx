@@ -156,7 +156,7 @@ const Admin = () => {
     deleteAppointment,
     refresh: refreshAppointments
   } = useOptimizedAppointments()
-  const { settings, loading: settingsLoading } = useSettings();
+  const { settings, loading: settingsLoading, refresh: refreshSettings } = useSettings();
 
       // Lightweight real-time simulation
     const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
@@ -400,7 +400,7 @@ const Admin = () => {
           console.log('🎯 Admin lightweight appointment update:', update.type);
           if (update.type === 'UPDATED') {
             // Refresh appointments data
-            refetchAppointments();
+            refreshAppointments();
             toast.info('📊 Appointments updated', { duration: 2000 });
           }
           setRealtimeStatus('connected');
@@ -411,7 +411,7 @@ const Admin = () => {
           console.log('⚙️ Admin lightweight settings update:', update.type);
           if (update.type === 'UPDATED') {
             // Refresh settings data
-            refetchSettings();
+            refreshSettings();
             toast.info('⚙️ Clinic settings updated', { duration: 3000 });
           }
         });
@@ -421,7 +421,7 @@ const Admin = () => {
           console.log('🚫 Admin lightweight disabled slots update:', update.type);
           if (update.type === 'UPDATED') {
             // Refresh disabled slots data
-            refetchDisabledSlots();
+            loadDisabledSlots();
             toast.info('🚫 Disabled slots updated', { duration: 2000 });
           }
         });
@@ -448,7 +448,7 @@ const Admin = () => {
     return () => {
       cleanup.then(unsubscribe => unsubscribe?.());
     };
-  }, [clinic?.id, refetchAppointments, refetchSettings, refetchDisabledSlots]);
+  }, [clinic?.id, refreshAppointments, refreshSettings, loadDisabledSlots]);
 
   // PWA install functions
   const handlePWAInstall = async () => {
