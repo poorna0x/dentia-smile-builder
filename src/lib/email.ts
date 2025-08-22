@@ -172,25 +172,22 @@ This email was sent to ${data.email}
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 500px; margin: 0 auto; padding: 20px; }
-          .header { background: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: #1e40af; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #f8fafc; padding: 25px; border-radius: 0 0 8px 8px; }
-          .appointment-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669; }
+          .appointment-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e40af; }
           .detail-row { margin: 8px 0; }
           .label { font-weight: bold; color: #64748b; }
           .value { color: #1e293b; }
           .contact-links { margin-top: 20px; }
-          .contact-link { display: block; margin: 8px 0; padding: 12px 20px; background: #059669; color: white; text-decoration: none; border-radius: 5px; font-size: 14px; text-align: center; }
+          .contact-link { display: block; margin: 12px 0; padding: 16px 20px; background: #1e40af; color: white; text-decoration: none; border-radius: 8px; font-size: 16px; text-align: center; font-weight: 600; }
           @media (max-width: 480px) {
-            .contact-link { margin: 10px 0; padding: 15px 20px; font-size: 16px; }
+            .contact-link { margin: 15px 0; padding: 20px 16px; font-size: 18px; }
           }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-              <img src="https://test-dental-clinic.netlify.app/logo.png" alt="${data.clinicName}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
-            </div>
             <h2>📅 New Appointment</h2>
             <p>${data.clinicName}</p>
           </div>
