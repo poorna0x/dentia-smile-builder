@@ -158,8 +158,7 @@ const Admin = () => {
   } = useOptimizedAppointments()
   const { settings, loading: settingsLoading, refresh: refreshSettings } = useSettings();
 
-      // Lightweight real-time simulation
-    const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
+      // Lightweight real-time simulation (silent)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   
   // PWA functionality
@@ -395,44 +394,32 @@ const Admin = () => {
         const { useLightweightRealtime } = await import('@/lib/lightweight-realtime');
         const { subscribeToAppointments, subscribeToSettings, subscribeToDisabledSlots } = useLightweightRealtime(clinic.id);
 
-        // Subscribe to appointments with smart polling
+        // Subscribe to appointments with smart polling (silent)
         const unsubscribeAppointments = await subscribeToAppointments((update) => {
-          console.log('🎯 Admin lightweight appointment update:', update.type);
           if (update.type === 'UPDATED') {
-            // Refresh appointments data
             refreshAppointments();
-            toast.info('📊 Appointments updated', { duration: 2000 });
           }
-          setRealtimeStatus('connected');
         });
 
-        // Subscribe to settings with longer intervals
+        // Subscribe to settings with longer intervals (silent)
         const unsubscribeSettings = await subscribeToSettings((update) => {
-          console.log('⚙️ Admin lightweight settings update:', update.type);
           if (update.type === 'UPDATED') {
-            // Refresh settings data
             refreshSettings();
-            toast.info('⚙️ Clinic settings updated', { duration: 3000 });
           }
         });
 
-        // Subscribe to disabled slots
+        // Subscribe to disabled slots (silent)
         const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
-          console.log('🚫 Admin lightweight disabled slots update:', update.type);
           if (update.type === 'UPDATED') {
-            // Refresh disabled slots data - will be called after loadDisabledSlots is defined
             setTimeout(() => {
               if (typeof loadDisabledSlots === 'function') {
                 loadDisabledSlots();
               }
             }, 100);
-            toast.info('🚫 Disabled slots updated', { duration: 2000 });
           }
         });
 
-        setRealtimeStatus('connected');
-        console.log('✅ Admin lightweight real-time simulation active');
-        toast.success('🔗 Admin live updates connected (lightweight)', { duration: 2000 });
+        console.log('✅ Admin lightweight real-time simulation active (silent)');
 
         // Cleanup function
         return () => {
@@ -443,8 +430,7 @@ const Admin = () => {
         };
       } catch (error) {
         console.error('❌ Failed to setup admin lightweight real-time:', error);
-        setRealtimeStatus('disconnected');
-        toast.error('🔌 Admin live updates disconnected', { duration: 2000 });
+        // Silent failure - no user notification
       }
     };
 
@@ -1752,41 +1738,8 @@ Please confirm by replying "Yes" or "No"`;
               <p className="text-slate-600 mt-2">Manage appointments and clinic settings</p>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
-              {/* Realtime Status Indicator */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200">
-                <div className={`w-2 h-2 rounded-full animate-pulse ${
-                  realtimeStatus === 'connected' 
-                    ? 'bg-green-500' 
-                    : realtimeStatus === 'connecting' 
-                    ? 'bg-yellow-500' 
-                    : 'bg-red-500'
-                }`} />
-                <span className={`${
-                  realtimeStatus === 'connected' 
-                    ? 'text-green-700 bg-green-50 border-green-200' 
-                    : realtimeStatus === 'connecting' 
-                    ? 'text-yellow-700 bg-yellow-50 border-yellow-200' 
-                    : 'text-red-700 bg-red-50 border-red-200'
-                }`}>
-                  {realtimeStatus === 'connected' ? 'Live' : realtimeStatus === 'connecting' ? 'Connecting...' : 'Offline'}
-                </span>
-              </div>
               
-              {/* Notification Status Indicator */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200">
-                <div className={`w-2 h-2 rounded-full ${
-                  notificationPermission === 'granted' 
-                    ? 'bg-blue-500' 
-                    : 'bg-gray-400'
-                }`} />
-                <span className={`${
-                  notificationPermission === 'granted' 
-                    ? 'text-blue-700 bg-blue-50 border-blue-200' 
-                    : 'text-gray-600 bg-gray-50 border-gray-200'
-                }`}>
-                  {notificationPermission === 'granted' ? '🔔 Notifications' : '🔕 No Notifications'}
-                </span>
-              </div>
+
               
               <Button 
                 onClick={() => {
