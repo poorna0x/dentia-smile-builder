@@ -390,7 +390,7 @@ export const sendEmail = async (
       return true;
     }
 
-    // In development, simulate email sending due to CORS restrictions
+    // Check if we're in development mode
     if (import.meta.env.DEV) {
       console.log('📧 Development Mode - Simulating email send:');
       console.log('To:', to);
@@ -406,6 +406,8 @@ export const sendEmail = async (
     }
 
     // In production, send real email using Resend
+    console.log('🚀 Production Mode - Sending real email via Resend...');
+    
     const { data, error } = await resend.emails.send({
       from: 'Jeshna Dental Clinic <appointments@resend.dev>',
       to: [to],
@@ -420,7 +422,7 @@ export const sendEmail = async (
       return false;
     }
 
-    console.log('📧 Email sent successfully:', data);
+    console.log('📧 Email sent successfully via Resend:', data);
     return true;
   } catch (error) {
     console.error('❌ Failed to send email:', error);
