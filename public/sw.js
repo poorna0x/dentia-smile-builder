@@ -1,25 +1,113 @@
-// Service Worker for Jeshna Dental Clinic
-const CACHE_NAME = 'jeshna-dental-v1';
-const urlsToCache = [
-  '/',
-  '/appointment',
-  '/admin',
-  '/static/js/bundle.js',
-  '/static/css/main.css'
-];
+// Service Worker for Push Notifications
+const CACHE_NAME = 'dentia-app-v1';
 
-// Install event
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
+  console.log('Service Worker installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        return cache.addAll([
+          '/',
+          '/index.html',
+          '/manifest.webmanifest',
+          '/logo.png'
+        ]);
       })
   );
 });
 
-// Fetch event
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker activating...');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Push event - handle push notifications
+self.addEventListener('push', (event) => {
+  console.log('Push event received:', event);
+  
+  if (event.data) {
+    const data = event.data.json();
+    console.log('Push data:', data);
+    
+    const options = {
+      body: data.body || 'New appointment booked!',
+      icon: '/logo.png',
+      badge: '/logo.png',
+      vibrate: [200, 100, 200],
+      data: {
+        url: data.url || '/admin',
+        appointmentId: data.appointmentId
+      },
+      actions: [
+        {
+          action: 'view',
+          title: 'View Appointment',
+          icon: '/logo.png'
+        },
+        {
+          action: 'dismiss',
+          title: 'Dismiss',
+          icon: '/logo.png'
+        }
+      ],
+      requireInteraction: true,
+      tag: 'appointment-notification'
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'New Appointment', options)
+    );
+  }
+});
+
+// Notification click event
+self.addEventListener('notificationclick', (event) => {
+  console.log('Notification clicked:', event);
+  
+  event.notification.close();
+  
+  if (event.action === 'view') {
+    // Open the admin page
+    event.waitUntil(
+      clients.openWindow(event.notification.data.url || '/admin')
+    );
+  } else if (event.action === 'dismiss') {
+    // Just close the notification
+    event.notification.close();
+  } else {
+    // Default action - open admin page
+    event.waitUntil(
+      clients.openWindow(event.notification.data.url || '/admin')
+    );
+  }
+});
+
+// Background sync for offline functionality
+self.addEventListener('sync', (event) => {
+  console.log('Background sync event:', event);
+  
+  if (event.tag === 'appointment-sync') {
+    event.waitUntil(
+      // Handle offline appointment bookings
+      console.log('Syncing offline appointments...')
+    );
+  }
+});
+
+// Fetch event - serve cached content when offline
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
@@ -29,84 +117,3 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
-
-// Push notification event
-self.addEventListener('push', (event) => {
-  console.log('Push event received:', event);
-  
-  let notificationData = {
-    title: 'Jeshna Dental Clinic',
-    body: 'You have a new notification',
-    icon: '/logo.png',
-    badge: '/logo.png',
-    data: {
-      url: '/admin'
-    }
-  };
-
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      notificationData = {
-        ...notificationData,
-        ...data
-      };
-    } catch (error) {
-      console.error('Error parsing push data:', error);
-    }
-  }
-
-  const options = {
-    body: notificationData.body,
-    icon: notificationData.icon,
-    badge: notificationData.badge,
-    data: notificationData.data,
-    actions: [
-      {
-        action: 'view',
-        title: 'View',
-        icon: '/logo.png'
-      },
-      {
-        action: 'close',
-        title: 'Close',
-        icon: '/logo.png'
-      }
-    ],
-    requireInteraction: true,
-    tag: 'appointment-notification'
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(notificationData.title, options)
-  );
-});
-
-// Notification click event
-self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
-  
-  event.notification.close();
-
-  if (event.action === 'view') {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url || '/admin')
-    );
-  }
-});
-
-// Background sync for offline functionality
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-async function doBackgroundSync() {
-  try {
-    // Sync any pending data when connection is restored
-    console.log('Background sync triggered');
-  } catch (error) {
-    console.error('Background sync failed:', error);
-  }
-}

@@ -24,6 +24,7 @@ import {
   recordAppointmentAttempt, 
   resetSecurityOnSuccess 
 } from '@/lib/security';
+import { sendNewAppointmentNotification } from '@/lib/push-notifications';
 
 
 
@@ -69,6 +70,8 @@ const Appointment = () => {
 
   // Realtime functionality
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected'>('disconnected');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
 
   // Get next available booking date (skip holidays)
   const getNextAvailableDate = (): Date => {
@@ -133,6 +136,95 @@ const Appointment = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  // Setup push notifications on component mount
+  useEffect(() => {
+    if (clinic?.id) {
+      setupPushNotifications();
+    }
+  }, [clinic?.id]);
+
+  // Push notification setup
+  const setupPushNotifications = async () => {
+    try {
+      // Check if service worker is supported
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.log('Push notifications not supported');
+        return;
+      }
+
+      // Check current permission
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+
+      if (permission !== 'granted') {
+        console.log('Notification permission denied');
+        return;
+      }
+
+      // Register service worker
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered:', registration);
+
+      // Get push subscription
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.VITE_VAPID_PUBLIC_KEY || '')
+      });
+
+      setPushSubscription(subscription);
+      console.log('Push subscription created:', subscription);
+
+      // Save subscription to database
+      await savePushSubscription(subscription);
+
+    } catch (error) {
+      console.error('Error setting up push notifications:', error);
+    }
+  };
+
+  // Convert VAPID key to Uint8Array
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  // Save push subscription to database
+  const savePushSubscription = async (subscription: PushSubscription) => {
+    try {
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          endpoint: subscription.endpoint,
+          p256dh: btoa(String.fromCharCode.apply(null, 
+            new Uint8Array(subscription.getKey('p256dh') || new Uint8Array())
+          )),
+          auth: btoa(String.fromCharCode.apply(null, 
+            new Uint8Array(subscription.getKey('auth') || new Uint8Array())
+          )),
+          clinic_id: clinic?.id,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error saving push subscription:', error);
+      } else {
+        console.log('Push subscription saved to database');
+      }
+    } catch (error) {
+      console.error('Error saving push subscription:', error);
+    }
+  };
 
   // Check for booked slots and disabled slots when date changes
   const checkBookedSlots = async () => {
@@ -566,6 +658,14 @@ const Appointment = () => {
           time: selectedTime,
           status: 'Confirmed'
         });
+        
+        // Send push notification for new appointment
+        try {
+          await sendNewAppointmentNotification(newAppointment);
+          console.log('Push notification sent for new appointment');
+        } catch (error) {
+          console.error('Error sending push notification:', error);
+        }
         
         // Send confirmation email
         const emailSent = await sendAppointmentConfirmation({
