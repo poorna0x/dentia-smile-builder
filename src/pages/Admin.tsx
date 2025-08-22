@@ -98,6 +98,7 @@ const Admin = () => {
   const [filterDate, setFilterDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [showSettings, setShowSettings] = useState(false);
   const [selectedDay, setSelectedDay] = useState('Mon');
+  const [sentReminders, setSentReminders] = useState<Set<string>>(new Set());
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -377,49 +378,88 @@ const Admin = () => {
         return `✅ Appointment Confirmed!
 
 Dear ${appointment.name},
+
 Your appointment is confirmed for ${format(new Date(appointment.date), 'MMMM dd, yyyy')} at ${appointment.time}.
 
 📍 Location: Jeshna Dental Clinic
-📞 Contact: +91 98765 43210
+🏥 Address: 123 Dental Street, Bangalore, Karnataka 560001
+🗺️ Map: https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore
+📞 Phone: 6363116263
 
-Please arrive 10 minutes early.
-Cancel or reschedule: ${bookingLink}
+Please arrive 10 minutes early. If you need to reschedule, please call us at least 24 hours in advance.
 
-Thank you for choosing Jeshna Dental Clinic!`;
+Looking forward to seeing you! 😊
+
+Best regards,
+Jeshna Dental Clinic Team`;
 
       case 'cancellation':
         return `❌ Appointment Cancelled
 
 Dear ${appointment.name},
-Your appointment for ${format(new Date(appointment.date), 'MMMM dd, yyyy')} at ${appointment.time} has been cancelled.
 
-You can book a new appointment here: ${bookingLink}
+We're sorry, but your appointment for ${format(new Date(appointment.date), 'MMMM dd, yyyy')} at ${appointment.time} has been cancelled.
 
-We apologize for any inconvenience.
-Jeshna Dental Clinic`;
+You can rebook your appointment here: ${bookingLink}
+
+📍 Location: Jeshna Dental Clinic
+🏥 Address: 123 Dental Street, Bangalore, Karnataka 560001
+🗺️ Map: https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore
+📞 Phone: 6363116263
+
+We apologize for any inconvenience. Please feel free to contact us if you have any questions.
+
+Best regards,
+Jeshna Dental Clinic Team`;
 
       case 'reminder':
         return `⏰ Appointment Reminder
 
 Hi ${appointment.name},
-This is a reminder for your appointment tomorrow at ${appointment.time}.
+
+This is a friendly reminder for your appointment tomorrow at ${appointment.time}.
 
 📍 Location: Jeshna Dental Clinic
-📞 Contact: +91 98765 43210
+🏥 Address: 123 Dental Street, Bangalore, Karnataka 560001
+🗺️ Map: https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore
+📞 Phone: 6363116263
 
-Please confirm by replying "Yes" or "No"`;
+Please arrive 10 minutes early. If you need to reschedule, please call us at least 24 hours in advance.
+
+Looking forward to seeing you! 😊
+
+Best regards,
+Jeshna Dental Clinic Team`;
 
       default:
         return '';
     }
   };
 
-  const handleWhatsApp = (phone: string, type: 'confirmation' | 'cancellation' | 'reminder', appointment: Appointment) => {
-    const message = getWhatsAppMessage(type, appointment);
-    const encodedMessage = encodeURIComponent(message);
+  const handleWhatsApp = (phone: string, type: 'confirmation' | 'cancellation' | 'reminder' | 'direct', appointment: Appointment) => {
     // Remove any non-numeric characters from phone number
     const cleanPhone = phone.replace(/\D/g, '');
+    
+    if (type === 'direct') {
+      // Just open WhatsApp without any pre-filled message
+      window.open(`https://wa.me/91${cleanPhone}`, '_blank');
+      return;
+    }
+    
+    const message = getWhatsAppMessage(type, appointment);
+    const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/91${cleanPhone}?text=${encodedMessage}`, '_blank');
+  };
+
+  const handleSendReminder = (appointment: Appointment) => {
+    const confirmSend = window.confirm(`Send WhatsApp reminder to ${appointment.name}?`);
+    
+    if (confirmSend) {
+      handleWhatsApp(appointment.phone, 'reminder', appointment);
+      // Mark this reminder as sent
+      setSentReminders(prev => new Set([...prev, appointment.id]));
+      toast.success(`Reminder sent to ${appointment.name}`);
+    }
   };
 
   const handleEditAppointment = (appointment: Appointment) => {
@@ -1940,9 +1980,12 @@ Please confirm by replying "Yes" or "No"`;
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleWhatsApp(appointment.phone, 'confirmation', appointment)}
+                                onClick={() => handleWhatsApp(appointment.phone, 
+                                  appointment.status === 'Cancelled' ? 'cancellation' : 'direct', 
+                                  appointment
+                                )}
                                 className="h-8 w-8 p-0 text-green-600 border-2 border-green-400 hover:bg-green-100 hover:text-green-700 hover:border-green-500 flex-shrink-0 shadow-sm transition-all duration-200"
-                                title="Send WhatsApp message"
+                                title={appointment.status === 'Cancelled' ? "Send cancellation message" : "Open WhatsApp chat"}
                               >
                                 <WhatsAppIcon className="h-3 w-3" />
                               </Button>
@@ -1980,6 +2023,23 @@ Please confirm by replying "Yes" or "No"`;
                               <Edit className="h-3 w-3 mr-1" />
                               <span className="hidden sm:inline">Edit</span>
                             </Button>
+                            
+                            {/* Reminder Button - only for non-cancelled appointments */}
+                            {appointment.status !== 'Cancelled' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSendReminder(appointment)}
+                                className={`h-8 w-8 p-0 ${
+                                  sentReminders.has(appointment.id) 
+                                    ? 'text-red-600 border-2 border-red-400 hover:bg-red-100 hover:text-red-700 hover:border-red-500' 
+                                    : 'text-yellow-600 border-2 border-yellow-400 hover:bg-yellow-100 hover:text-yellow-700 hover:border-yellow-500'
+                                } flex-shrink-0 shadow-sm transition-all duration-200`}
+                                title={sentReminders.has(appointment.id) ? "Reminder sent" : "Send WhatsApp reminder"}
+                              >
+                                <Clock className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                     </TableRow>
