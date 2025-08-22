@@ -9,6 +9,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      strategies: 'injectManifest',
+      injectManifest: {
+        injectionPoint: undefined
+      },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
         runtimeCaching: [
@@ -38,15 +43,15 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico'],
       manifest: {
-        name: 'Dentia - Dental Clinic Management',
-        short_name: 'Dentia',
-        description: 'Professional dental clinic appointment booking and management system',
+        name: 'Dentia Admin - Dental Clinic Management',
+        short_name: 'Dentia Admin',
+        description: 'Admin dashboard for dental clinic appointment management',
         theme_color: '#3b82f6',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
+        scope: '/admin',
+        start_url: '/admin',
         categories: ['medical', 'health', 'business', 'productivity'],
         lang: 'en',
         dir: 'ltr',
@@ -83,14 +88,14 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             form_factor: 'wide',
-            label: 'Dental Clinic Management Dashboard'
+            label: 'Admin Dashboard - Dental Clinic Management'
           },
           {
             src: '/logo.png',
             sizes: '512x512',
             type: 'image/png',
             form_factor: 'narrow',
-            label: 'Appointment Booking Interface'
+            label: 'Admin Panel - Appointment Management'
           }
         ]
       },

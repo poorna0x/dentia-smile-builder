@@ -1,5 +1,5 @@
-// Service Worker for Push Notifications
-const CACHE_NAME = 'dentia-app-v1';
+// Service Worker for Admin PWA
+const CACHE_NAME = 'dentia-admin-v1';
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -48,7 +48,7 @@ self.addEventListener('push', (event) => {
       badge: '/logo.png',
       vibrate: [200, 100, 200],
       data: {
-        url: data.url || '/admin',
+        url: '/admin',
         appointmentId: data.appointmentId
       },
       actions: [
@@ -82,7 +82,7 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'view') {
     // Open the admin page
     event.waitUntil(
-      clients.openWindow(event.notification.data.url || '/admin')
+      clients.openWindow('/admin')
     );
   } else if (event.action === 'dismiss') {
     // Just close the notification
@@ -90,7 +90,7 @@ self.addEventListener('notificationclick', (event) => {
   } else {
     // Default action - open admin page
     event.waitUntil(
-      clients.openWindow(event.notification.data.url || '/admin')
+      clients.openWindow('/admin')
     );
   }
 });
@@ -107,8 +107,17 @@ self.addEventListener('sync', (event) => {
   }
 });
 
-// Fetch event - serve cached content when offline
+// Fetch event - serve cached content when offline and redirect to admin
 self.addEventListener('fetch', (event) => {
+  // Redirect root URL to admin page for PWA
+  if (event.request.url.endsWith('/') || event.request.url.endsWith('/index.html')) {
+    const adminUrl = new URL('/admin', event.request.url);
+    event.respondWith(
+      Response.redirect(adminUrl, 302)
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
