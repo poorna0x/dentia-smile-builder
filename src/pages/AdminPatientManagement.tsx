@@ -14,7 +14,7 @@ import { patientApi, treatmentPlanApi, medicalRecordApi } from '@/lib/patient-ma
 import { dentalTreatmentApi, toothConditionApi, dentalNoteApi, toothChartUtils } from '@/lib/dental-treatments';
 import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
-import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -90,6 +90,10 @@ export default function AdminPatientManagement() {
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
   const [nameSimilarity, setNameSimilarity] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<Patient[]>([]);
   
   // Dental chart state
   const [showDentalChart, setShowDentalChart] = useState(false);
@@ -424,6 +428,134 @@ export default function AdminPatientManagement() {
     }
   };
 
+  // Edit patient function
+  const handleEditPatient = (patient: Patient) => {
+    setEditingPatient(patient);
+    setIsEditMode(true);
+    setPatientForm({
+      first_name: patient.first_name,
+      last_name: patient.last_name || '',
+      email: patient.email || '',
+      phone: patient.phone,
+      date_of_birth: patient.date_of_birth || '',
+      gender: patient.gender || '',
+      address: patient.address || '',
+      medical_history: patient.medical_history || { conditions: [], surgeries: [] },
+      allergies: patient.allergies || [],
+      current_medications: patient.current_medications || [],
+      notes: patient.notes || ''
+    });
+    setShowPatientForm(true);
+  };
+
+  // Update patient function
+  const handleUpdatePatient = async () => {
+    if (!clinic?.id || !editingPatient) return;
+    
+    // Validation
+    if (!patientForm.first_name.trim()) {
+      toast({
+        title: "Error",
+        description: "First name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!patientForm.phone.trim()) {
+      toast({
+        title: "Error",
+        description: "Phone number is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Phone number validation
+    if (!validatePhone(patientForm.phone)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid phone number",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Email validation (if provided)
+    if (patientForm.email && !validateEmail(patientForm.email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Clean up the data before sending
+      const cleanPatientData = {
+        first_name: formatName(patientForm.first_name.trim()),
+        last_name: patientForm.last_name.trim() ? formatName(patientForm.last_name.trim()) : null,
+        email: patientForm.email.trim() || null,
+        phone: formatPhoneNumber(patientForm.phone.trim()),
+        date_of_birth: patientForm.date_of_birth || null,
+        gender: patientForm.gender || null,
+        address: patientForm.address.trim() || null,
+        notes: patientForm.notes.trim() || null,
+        allergies: patientForm.allergies.filter(item => item.trim() !== ''),
+        current_medications: patientForm.current_medications.filter(item => item.trim() !== ''),
+        medical_history: patientForm.medical_history
+      };
+      
+      await patientApi.update(editingPatient.id, cleanPatientData, clinic.id);
+      toast({
+        title: "Success",
+        description: "Patient updated successfully"
+      });
+      setShowPatientForm(false);
+      setIsEditMode(false);
+      setEditingPatient(null);
+      setPatientForm({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        date_of_birth: '',
+        gender: '',
+        address: '',
+        medical_history: { conditions: [], surgeries: [] },
+        allergies: [],
+        current_medications: [],
+        notes: ''
+      });
+      // Refresh the current search/view
+      if (searchTerm.trim()) {
+        handleSearch();
+      } else if (showAllData) {
+        handlePageChange(currentPage);
+      }
+    } catch (error) {
+      console.error('Error updating patient:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update patient. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Call patient function
+  const handleCallPatient = (phone: string) => {
+    window.open(`tel:${phone}`, '_self');
+  };
+
+  // WhatsApp patient function
+  const handleWhatsAppPatient = (phone: string) => {
+    const cleanPhone = formatPhoneNumber(phone);
+    const whatsappNumber = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    window.open(`https://wa.me/${whatsappNumber}`, '_blank');
+  };
+
   // Form data
   const [patientForm, setPatientForm] = useState({
     first_name: '',
@@ -488,6 +620,24 @@ export default function AdminPatientManagement() {
     }
   }, [clinic?.id]);
 
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.search-container')) {
+        setShowSearchResults(false);
+      }
+    };
+
+    if (showSearchResults) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSearchResults]);
+
   const loadPatients = async () => {
     if (!clinic?.id) return;
     
@@ -534,16 +684,24 @@ export default function AdminPatientManagement() {
     setLoading(true);
     try {
       // Use database search instead of loading all patients
-      const searchResults = await patientApi.searchPatients(clinic.id, searchTerm, 50);
-      setFilteredPatients(searchResults);
-      setDisplayedPatients(searchResults);
-      setShowAllData(false);
-      setCurrentPage(1);
+      const results = await patientApi.searchPatients(clinic.id, searchTerm, 50);
+      setSearchResults(results);
+      setShowSearchResults(true);
       
-      toast({
-        title: "Search Complete",
-        description: `Found ${searchResults.length} patients matching "${searchTerm}"`,
-      });
+      if (results.length === 0) {
+        toast({
+          title: "No Results",
+          description: `No patients found matching "${searchTerm}"`,
+        });
+      } else if (results.length === 1) {
+        // Auto-select if only one result
+        handleSelectSearchResult(results[0]);
+      } else {
+        toast({
+          title: "Multiple Results",
+          description: `Found ${results.length} patients. Please select one from the list.`,
+        });
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -553,6 +711,29 @@ export default function AdminPatientManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectSearchResult = (patient: Patient) => {
+    setFilteredPatients([patient]);
+    setDisplayedPatients([patient]);
+    setShowAllData(false);
+    setCurrentPage(1);
+    setShowSearchResults(false);
+    setSearchResults([]);
+    
+    toast({
+      title: "Patient Selected",
+      description: `Showing details for ${patient.first_name} ${patient.last_name || ''}`,
+    });
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setFilteredPatients([]);
+    setDisplayedPatients([]);
+    setDataLoaded(false);
+    setShowSearchResults(false);
+    setSearchResults([]);
   };
 
   const handleShowAll = () => {
@@ -790,48 +971,117 @@ export default function AdminPatientManagement() {
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-              <div className="relative" autoComplete="off">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search by name, phone, or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-80"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                  data-form-type="other"
-                  name="search"
-                  id="patient-search"
-                />
-              </div>
-              <Button 
-                onClick={handleSearch}
-                className="flex items-center gap-2 w-full sm:w-auto"
-                disabled={loading}
-              >
-                {loading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
-                Search
-              </Button>
-              <Button 
-                onClick={() => {
-                  setSearchTerm('');
-                  setFilteredPatients([]);
-                  setDisplayedPatients([]);
-                  setDataLoaded(false);
-                }}
-                variant="outline"
-                className="flex items-center gap-2 w-full sm:w-auto"
-              >
-                Clear
-              </Button>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                <div className="relative w-full sm:w-80 search-container" autoComplete="off">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search by name, phone, or email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    data-form-type="other"
+                    name="search"
+                    id="patient-search"
+                  />
+                  
+                  {/* Search Results Dropdown */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                      <div className="p-2 border-b border-gray-100 bg-gray-50">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setShowSearchResults(false)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {searchResults.map((patient) => (
+                          <div
+                            key={patient.id}
+                            onClick={() => handleSelectSearchResult(patient)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900">
+                                  {patient.first_name} {patient.last_name || ''}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  📱 {patient.phone}
+                                  {patient.email && ` • 📧 ${patient.email}`}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {patient.date_of_birth ? `Age: ${new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear()} years` : 'Age: Not specified'}
+                                  {patient.allergies?.length > 0 && ` • Allergies: ${patient.allergies.join(', ')}`}
+                                </div>
+                              </div>
+                              <div className="ml-3 flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCallPatient(patient.phone);
+                                  }}
+                                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                                  title="Call"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleWhatsAppPatient(patient.phone);
+                                  }}
+                                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                                  title="WhatsApp"
+                                >
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                  </svg>
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Button 
+                  onClick={handleSearch}
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  Search
+                </Button>
+                <Button 
+                  onClick={handleClearSearch}
+                  variant="outline"
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                >
+                  Clear
+                </Button>
 
 
             </div>
@@ -844,9 +1094,9 @@ export default function AdminPatientManagement() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Add New Patient</DialogTitle>
+                  <DialogTitle>{isEditMode ? 'Edit Patient' : 'Add New Patient'}</DialogTitle>
                   <DialogDescription>
-                    Enter patient information below
+                    {isEditMode ? 'Update patient information below' : 'Enter patient information below'}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4">
@@ -1011,11 +1261,28 @@ export default function AdminPatientManagement() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
-                  <Button variant="outline" onClick={() => setShowPatientForm(false)}>
+                  <Button variant="outline" onClick={() => {
+                    setShowPatientForm(false);
+                    setIsEditMode(false);
+                    setEditingPatient(null);
+                    setPatientForm({
+                      first_name: '',
+                      last_name: '',
+                      email: '',
+                      phone: '',
+                      date_of_birth: '',
+                      gender: '',
+                      address: '',
+                      medical_history: { conditions: [], surgeries: [] },
+                      allergies: [],
+                      current_medications: [],
+                      notes: ''
+                    });
+                  }}>
                     Cancel
                   </Button>
-                  <Button onClick={handleAddPatient}>
-                    Add Patient
+                  <Button onClick={isEditMode ? handleUpdatePatient : handleAddPatient}>
+                    {isEditMode ? 'Update Patient' : 'Add Patient'}
                   </Button>
                 </div>
               </DialogContent>
@@ -1041,16 +1308,57 @@ export default function AdminPatientManagement() {
                           Phone: {patient.phone} | Email: {patient.email}
                         </CardDescription>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenDentalChart(patient)}
-                          className="flex items-center gap-2"
-                        >
-                          <Circle className="w-4 h-4" />
-                          Dental Chart
-                        </Button>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Mobile: Stack vertically, Desktop: Row */}
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                          {/* Action buttons */}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditPatient(patient)}
+                              className="flex items-center gap-1 h-8 px-2"
+                              title="Edit Patient"
+                            >
+                              <Edit className="w-3 h-3" />
+                              <span className="hidden sm:inline">Edit</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenDentalChart(patient)}
+                              className="flex items-center gap-1 h-8 px-2"
+                              title="Treatments & Chart"
+                            >
+                              <Stethoscope className="w-3 h-3" />
+                              <span className="hidden sm:inline">Treatments</span>
+                            </Button>
+                          </div>
+                          
+                          {/* Communication buttons */}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCallPatient(patient.phone)}
+                              className="flex items-center gap-1 h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              title="Call Patient"
+                            >
+                              <Phone className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleWhatsAppPatient(patient.phone)}
+                              className="flex items-center gap-1 h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              title="WhatsApp Patient"
+                            >
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                              </svg>
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </CardHeader>
