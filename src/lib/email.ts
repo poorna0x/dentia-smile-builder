@@ -413,6 +413,7 @@ export const sendEmail = async (
 
       if (!result.success) {
         console.error('❌ Netlify function error:', result.error);
+        console.error('❌ Error details:', result.details);
         return false;
       }
 

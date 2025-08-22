@@ -21,6 +21,9 @@ exports.handler = async (event, context) => {
     // Parse the request body
     const { to, subject, html, text, type } = JSON.parse(event.body);
 
+    console.log('📧 Email request received:', { to, subject, type });
+    console.log('🔑 API Key available:', !!process.env.VITE_RESEND_API_KEY);
+
     // Initialize Resend
     const resend = new Resend(process.env.VITE_RESEND_API_KEY);
 
@@ -38,13 +41,19 @@ exports.handler = async (event, context) => {
       });
 
     if (error) {
-      console.error('Resend API Error:', error);
+      console.error('❌ Resend API Error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        statusCode: error.statusCode,
+        name: error.name
+      });
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({ 
           success: false, 
-          error: error.message || 'Failed to send email' 
+          error: error.message || 'Failed to send email',
+          details: error
         })
       };
     }
