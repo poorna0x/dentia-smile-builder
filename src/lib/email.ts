@@ -188,6 +188,9 @@ This email was sent to ${data.email}
       <body>
         <div class="container">
           <div class="header">
+            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+              <img src="https://test-dental-clinic.netlify.app/logo.png" alt="${data.clinicName}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
+            </div>
             <h2>📅 New Appointment</h2>
             <p>${data.clinicName}</p>
           </div>

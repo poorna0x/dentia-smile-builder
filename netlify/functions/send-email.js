@@ -33,7 +33,8 @@ exports.handler = async (event, context) => {
       html: html,
       text: text,
       headers: {
-        'X-Entity-Ref-ID': 'jeshna-dental-clinic'
+        'X-Entity-Ref-ID': 'jeshna-dental-clinic',
+        'X-Profile-Picture': 'https://test-dental-clinic.netlify.app/logo.png'
       }
     });
 

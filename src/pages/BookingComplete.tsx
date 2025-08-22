@@ -178,46 +178,77 @@ const BookingComplete: React.FC = () => {
           </Card>
 
           {/* Contact Information */}
-          <Card className="mb-8 shadow-lg border-0 bg-white">
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-gray-900">
-                Contact Information
+          <Card className="mb-8 shadow-xl border-0 bg-gradient-to-br from-blue-50 to-white rounded-2xl">
+            <CardHeader className="pb-6">
+              <CardTitle className="text-2xl font-bold text-gray-900 text-center">
+                Need to reschedule or have questions?
               </CardTitle>
+              <p className="text-gray-600 text-center mt-2">
+                Contact us through any of these methods:
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <CardContent className="space-y-4 px-6 pb-8">
+              <div className="grid grid-cols-1 gap-4 sm:gap-6">
                 <Button 
                   onClick={handleCall}
-                  className="h-16 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+                  className="h-20 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl border-0 rounded-xl px-6"
                 >
-                  <Phone className="w-6 h-6" />
-                  <span className="font-semibold">Call Clinic</span>
+                  <div className="p-2 bg-white/20 rounded-full">
+                    <Phone className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-lg">Call Clinic</div>
+                    <div className="text-sm opacity-90">Direct phone call</div>
+                  </div>
                 </Button>
                 
                 <Button 
                   onClick={handleWhatsAppReschedule}
-                  className="h-16 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+                  className="h-20 bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl border-0 rounded-xl px-6"
                 >
-                  <WhatsAppIcon className="w-6 h-6" />
-                  <span className="font-semibold">Reschedule via WhatsApp</span>
+                  <div className="p-2 bg-white/20 rounded-full">
+                    <WhatsAppIcon className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-lg">Reschedule via WhatsApp</div>
+                    <div className="text-sm opacity-90">Change appointment time</div>
+                  </div>
                 </Button>
                 
                 <Button 
                   onClick={handleWhatsAppQuery}
-                  className="h-16 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+                  className="h-20 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl border-0 rounded-xl px-6"
                 >
-                  <WhatsAppIcon className="w-6 h-6" />
-                  <span className="font-semibold">WhatsApp Query</span>
+                  <div className="p-2 bg-white/20 rounded-full">
+                    <WhatsAppIcon className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-lg">WhatsApp Query</div>
+                    <div className="text-sm opacity-90">Ask questions</div>
+                  </div>
                 </Button>
                 
                 <Button 
                   onClick={handleDirections}
                   variant="outline"
-                  className="h-16 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:border-blue-400"
+                  className="h-20 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-400 flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl rounded-xl px-6 bg-white"
                 >
-                  <MapPin className="w-6 h-6" />
-                  <span className="font-semibold">Get Directions</span>
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold text-lg">Get Directions</div>
+                    <div className="text-sm opacity-90">Find our location</div>
+                  </div>
                 </Button>
+              </div>
+              
+              {/* Phone Number Display */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="text-center">
+                  <p className="text-gray-600 text-sm mb-2">Or call us directly:</p>
+                  <p className="text-2xl font-bold text-gray-900">6363116263</p>
+                </div>
               </div>
             </CardContent>
           </Card>
