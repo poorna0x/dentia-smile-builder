@@ -211,7 +211,7 @@ This email was sent to ${data.email}
             
             <div class="contact-links">
               <a href="tel:${data.phone}" class="contact-link">📞 Call Patient</a>
-              <a href="https://wa.me/${data.phone}?text=Hi ${data.name}, this is from Jeshna Dental Clinic. We have a few questions about your appointment scheduled for ${format(new Date(data.date), 'MMM dd, yyyy')} at ${data.time}." class="contact-link">📱 WhatsApp Patient</a>
+              <a href="https://wa.me/${data.phone}?text=Hi ${data.name}! 👋%0A%0AThis is from Jeshna Dental Clinic 🦷%0A%0A✅ Your appointment is confirmed:%0A📅 Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}%0A⏰ Time: ${data.time}%0A%0A📍 Location: Jeshna Dental Clinic%0A🏥 Address: 123 Dental Street, Bangalore, Karnataka 560001%0A%0A📞 Phone: 6363116263%0A%0APlease arrive 10 minutes early. If you need to reschedule, please call us at least 24 hours in advance.%0A%0ALooking forward to seeing you! 😊" class="contact-link">📱 WhatsApp Patient</a>
             </div>
             
             <p style="margin-top: 20px; font-size: 14px; color: #666;">
@@ -232,6 +232,7 @@ Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}
 Time: ${data.time}
 
 Contact: ${data.phone} | WhatsApp: ${data.phone}
+Location: Jeshna Dental Clinic, 123 Dental Street, Bangalore, Karnataka 560001
 
 Best regards,
 ${data.clinicName} Booking System
