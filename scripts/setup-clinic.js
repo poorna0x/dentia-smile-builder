@@ -56,6 +56,11 @@ function isValidSupabaseKey(key) {
   return key.startsWith('eyJ') && key.length > 50;
 }
 
+// Function to validate Resend API key
+function isValidResendKey(key) {
+  return key.startsWith('re_') && key.length > 30;
+}
+
 // Function to validate time format
 function isValidTime(time) {
   const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
@@ -127,8 +132,26 @@ async function collectClinicData() {
       continue;
     }
 
-    // Step 2: Clinic Information
-    console.log('📋 Step 2: Clinic Information\n');
+    // Step 2: Email Configuration (Resend)
+    console.log('📋 Step 2: Email Configuration (Resend)\n');
+    
+    data.resendApiKey = await askQuestion('Enter your Resend API key (for sending appointment confirmation emails): ');
+    
+    // Validate Resend API key
+    if (!data.resendApiKey) {
+      console.log('❌ Error: Resend API key is required for email functionality\n');
+      continue;
+    }
+
+    if (!isValidResendKey(data.resendApiKey)) {
+      console.log('❌ Error: Invalid Resend API key format. Should start with "re_" and be longer than 30 characters\n');
+      continue;
+    }
+
+    console.log('✅ Resend API key validated!\n');
+
+    // Step 3: Clinic Information
+    console.log('📋 Step 3: Clinic Information\n');
 
     data.clinicName = await askQuestion('Enter clinic name: ');
     if (!data.clinicName || data.clinicName.length < 3) {
@@ -168,8 +191,8 @@ async function collectClinicData() {
       continue;
     }
 
-    // Step 3: Demo Settings (auto-set)
-    console.log('\n📋 Step 3: Working Hours\n');
+    // Step 4: Demo Settings (auto-set)
+    console.log('\n📋 Step 4: Working Hours\n');
     console.log('Demo working hours will be set (can be changed in admin panel):');
     console.log('- Monday to Friday: 09:00-18:00');
     console.log('- Saturday: 09:00-17:00');
@@ -186,16 +209,16 @@ async function collectClinicData() {
       'Sunday': { enabled: false, start: '', end: '' }
     };
 
-    // Step 4: Demo break time
-    console.log('📋 Step 4: Break Time\n');
+    // Step 5: Demo break time
+    console.log('📋 Step 5: Break Time\n');
     console.log('Demo break time: 13:00-14:00 (1 hour lunch break)');
     console.log('You can customize this later in the admin panel.\n');
     
     data.breakStart = '13:00';
     data.breakEnd = '14:00';
 
-    // Step 5: Demo slot interval
-    console.log('📋 Step 5: Appointment Settings\n');
+    // Step 6: Demo slot interval
+    console.log('📋 Step 6: Appointment Settings\n');
     console.log('Demo slot interval: 30 minutes');
     console.log('You can customize this later in the admin panel.\n');
     
@@ -214,8 +237,8 @@ async function setupClinic() {
     // Collect and validate all inputs
     const data = await collectClinicData();
 
-    // Step 6: Final Review and Confirmation
-    console.log('\n📋 Step 6: Final Review and Confirmation\n');
+    // Step 7: Final Review and Confirmation
+    console.log('\n📋 Step 7: Final Review and Confirmation\n');
     console.log('Please review all the information below:\n');
     console.log('🏥 CLINIC DETAILS:');
     console.log(`   Name: ${data.clinicName}`);
@@ -227,9 +250,10 @@ async function setupClinic() {
     console.log(`   Working Hours: Mon-Fri 09:00-18:00, Sat 09:00-17:00, Sun Closed`);
     console.log(`   Break Time: ${data.breakStart}-${data.breakEnd} (1 hour lunch)`);
     console.log(`   Slot Interval: ${data.slotInterval} minutes`);
-    console.log('\n🔧 DATABASE CONFIGURATION:');
+    console.log('\n🔧 CONFIGURATION:');
     console.log(`   Supabase URL: ${data.supabaseUrl}`);
     console.log(`   Supabase Key: ${data.supabaseKey.substring(0, 20)}...`);
+    console.log(`   Resend API Key: ${data.resendApiKey.substring(0, 15)}...`);
     console.log('\n💡 Note: All scheduling settings can be customized later in the admin panel.');
 
     const confirm = await askQuestion('\n❓ Is all information correct? Proceed with setup? (y/n): ');
@@ -327,11 +351,14 @@ async function setupClinic() {
     console.log('✅ Scheduling settings created successfully!');
 
     // Generate configuration files
-    console.log('\n📋 Step 7: Configuration Files\n');
+    console.log('\n📋 Step 8: Configuration Files\n');
 
     const envContent = `# Supabase Configuration
 VITE_SUPABASE_URL=${data.supabaseUrl}
 VITE_SUPABASE_ANON_KEY=${data.supabaseKey}
+
+# Email Configuration (Resend)
+VITE_RESEND_API_KEY=${data.resendApiKey}
 
 # Admin Credentials
 VITE_ADMIN_USERNAME=admin
@@ -384,8 +411,13 @@ export const CLINIC_CONFIG = {
     console.log('1. Update src/contexts/ClinicContext.tsx with the clinic ID');
     console.log('2. Update contact information in Navigation.tsx and Footer.tsx');
     console.log('3. Replace logo and images in src/assets/');
-    console.log('4. Test locally with: npm run dev');
-    console.log('5. Deploy to Netlify');
+    console.log('4. Test email functionality by booking an appointment');
+    console.log('5. Test locally with: npm run dev');
+    console.log('6. Deploy to Netlify');
+    console.log('\n📧 Email Configuration:');
+    console.log('- Resend API key has been added to .env.local');
+    console.log('- Patient confirmation emails will be sent automatically');
+    console.log('- WhatsApp reminders can be sent from admin panel');
 
   } catch (error) {
     console.error('\n❌ Error:', error.message);
