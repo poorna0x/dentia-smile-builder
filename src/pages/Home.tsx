@@ -11,6 +11,7 @@ import FAQ from '@/components/FAQ';
 import Testimonials from '@/components/Testimonials';
 import CTA from '@/components/CTA';
 import CheckAppointmentStatus from '@/components/CheckAppointmentStatus';
+import PatientDataAccess from '@/components/PatientDataAccess';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useEffect } from 'react';
@@ -86,6 +87,21 @@ const Home = () => {
         <Testimonials />
         <CTA />
         
+        {/* Patient Data Access Section */}
+        <section id="patient-data-access" className="py-16 bg-gradient-to-br from-green-50 to-emerald-100">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+                Access Your Medical Information
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                View your appointments, treatments, prescriptions, and medical records. Simply enter your phone number to access your complete medical history.
+              </p>
+            </div>
+            <PatientDataAccess />
+          </div>
+        </section>
+
         {/* Check Appointment Status Section */}
         <section id="check-appointment-status" className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
           <div className="container mx-auto px-4">

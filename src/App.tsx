@@ -17,6 +17,10 @@ import Dentists from './pages/Dentists'
 import NotFound from './pages/NotFound'
 import BookingComplete from './pages/BookingComplete'
 import CheckAppointmentStatus from './components/CheckAppointmentStatus'
+import PatientLogin from './pages/PatientLogin'
+import PatientDashboard from './pages/PatientDashboard'
+import AdminPatientManagement from './pages/AdminPatientManagement'
+import AdminDentalManagement from './pages/AdminDentalManagement'
 
 import './App.css'
 
@@ -97,11 +101,15 @@ function App() {
                 <Route path="/appointment" element={<Appointment />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/patients" element={<AdminPatientManagement />} />
+          <Route path="/admin/dental" element={<AdminDentalManagement />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/dentists" element={<Dentists />} />
                 <Route path="/booking-complete" element={<BookingComplete />} />
                 <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
+                <Route path="/patient/login" element={<PatientLogin />} />
+                <Route path="/patient/dashboard" element={<PatientDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </ClinicProvider>

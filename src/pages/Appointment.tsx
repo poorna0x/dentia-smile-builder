@@ -266,9 +266,12 @@ const Appointment = () => {
     } else if (cleaned.length === 10) {
       // Already 10 digits, return as is
       return cleaned;
+    } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      // Handle +91 format without +
+      return cleaned.substring(2);
     }
     
-    // Return original if no formatting needed
+    // Return cleaned number (will be validated later)
     return cleaned;
   };
 
@@ -279,6 +282,11 @@ const Appointment = () => {
     
     // Check if it's a valid Indian mobile number (10 digits starting with 6-9)
     if (formatted.length === 10 && /^[6-9]\d{9}$/.test(formatted)) {
+      return true;
+    }
+    
+    // Also accept any 10-digit number for flexibility
+    if (formatted.length === 10 && /^\d{10}$/.test(formatted)) {
       return true;
     }
     
@@ -293,7 +301,16 @@ const Appointment = () => {
     // Convert to title case (first letter of each word capitalized)
     formatted = formatted.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
     
-    return formatted;
+    // Ensure first letter of first and last name are capitalized
+    const nameParts = formatted.split(' ');
+    const capitalizedParts = nameParts.map(part => {
+      if (part.length > 0) {
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      }
+      return part;
+    });
+    
+    return capitalizedParts.join(' ');
   };
 
   // Email validation function
@@ -314,7 +331,7 @@ const Appointment = () => {
     
     // Validate the formatted phone number
     if (!validatePhone(value)) {
-      setPhoneError('Please enter a valid 10-digit mobile number (e.g., 9876543210, +91 9876543210, 09876543210)');
+      setPhoneError('Please enter a valid 10-digit phone number. Accepts: 9876543210, +91 9876543210, 09876543210');
     } else {
       setPhoneError('');
     }
@@ -542,6 +559,24 @@ const Appointment = () => {
         
         // No duplicate found, proceeding with booking
         
+        // Try to find existing patient by phone number
+        let patientId = null;
+        try {
+          const existingPatient = await supabase
+            .from('patients')
+            .select('id')
+            .eq('phone', formattedPhone)
+            .eq('clinic_id', clinic.id)
+            .single();
+          
+          if (existingPatient.data) {
+            patientId = existingPatient.data.id;
+            console.log('Found existing patient, linking appointment:', patientId);
+          }
+        } catch (error) {
+          console.log('No existing patient found for phone:', formattedPhone);
+        }
+
         const newAppointment = await appointmentsApi.create({
           clinic_id: clinic.id,
           name: formattedName,
@@ -549,7 +584,8 @@ const Appointment = () => {
           phone: formattedPhone,
           date: appointmentDate,
           time: selectedTime,
-          status: 'Confirmed'
+          status: 'Confirmed',
+          patient_id: patientId
         });
         
         // Send push notification for new appointment
@@ -805,6 +841,9 @@ const Appointment = () => {
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="text-base font-medium text-primary">
                       Phone
+                      <span className="text-sm text-muted-foreground ml-2">
+                        (Valid formats: 9876543210, +91 9876543210, 09876543210)
+                      </span>
                     </Label>
                     <Input
                       id="phone"

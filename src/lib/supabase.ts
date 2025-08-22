@@ -57,6 +57,7 @@ export interface Appointment {
   status: 'Confirmed' | 'Cancelled' | 'Completed' | 'Rescheduled'
   original_date?: string
   original_time?: string
+  patient_id?: string
   created_at: string
   updated_at: string
 }
