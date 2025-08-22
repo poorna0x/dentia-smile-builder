@@ -48,7 +48,13 @@ export const emailTemplates = {
           .label { font-weight: bold; color: #64748b; }
           .value { color: #1e293b; }
           .footer { text-align: center; margin-top: 30px; color: #64748b; font-size: 14px; }
-          .contact-info { background: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; }
+          .contact-info { background: #e0f2fe; padding: 20px; border-radius: 12px; margin: 20px 0; }
+          @media (max-width: 480px) {
+            .container { padding: 10px; }
+            .content { padding: 20px; }
+            .detail-row { flex-direction: column; }
+            .label { margin-bottom: 5px; }
+          }
         </style>
       </head>
       <body>
@@ -82,26 +88,21 @@ export const emailTemplates = {
             </div>
             
             <div class="contact-info">
-              <h3>📞 Need to reschedule or have questions?</h3>
-              <p>Contact us through any of these methods:</p>
+              <h3>📞 Need to contact us?</h3>
+              <p>Call us or get directions to our clinic:</p>
               
-              <div style="display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap;">
-                <a href="tel:${data.clinicPhone}" style="background: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  📞 Call Now
+              <div style="margin: 20px 0;">
+                <a href="tel:${data.clinicPhone}" style="display: block; background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 20px 16px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 18px; text-align: center; margin: 15px 0; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  📞 Call Clinic
                 </a>
-                <a href="https://wa.me/${data.clinicPhone}?text=Hi, I need to reschedule my appointment for ${format(new Date(data.date), 'MMM dd, yyyy')} at ${data.time}. Patient: ${data.name}" style="background: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  📱 WhatsApp Reschedule
-                </a>
-                <a href="https://wa.me/${data.clinicPhone}?text=Hi, I have a question about my appointment" style="background: #128C7E; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  💬 WhatsApp Query
-                </a>
-                <a href="https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore" style="background: #4285F4; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                <a href="https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore" style="display: block; background: white; color: #1e40af; padding: 20px 16px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 18px; text-align: center; margin: 15px 0; border: 2px solid #1e40af; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                   📍 Get Directions
                 </a>
               </div>
               
-              <p><strong>Phone:</strong> ${data.clinicPhone}</p>
-              <p><strong>Email:</strong> ${data.clinicEmail}</p>
+              <p style="text-align: center; margin-top: 20px;">
+                <strong>Phone:</strong> ${data.clinicPhone}
+              </p>
             </div>
             
             <p><strong>Important:</strong></p>
