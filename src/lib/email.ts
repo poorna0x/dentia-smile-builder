@@ -166,111 +166,111 @@ This email was sent to ${data.email}
 
 
 
-  reminder: (data: AppointmentEmailData) => ({
-    subject: `Appointment Reminder - ${data.clinicName}`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Appointment Reminder</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
-          .reminder-box { background: #ecfdf5; border-left: 4px solid #059669; padding: 20px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-              <img src="https://test-dental-clinic.netlify.app/logo.png" alt="${data.clinicName}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
-            </div>
-            <h1>⏰ Appointment Reminder</h1>
-            <p>${data.clinicName}</p>
-          </div>
-          
-          <div class="content">
-            <p>Dear <strong>${data.name}</strong>,</p>
-            
-            <div class="reminder-box">
-              <h3>Your appointment is tomorrow!</h3>
-              <p><strong>Date:</strong> ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}</p>
-              <p><strong>Time:</strong> ${data.time}</p>
-            </div>
-            
-            <p><strong>Please remember:</strong></p>
-            <ul>
-              <li>Arrive 10 minutes early</li>
-              <li>Bring your ID and insurance information</li>
-              <li>If you're feeling unwell, please call us</li>
-            </ul>
-            
-            <p>Need to reschedule? Call us at ${data.clinicPhone}</p>
-            
-            <p>See you tomorrow!</p>
-            
-            <p>Best regards,<br>
-            <strong>${data.clinicName} Team</strong></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-  }),
+  // reminder: (data: AppointmentEmailData) => ({
+  //   subject: `Appointment Reminder - ${data.clinicName}`,
+  //   html: `
+  //     <!DOCTYPE html>
+  //     <html>
+  //     <head>
+  //       <meta charset="utf-8">
+  //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //       <title>Appointment Reminder</title>
+  //       <style>
+  //         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+  //         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+  //         .header { background: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+  //         .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
+  //         .reminder-box { background: #ecfdf5; border-left: 4px solid #059669; padding: 20px; margin: 20px 0; }
+  //       </style>
+  //     </head>
+  //     <body>
+  //       <div class="container">
+  //         <div class="header">
+  //           <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+  //             <img src="https://test-dental-clinic.netlify.app/logo.png" alt="${data.clinicName}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
+  //           </div>
+  //           <h1>⏰ Appointment Reminder</h1>
+  //           <p>${data.clinicName}</p>
+  //         </div>
+  //         
+  //         <div class="content">
+  //           <p>Dear <strong>${data.name}</strong>,</p>
+  //           
+  //           <div class="reminder-box">
+  //             <h3>Your appointment is tomorrow!</h3>
+  //             <p><strong>Date:</strong> ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}</p>
+  //             <p><strong>Time:</strong> ${data.time}</p>
+  //           </div>
+  //           
+  //           <p><strong>Please remember:</strong></p>
+  //           <ul>
+  //             <li>Arrive 10 minutes early</li>
+  //             <li>Bring your ID and insurance information</li>
+  //             <li>If you're feeling unwell, please call us</li>
+  //           </ul>
+  //           
+  //           <p>Need to reschedule? Call us at ${data.clinicPhone}</p>
+  //           
+  //           <p>See you tomorrow!</p>
+  //           
+  //           <p>Best regards,<br>
+  //           <strong>${data.clinicName} Team</strong></p>
+  //         </div>
+  //       </div>
+  //     </body>
+  //     </html>
+  //   `
+  // }),
 
-  cancellation: (data: AppointmentEmailData) => ({
-    subject: `Appointment Cancelled - ${data.clinicName}`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Appointment Cancelled</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-              <img src="https://test-dental-clinic.netlify.app/logo.png" alt="${data.clinicName}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
-            </div>
-            <h1>❌ Appointment Cancelled</h1>
-            <p>${data.clinicName}</p>
-          </div>
-          
-          <div class="content">
-            <p>Dear <strong>${data.name}</strong>,</p>
-            
-            <p>Your appointment has been cancelled as requested.</p>
-            
-            <p><strong>Cancelled Appointment:</strong></p>
-            <p>Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}</p>
-            <p>Time: ${data.time}</p>
-            
-            <p>To reschedule, please contact us:</p>
-            <p>Phone: ${data.clinicPhone}</p>
-            <p>Email: ${data.clinicEmail}</p>
-            
-            <p>We hope to see you soon!</p>
-            
-            <p>Best regards,<br>
-            <strong>${data.clinicName} Team</strong></p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
-  })
+  // cancellation: (data: AppointmentEmailData) => ({
+  //   subject: `Appointment Cancelled - ${data.clinicName}`,
+  //   html: `
+  //     <!DOCTYPE html>
+  //     <html>
+  //     <head>
+  //       <meta charset="utf-8">
+  //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //       <title>Appointment Cancelled</title>
+  //       <style>
+  //         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+  //         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+  //         .header { background: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+  //         .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
+  //       </style>
+  //     </head>
+  //     <body>
+  //       <div class="container">
+  //         <div class="header">
+  //           <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+  //             <img src="https://test-dental-clinic.netlify.app/logo.png" alt="${data.clinicName}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid white;">
+  //           </div>
+  //           <h1>❌ Appointment Cancelled</h1>
+  //           <p>${data.clinicName}</p>
+  //         </div>
+  //         
+  //         <div class="content">
+  //           <p>Dear <strong>${data.name}</strong>,</p>
+  //           
+  //           <p>Your appointment has been cancelled as requested.</p>
+  //           
+  //           <p><strong>Cancelled Appointment:</strong></p>
+  //           <p>Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}</p>
+  //           <p>Time: ${data.time}</p>
+  //           
+  //           <p>To reschedule, please contact us:</p>
+  //           <p>Phone: ${data.clinicPhone}</p>
+  //           <p>Email: ${data.clinicEmail}</p>
+  //           
+  //           <p>We hope to see you soon!</p>
+  //           
+  //           <p>Best regards,<br>
+  //           <strong>${data.clinicName} Team</strong></p>
+  //         </div>
+  //       </div>
+  //     </body>
+  //     </html>
+  //   `
+  // })
 };
 
 // Send email using Resend
@@ -373,30 +373,30 @@ export const sendAppointmentConfirmation = async (
 
 
 // Send appointment reminder email
-export const sendAppointmentReminder = async (
-  appointmentData: AppointmentEmailData
-): Promise<boolean> => {
-  const template = emailTemplates.reminder(appointmentData);
-  
-  return await sendEmail(
-    appointmentData.email,
-    template.subject,
-    template.html,
-    template.text
-  );
-};
+// export const sendAppointmentReminder = async (
+//   appointmentData: AppointmentEmailData
+// ): Promise<boolean> => {
+//   const template = emailTemplates.reminder(appointmentData);
+//   
+//   return await sendEmail(
+//     appointmentData.email,
+//     template.subject,
+//     template.html,
+//     template.text
+//   );
+// };
 
 // Send appointment cancellation email
-export const sendAppointmentCancellation = async (
-  appointmentData: AppointmentEmailData
-): Promise<boolean> => {
-  const template = emailTemplates.cancellation(appointmentData);
-  
-  return await sendEmail(
-    appointmentData.email,
-    template.subject,
-    template.html,
-    template.text
-  );
-};
+// export const sendAppointmentCancellation = async (
+//   appointmentData: AppointmentEmailData
+// ): Promise<boolean> => {
+//   const template = emailTemplates.cancellation(appointmentData);
+//   
+//   return await sendEmail(
+//     appointmentData.email,
+//     template.subject,
+//     template.html,
+//     template.text
+//   );
+// };
 
