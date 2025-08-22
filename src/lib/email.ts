@@ -211,7 +211,7 @@ This email was sent to ${data.email}
             
             <div class="contact-links">
               <a href="tel:${data.phone}" class="contact-link">📞 Call Patient</a>
-              <a href="mailto:${data.email}" class="contact-link">📧 Email Patient</a>
+              <a href="https://wa.me/${data.phone}?text=Hi ${data.name}, this is from Jeshna Dental Clinic. We have a few questions about your appointment scheduled for ${format(new Date(data.date), 'MMM dd, yyyy')} at ${data.time}." class="contact-link">📱 WhatsApp Patient</a>
             </div>
             
             <p style="margin-top: 20px; font-size: 14px; color: #666;">
@@ -231,7 +231,7 @@ Phone: ${data.phone}
 Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}
 Time: ${data.time}
 
-Contact: ${data.phone} | ${data.email}
+Contact: ${data.phone} | WhatsApp: ${data.phone}
 
 Best regards,
 ${data.clinicName} Booking System
@@ -447,7 +447,7 @@ export const sendDentistNotification = async (
 ): Promise<boolean> => {
   const template = emailTemplates.dentistNotification(appointmentData);
   
-  console.log('📧 Sending dentist notification to: poorna.shetty@hotmail.com');
+  console.log('📧 Sending dentist notification to: poorn8105@gmail.com');
   console.log('📧 Dentist email subject:', template.subject);
   
   // For testing, also send to your email to verify the function works
@@ -461,7 +461,7 @@ export const sendDentistNotification = async (
   console.log('📧 Test dentist notification result:', testResult);
   
   const result = await sendEmail(
-    'poorna.shetty@hotmail.com', // Dentist's email
+    'poorn8105@gmail.com', // Dentist's email
     template.subject,
     template.html,
     template.text
