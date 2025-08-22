@@ -201,6 +201,24 @@ export const patientApi = {
     return data || [];
   },
 
+  // Search patients by name, phone, or email (database-level search)
+  async searchPatients(clinicId: string, searchTerm: string, limit: number = 50): Promise<Patient[]> {
+    if (!searchTerm.trim()) return [];
+    
+    const searchValue = searchTerm.trim().toLowerCase();
+    
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .or(`first_name.ilike.%${searchValue}%,last_name.ilike.%${searchValue}%,phone.ilike.%${searchValue}%,email.ilike.%${searchValue}%`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  },
+
   // Get patients with pagination for better performance
   async getAllWithPagination(clinicId: string, page: number = 1, pageSize: number = 50): Promise<{ data: Patient[], total: number }> {
     const from = (page - 1) * pageSize;

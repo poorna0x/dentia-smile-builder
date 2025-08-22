@@ -478,81 +478,15 @@ export default function AdminPatientManagement() {
     }
   }, [filteredPatients, currentPage, showAllData, startIndex, endIndex]);
 
-  // Load patients on component mount
+  // Load patients on component mount - but don't auto-load data
   useEffect(() => {
     console.log('Component: Clinic context changed:', clinic);
     if (clinic?.id) {
-      console.log('Component: Loading patients for clinic:', clinic.id);
-      // Don't auto-load data, wait for user action
+      console.log('Component: Ready to search patients for clinic:', clinic.id);
     } else {
       console.log('Component: No clinic ID available');
     }
   }, [clinic?.id]);
-
-  // Filter patients based on search term with improved partial matching
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      // If no search term, show all patients (but only if data is loaded)
-      if (dataLoaded) {
-        setFilteredPatients(patients);
-      } else {
-        setFilteredPatients([]);
-      }
-    } else {
-      const searchLower = searchTerm.toLowerCase().trim();
-      const filtered = patients.filter(patient => {
-        const firstName = patient.first_name.toLowerCase();
-        const lastName = patient.last_name ? patient.last_name.toLowerCase() : '';
-        const fullName = `${firstName} ${lastName}`.trim();
-        const phone = patient.phone;
-        const email = patient.email ? patient.email.toLowerCase() : '';
-
-        // 1. Exact matches (highest priority)
-        if (firstName === searchLower || 
-            lastName === searchLower || 
-            fullName === searchLower ||
-            phone === searchTerm ||
-            email === searchLower) {
-          return true;
-        }
-
-        // 2. Partial matches (starts with) - more restrictive
-        if (firstName.startsWith(searchLower) || 
-            lastName.startsWith(searchLower) ||
-            fullName.startsWith(searchLower) ||
-            phone.startsWith(searchTerm) ||
-            email.startsWith(searchLower)) {
-          return true;
-        }
-
-        // 3. Contains matches (anywhere in the text) - only if search term is 3+ characters
-        if (searchLower.length >= 3) {
-          if (firstName.includes(searchLower) || 
-              lastName.includes(searchLower) ||
-              fullName.includes(searchLower) ||
-              phone.includes(searchTerm) ||
-              email.includes(searchLower)) {
-            return true;
-          }
-        }
-
-        // 4. Word boundary matches (for multi-word searches)
-        const searchWords = searchLower.split(' ').filter(word => word.length > 0);
-        if (searchWords.length > 1) {
-          return searchWords.every(word => 
-            firstName.includes(word) || 
-            lastName.includes(word) ||
-            fullName.includes(word)
-          );
-        }
-
-        return false;
-      });
-      setFilteredPatients(filtered);
-    }
-    // Reset pagination when search changes
-    setCurrentPage(1);
-  }, [searchTerm, patients, dataLoaded]);
 
   const loadPatients = async () => {
     if (!clinic?.id) return;
@@ -589,14 +523,6 @@ export default function AdminPatientManagement() {
       return;
     }
     
-    if (!dataLoaded) {
-      // If no data loaded yet, load all patients first
-      await loadPatients();
-    }
-    
-    // Search is already handled by useEffect, just show feedback
-    const searchResults = filteredPatients.length;
-    
     if (searchTerm.trim() === '') {
       toast({
         title: "Search",
@@ -605,10 +531,28 @@ export default function AdminPatientManagement() {
       return;
     }
     
-    toast({
-      title: "Search Complete",
-      description: `Found ${searchResults} patients matching "${searchTerm}"`,
-    });
+    setLoading(true);
+    try {
+      // Use database search instead of loading all patients
+      const searchResults = await patientApi.searchPatients(clinic.id, searchTerm, 50);
+      setFilteredPatients(searchResults);
+      setDisplayedPatients(searchResults);
+      setShowAllData(false);
+      setCurrentPage(1);
+      
+      toast({
+        title: "Search Complete",
+        description: `Found ${searchResults.length} patients matching "${searchTerm}"`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to search patients",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleShowAll = () => {
@@ -618,32 +562,30 @@ export default function AdminPatientManagement() {
   const confirmShowAll = async () => {
     setShowConfirmDialog(false);
     
-    // If no data loaded yet, load it first
-    if (!dataLoaded && clinic?.id) {
-      setLoading(true);
-      try {
-        await loadPatients();
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load patients",
-          variant: "destructive"
-        });
-        return;
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    try {
+      // Load first page of all patients with pagination
+      const { data, total } = await patientApi.getAllWithPagination(clinic!.id, 1, 50);
+      setFilteredPatients(data);
+      setDisplayedPatients(data);
+      setTotalPatients(total);
+      setShowAllData(true);
+      setCurrentPage(1);
+      setDataLoaded(true);
+      
+      toast({
+        title: "All Database Patients",
+        description: `Showing first 50 of ${total} patients. Use pagination to see more.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load patients",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-    
-    // Show all patients from database (not filtered by search)
-    setShowAllData(true);
-    setFilteredPatients(patients); // Reset to show all patients, not search results
-    setCurrentPage(1);
-    
-    toast({
-      title: "All Database Patients",
-      description: `Showing all ${totalPatients} patients with pagination (50 per page)`,
-    });
   };
 
   const handleShowPaginated = () => {
@@ -652,28 +594,43 @@ export default function AdminPatientManagement() {
     
     // Restore search results if there was a search
     if (searchTerm.trim() !== '') {
-      const filtered = patients.filter(patient =>
-        patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (patient.last_name && patient.last_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        patient.phone.includes(searchTerm) ||
-        (patient.email && patient.email.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredPatients(filtered);
+      setDisplayedPatients(filteredPatients);
       toast({
         title: "Search Results",
-        description: `Showing ${filtered.length} patients from search`,
+        description: `Showing ${filteredPatients.length} patients from search`,
       });
     } else {
-      setFilteredPatients(patients);
+      setFilteredPatients([]);
+      setDisplayedPatients([]);
       toast({
-        title: "All Patients",
-        description: `Showing all ${patients.length} patients`,
+        title: "No Data",
+        description: "Please search for patients or click 'Show All' to view all patients",
       });
     }
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+  const handlePageChange = async (page: number) => {
+    if (!clinic?.id || !showAllData) {
+      setCurrentPage(page);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { data, total } = await patientApi.getAllWithPagination(clinic.id, page, 50);
+      setFilteredPatients(data);
+      setDisplayedPatients(data);
+      setCurrentPage(page);
+      setTotalPatients(total);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load page",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddPatient = async () => {
