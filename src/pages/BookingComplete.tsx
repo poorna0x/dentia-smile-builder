@@ -62,6 +62,18 @@ const BookingComplete: React.FC = () => {
     window.open(`https://wa.me/${clinicInfo.whatsapp.replace(/\D/g, '')}?text=${encodedMessage}`, '_blank');
   };
 
+  const handleWhatsAppReschedule = () => {
+    const message = `Hi, I need to reschedule my appointment for ${date} at ${time}. My name is ${name}. Can you please help me find an alternative time?`;
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${clinicInfo.whatsapp.replace(/\D/g, '')}?text=${encodedMessage}`, '_blank');
+  };
+
+  const handleWhatsAppQuery = () => {
+    const message = `Hi, I have a question about my appointment scheduled for ${date} at ${time}. My name is ${name}.`;
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/${clinicInfo.whatsapp.replace(/\D/g, '')}?text=${encodedMessage}`, '_blank');
+  };
+
   const handleDirections = () => {
     // TODO: Replace with actual clinic coordinates
     const address = encodeURIComponent(clinicInfo.address);
@@ -93,24 +105,29 @@ const BookingComplete: React.FC = () => {
             </p>
           </div>
 
-          {/* WhatsApp Query Banner */}
+          {/* WhatsApp Actions Banner */}
           <div className="mb-8 p-6 bg-green-50 border border-green-200 rounded-xl shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <WhatsAppIcon className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-green-800 text-lg">Have any questions?</h3>
-                  <p className="text-green-700 text-sm">WhatsApp us for quick responses to your queries</p>
-                </div>
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+                <WhatsAppIcon className="w-6 h-6 text-green-600" />
               </div>
+              <h3 className="font-semibold text-green-800 text-lg">Need to reschedule or have questions?</h3>
+              <p className="text-green-700 text-sm">WhatsApp us for quick responses to your queries</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button 
-                onClick={handleWhatsApp}
-                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 flex items-center space-x-2 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+                onClick={handleWhatsAppReschedule}
+                className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 flex items-center justify-center space-x-2 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
               >
                 <WhatsAppIcon className="w-5 h-5" />
-                <span className="font-semibold">WhatsApp Us</span>
+                <span className="font-semibold">Reschedule Appointment</span>
+              </Button>
+              <Button 
+                onClick={handleWhatsAppQuery}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 flex items-center justify-center space-x-2 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+              >
+                <WhatsAppIcon className="w-5 h-5" />
+                <span className="font-semibold">Ask Questions</span>
               </Button>
             </div>
           </div>
@@ -168,7 +185,7 @@ const BookingComplete: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Button 
                   onClick={handleCall}
                   className="h-16 bg-green-600 hover:bg-green-700 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
@@ -178,23 +195,28 @@ const BookingComplete: React.FC = () => {
                 </Button>
                 
                 <Button 
+                  onClick={handleWhatsAppReschedule}
+                  className="h-16 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+                >
+                  <WhatsAppIcon className="w-6 h-6" />
+                  <span className="font-semibold">Reschedule via WhatsApp</span>
+                </Button>
+                
+                <Button 
+                  onClick={handleWhatsAppQuery}
+                  className="h-16 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg border-0"
+                >
+                  <WhatsAppIcon className="w-6 h-6" />
+                  <span className="font-semibold">WhatsApp Query</span>
+                </Button>
+                
+                <Button 
                   onClick={handleDirections}
                   variant="outline"
                   className="h-16 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:border-blue-400"
                 >
                   <MapPin className="w-6 h-6" />
-                  <span className="font-semibold">Get Directions to Location</span>
-                </Button>
-                
-                <Button 
-                  onClick={handleEmail}
-                  variant="outline"
-                  className="h-16 border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-800 flex items-center justify-center space-x-3 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:border-gray-400"
-                >
-                  <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold">
-                    @
-                  </div>
-                  <span className="font-semibold">Send Email</span>
+                  <span className="font-semibold">Get Directions</span>
                 </Button>
               </div>
             </CardContent>
