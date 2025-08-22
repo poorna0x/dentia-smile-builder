@@ -25,18 +25,18 @@ exports.handler = async (event, context) => {
     const resend = new Resend(process.env.VITE_RESEND_API_KEY);
 
     // Send email
-    const { data, error } = await resend.emails.send({
-      from: 'Jeshna Dental Clinic <appointments@resend.dev>',
-      to: [to],
-      reply_to: 'poorna.shetty@outlook.com',
-      subject: subject,
-      html: html,
-      text: text,
-      headers: {
-        'X-Entity-Ref-ID': 'jeshna-dental-clinic',
-        'X-Profile-Picture': 'https://test-dental-clinic.netlify.app/logo.png'
-      }
-    });
+          const { data, error } = await resend.emails.send({
+        from: 'Jeshna Dental Clinic <appointments@resend.dev>',
+        to: [to],
+        reply_to: 'poorna.shetty@hotmail.com',
+        subject: subject,
+        html: html,
+        text: text,
+        headers: {
+          'X-Entity-Ref-ID': 'jeshna-dental-clinic',
+          'X-Profile-Picture': 'https://test-dental-clinic.netlify.app/logo.png'
+        }
+      });
 
     if (error) {
       console.error('Resend API Error:', error);

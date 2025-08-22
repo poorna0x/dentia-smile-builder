@@ -406,7 +406,7 @@ export const sendEmail = async (
           text,
           type: 'appointment',
           from: 'Jeshna Dental Clinic <appointments@resend.dev>',
-          replyTo: 'poorna.shetty@outlook.com'
+          replyTo: 'poorna.shetty@hotmail.com'
         }),
       });
 
@@ -449,7 +449,7 @@ export const sendDentistNotification = async (
 ): Promise<boolean> => {
   const template = emailTemplates.dentistNotification(appointmentData);
   
-  console.log('📧 Sending dentist notification to: poorna.shetty@outlook.com');
+  console.log('📧 Sending dentist notification to: poorna.shetty@hotmail.com');
   console.log('📧 Dentist email subject:', template.subject);
   
   // For testing, also send to your email to verify the function works
@@ -463,7 +463,7 @@ export const sendDentistNotification = async (
   console.log('📧 Test dentist notification result:', testResult);
   
   const result = await sendEmail(
-    'poorna.shetty@outlook.com', // Dentist's email
+    'poorna.shetty@hotmail.com', // Dentist's email
     template.subject,
     template.html,
     template.text
