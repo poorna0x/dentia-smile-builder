@@ -420,8 +420,12 @@ const Admin = () => {
         const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
           console.log('🚫 Admin lightweight disabled slots update:', update.type);
           if (update.type === 'UPDATED') {
-            // Refresh disabled slots data
-            loadDisabledSlots();
+            // Refresh disabled slots data - will be called after loadDisabledSlots is defined
+            setTimeout(() => {
+              if (typeof loadDisabledSlots === 'function') {
+                loadDisabledSlots();
+              }
+            }, 100);
             toast.info('🚫 Disabled slots updated', { duration: 2000 });
           }
         });
@@ -448,7 +452,7 @@ const Admin = () => {
     return () => {
       cleanup.then(unsubscribe => unsubscribe?.());
     };
-  }, [clinic?.id, refreshAppointments, refreshSettings, loadDisabledSlots]);
+  }, [clinic?.id, refreshAppointments, refreshSettings]);
 
   // PWA install functions
   const handlePWAInstall = async () => {
