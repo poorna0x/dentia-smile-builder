@@ -164,83 +164,7 @@ This email was sent to ${data.email}
     `
   }),
 
-  dentistNotification: (data: AppointmentEmailData) => ({
-    subject: `New Appointment - ${data.name} | ${format(new Date(data.date), 'MMM dd')} at ${data.time}`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Appointment</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 500px; margin: 0 auto; padding: 20px; }
-          .header { background: #1e40af; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8fafc; padding: 25px; border-radius: 0 0 8px 8px; }
-          .appointment-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e40af; }
-          .detail-row { margin: 8px 0; }
-          .label { font-weight: bold; color: #64748b; }
-          .value { color: #1e293b; }
-          .contact-links { margin-top: 20px; }
-          .contact-link { display: block; margin: 12px 0; padding: 16px 20px; background: #1e40af; color: white; text-decoration: none; border-radius: 8px; font-size: 16px; text-align: center; font-weight: 600; }
-          @media (max-width: 480px) {
-            .contact-link { margin: 15px 0; padding: 20px 16px; font-size: 18px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h2>📅 New Appointment</h2>
-            <p>${data.clinicName}</p>
-          </div>
-          
-          <div class="content">
-            <div class="appointment-box">
-              <div class="detail-row">
-                <span class="label">Patient:</span> <span class="value">${data.name}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Phone:</span> <span class="value">${data.phone}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Date:</span> <span class="value">${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Time:</span> <span class="value">${data.time}</span>
-              </div>
-            </div>
-            
-            <div class="contact-links">
-              <a href="tel:${data.phone}" class="contact-link">📞 Call Patient</a>
-              <a href="https://wa.me/${data.phone}?text=Hi ${data.name}! 👋%0A%0AThis is from Jeshna Dental Clinic 🦷%0A%0A✅ Your appointment is confirmed:%0A📅 Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}%0A⏰ Time: ${data.time}%0A%0A📍 Location: Jeshna Dental Clinic%0A🏥 Address: 123 Dental Street, Bangalore, Karnataka 560001%0A🗺️ Map: https://maps.google.com/?q=Jeshna+Dental+Clinic+Bangalore%0A%0A📞 Phone: 6363116263%0A%0APlease arrive 10 minutes early. If you need to reschedule, please call us at least 24 hours in advance.%0A%0ALooking forward to seeing you! 😊" class="contact-link">📱 WhatsApp Patient</a>
-            </div>
-            
-            <p style="margin-top: 20px; font-size: 14px; color: #666;">
-              Best regards,<br>
-              ${data.clinicName} Booking System
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-New Appointment - ${data.clinicName}
 
-Patient: ${data.name}
-Phone: ${data.phone}
-Date: ${format(new Date(data.date), 'EEEE, MMMM dd, yyyy')}
-Time: ${data.time}
-
-Contact: ${data.phone} | WhatsApp: ${data.phone}
-Location: Jeshna Dental Clinic, 123 Dental Street, Bangalore, Karnataka 560001
-
-Best regards,
-${data.clinicName} Booking System
-    `
-  }),
 
   reminder: (data: AppointmentEmailData) => ({
     subject: `Appointment Reminder - ${data.clinicName}`,
@@ -446,26 +370,7 @@ export const sendAppointmentConfirmation = async (
   );
 };
 
-// Send appointment notification email to dentist
-export const sendDentistNotification = async (
-  appointmentData: AppointmentEmailData
-): Promise<boolean> => {
-  const template = emailTemplates.dentistNotification(appointmentData);
-  
-  console.log('📧 Sending dentist notification to: poorna.shetty@outlook.com');
-  console.log('📧 Dentist email subject:', template.subject);
-  
-  // Smart bypass: Use system notification style subject
-  const result = await sendEmail(
-    'poorna.shetty@outlook.com', // Dentist's Outlook email
-    `[SYSTEM] Appointment Booking Confirmation - ${appointmentData.name}`,
-    template.html,
-    template.text
-  );
-  
-  console.log('📧 Dentist notification result:', result);
-  return result;
-};
+
 
 // Send appointment reminder email
 export const sendAppointmentReminder = async (

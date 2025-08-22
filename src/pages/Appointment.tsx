@@ -17,7 +17,7 @@ import { appointmentsApi, supabase, disabledSlotsApi, DisabledSlot } from '@/lib
 import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
-import { sendAppointmentConfirmation, sendDentistNotification } from '@/lib/email';
+import { sendAppointmentConfirmation } from '@/lib/email';
 import CaptchaModal from '@/components/CaptchaModal';
 import { 
   checkSecurityStatus, 
@@ -568,30 +568,11 @@ const Appointment = () => {
           clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
         });
 
-        // Send notification email to dentist
-        const dentistEmailSent = await sendDentistNotification({
-          name: formattedName,
-          email: email.trim().toLowerCase(),
-          phone: formattedPhone,
-          date: appointmentDate,
-          time: selectedTime,
-          status: 'Confirmed',
-          clinicName: clinic.name || 'Jeshna Dental Clinic',
-          clinicPhone: clinic.contact_phone || '6363116263',
-          clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
-        });
-
         // Log email status
         if (patientEmailSent) {
           console.log('✅ Patient confirmation email sent');
         } else {
           console.log('❌ Failed to send patient confirmation email');
-        }
-
-        if (dentistEmailSent) {
-          console.log('✅ Dentist notification email sent');
-        } else {
-          console.log('❌ Failed to send dentist notification email');
         }
 
         // Reset security on successful booking
