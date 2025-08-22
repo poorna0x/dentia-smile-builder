@@ -181,14 +181,14 @@ const BookingComplete: React.FC = () => {
           <Card className="mb-8 shadow-xl border-0 bg-gradient-to-br from-blue-50 to-white rounded-2xl">
             <CardHeader className="pb-6">
               <CardTitle className="text-2xl font-bold text-gray-900 text-center">
-                Need to reschedule or have questions?
+                Need to contact us?
               </CardTitle>
               <p className="text-gray-600 text-center mt-2">
-                Contact us through any of these methods:
+                Call us or get directions to our clinic:
               </p>
             </CardHeader>
             <CardContent className="space-y-4 px-6 pb-8">
-              <div className="grid grid-cols-1 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <Button 
                   onClick={handleCall}
                   className="h-20 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl border-0 rounded-xl px-6"
@@ -199,32 +199,6 @@ const BookingComplete: React.FC = () => {
                   <div className="text-left">
                     <div className="font-bold text-lg">Call Clinic</div>
                     <div className="text-sm opacity-90">Direct phone call</div>
-                  </div>
-                </Button>
-                
-                <Button 
-                  onClick={handleWhatsAppReschedule}
-                  className="h-20 bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl border-0 rounded-xl px-6"
-                >
-                  <div className="p-2 bg-white/20 rounded-full">
-                    <WhatsAppIcon className="w-6 h-6" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-bold text-lg">Reschedule via WhatsApp</div>
-                    <div className="text-sm opacity-90">Change appointment time</div>
-                  </div>
-                </Button>
-                
-                <Button 
-                  onClick={handleWhatsAppQuery}
-                  className="h-20 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white flex items-center justify-center space-x-4 transition-all duration-300 transform hover:scale-102 hover:shadow-xl border-0 rounded-xl px-6"
-                >
-                  <div className="p-2 bg-white/20 rounded-full">
-                    <WhatsAppIcon className="w-6 h-6" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-bold text-lg">WhatsApp Query</div>
-                    <div className="text-sm opacity-90">Ask questions</div>
                   </div>
                 </Button>
                 
