@@ -109,12 +109,15 @@ class PollingManager {
     // Initial call
     poll()
 
-    // Set up interval with exponential backoff
+    // Set up interval with exponential backoff and tab visibility check
     let currentInterval = interval
     const intervalId = setInterval(() => {
-      poll()
-      // Increase interval gradually (exponential backoff)
-      currentInterval = Math.min(currentInterval * 1.2, this.MAX_INTERVAL)
+      // Only poll if tab is active (free tier optimization)
+      if (isTabActive) {
+        poll()
+        // Increase interval gradually (exponential backoff)
+        currentInterval = Math.min(currentInterval * 1.2, this.MAX_INTERVAL)
+      }
     }, currentInterval)
 
     this.intervals.set(key, intervalId)
@@ -148,6 +151,17 @@ class PollingManager {
 const smartCache = new SmartCache()
 const pollingManager = new PollingManager()
 
+// Tab visibility management for free tier optimization
+let isTabActive = true
+document.addEventListener('visibilitychange', () => {
+  isTabActive = !document.hidden
+  if (!isTabActive) {
+    console.log('📱 Tab inactive - pausing polling to save calls')
+  } else {
+    console.log('📱 Tab active - resuming polling')
+  }
+})
+
 // Lightweight real-time simulation
 export class LightweightRealtime {
   private supabase: SupabaseClient
@@ -168,7 +182,7 @@ export class LightweightRealtime {
 
     // Start polling
     pollingManager.startPolling(key, async () => {
-      const cached = smartCache.get(key, 10000) // 10 second cache
+      const cached = smartCache.get(key, 30000) // 30 second cache (free tier optimized)
       if (cached) {
         callback({ type: 'CACHED', data: cached })
         return
@@ -177,7 +191,7 @@ export class LightweightRealtime {
       const freshData = await this.fetchAppointments()
       smartCache.set(key, freshData, 10000)
       callback({ type: 'UPDATED', data: freshData })
-    }, 8000) // Poll every 8 seconds
+    }, 60000) // Poll every 60 seconds (free tier optimized)
 
     return () => {
       pollingManager.stopPolling(key)
@@ -194,7 +208,7 @@ export class LightweightRealtime {
 
     // Start polling with longer intervals
     pollingManager.startPolling(key, async () => {
-      const cached = smartCache.get(key, 60000) // 1 minute cache
+      const cached = smartCache.get(key, 180000) // 3 minute cache (free tier optimized)
       if (cached) {
         callback({ type: 'CACHED', data: cached })
         return
@@ -203,7 +217,7 @@ export class LightweightRealtime {
       const freshData = await this.fetchSettings()
       smartCache.set(key, freshData, 60000)
       callback({ type: 'UPDATED', data: freshData })
-    }, 30000) // Poll every 30 seconds
+    }, 300000) // Poll every 5 minutes (free tier optimized)
 
     return () => {
       pollingManager.stopPolling(key)
@@ -220,7 +234,7 @@ export class LightweightRealtime {
 
     // Start polling
     pollingManager.startPolling(key, async () => {
-      const cached = smartCache.get(key, 15000) // 15 second cache
+      const cached = smartCache.get(key, 60000) // 1 minute cache (free tier optimized)
       if (cached) {
         callback({ type: 'CACHED', data: cached })
         return
@@ -229,7 +243,7 @@ export class LightweightRealtime {
       const freshData = await this.fetchDisabledSlots(date)
       smartCache.set(key, freshData, 15000)
       callback({ type: 'UPDATED', data: freshData })
-    }, 12000) // Poll every 12 seconds
+    }, 120000) // Poll every 2 minutes (free tier optimized)
 
     return () => {
       pollingManager.stopPolling(key)
