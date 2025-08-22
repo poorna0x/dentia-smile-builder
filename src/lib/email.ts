@@ -405,25 +405,37 @@ export const sendEmail = async (
       return true;
     }
 
-    // In production, send real email using Resend
-    console.log('🚀 Production Mode - Sending real email via Resend...');
+    // In production, send real email using Netlify function
+    console.log('🚀 Production Mode - Sending real email via Netlify function...');
     
-    const { data, error } = await resend.emails.send({
-      from: 'Jeshna Dental Clinic <appointments@resend.dev>',
-      to: [to],
-      reply_to: 'poorna.shetty@outlook.com', // Dentist's email for replies
-      subject: subject,
-      html: html,
-      text: text,
-    });
+    try {
+      const response = await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to,
+          subject,
+          html,
+          text,
+          type: 'appointment'
+        }),
+      });
 
-    if (error) {
-      console.error('❌ Resend API Error:', error);
+      const result = await response.json();
+
+      if (!result.success) {
+        console.error('❌ Netlify function error:', result.error);
+        return false;
+      }
+
+      console.log('📧 Email sent successfully via Netlify function:', result.data);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to call Netlify function:', error);
       return false;
     }
-
-    console.log('📧 Email sent successfully via Resend:', data);
-    return true;
   } catch (error) {
     console.error('❌ Failed to send email:', error);
     return false;
