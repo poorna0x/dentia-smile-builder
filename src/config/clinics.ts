@@ -13,6 +13,14 @@
  * - Specific contact information
  * - Custom working hours
  * - Email notification settings
+ * 
+ * TEMPLATE NOTES:
+ * - Replace "Jeshna Dental Clinic" with your clinic name
+ * - Replace "6363116263" with your clinic phone number
+ * - Replace "contact@jeshnadentalclinic.com" with your clinic email
+ * - Replace "Bangalore, Karnataka" with your clinic address
+ * - Replace "jeshna-dental" with your clinic slug
+ * - Replace "jeshna-dental.com" with your clinic domain
  */
 
 export interface ClinicConfig {
@@ -53,12 +61,12 @@ export interface ClinicConfig {
 // All available clinics
 export const CLINICS: Record<string, ClinicConfig> = {
   'jeshna-dental': {
-    slug: 'jeshna-dental',
-    name: 'Jeshna Dental Clinic',
-    domain: 'jeshna-dental.com',
-    contactPhone: '6363116263',
-    contactEmail: 'contact@jeshnadentalclinic.com',
-    address: 'Bangalore, Karnataka',
+    slug: 'jeshna-dental', // TODO: Change to your clinic slug (e.g., 'my-dental-clinic')
+    name: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
+    domain: 'jeshna-dental.com', // TODO: Change to your clinic domain (optional)
+    contactPhone: '6363116263', // TODO: Change to your clinic phone number
+    contactEmail: 'contact@jeshnadentalclinic.com', // TODO: Change to your clinic email
+    address: 'Bangalore, Karnataka', // TODO: Change to your clinic address
     workingHours: {
       monday: { start: '09:00', end: '20:00', enabled: true },
       tuesday: { start: '09:00', end: '20:00', enabled: true },
@@ -69,9 +77,9 @@ export const CLINICS: Record<string, ClinicConfig> = {
       sunday: { start: '10:00', end: '18:00', enabled: false }
     },
     emailSettings: {
-      fromEmail: 'poorn8105@gmail.com',
-      fromName: 'Jeshna Dental Clinic',
-      replyTo: 'poorn8105@gmail.com'
+      fromEmail: 'poorn8105@gmail.com', // TODO: Change to your email for sending notifications
+      fromName: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
+      replyTo: 'poorn8105@gmail.com' // TODO: Change to your reply-to email
     },
     notificationSettings: {
       emailNotifications: true,
@@ -81,12 +89,12 @@ export const CLINICS: Record<string, ClinicConfig> = {
   },
   
   'smile-dental': {
-    slug: 'smile-dental',
-    name: 'Smile Dental Care',
-    domain: 'smiledentalcare.com',
-    contactPhone: '9876543210',
-    contactEmail: 'info@smiledentalcare.com',
-    address: 'Mumbai, Maharashtra',
+    slug: 'smile-dental', // TODO: Change to your clinic slug
+    name: 'Smile Dental Care', // TODO: Change to your clinic name
+    domain: 'smiledentalcare.com', // TODO: Change to your clinic domain
+    contactPhone: '9876543210', // TODO: Change to your clinic phone number
+    contactEmail: 'info@smiledentalcare.com', // TODO: Change to your clinic email
+    address: 'Mumbai, Maharashtra', // TODO: Change to your clinic address
     workingHours: {
       monday: { start: '08:00', end: '19:00', enabled: true },
       tuesday: { start: '08:00', end: '19:00', enabled: true },
@@ -97,9 +105,9 @@ export const CLINICS: Record<string, ClinicConfig> = {
       sunday: { start: '09:00', end: '16:00', enabled: false }
     },
     emailSettings: {
-      fromEmail: 'poorn8105@gmail.com',
-      fromName: 'Smile Dental Care',
-      replyTo: 'poorn8105@gmail.com'
+      fromEmail: 'poorn8105@gmail.com', // TODO: Change to your email
+      fromName: 'Smile Dental Care', // TODO: Change to your clinic name
+      replyTo: 'poorn8105@gmail.com' // TODO: Change to your reply-to email
     },
     notificationSettings: {
       emailNotifications: true,
@@ -109,12 +117,12 @@ export const CLINICS: Record<string, ClinicConfig> = {
   },
   
   'pearl-dental': {
-    slug: 'pearl-dental',
-    name: 'Pearl Dental Studio',
-    domain: 'pearldentalstudio.com',
-    contactPhone: '8765432109',
-    contactEmail: 'hello@pearldentalstudio.com',
-    address: 'Delhi, NCR',
+    slug: 'pearl-dental', // TODO: Change to your clinic slug
+    name: 'Pearl Dental Studio', // TODO: Change to your clinic name
+    domain: 'pearldentalstudio.com', // TODO: Change to your clinic domain
+    contactPhone: '8765432109', // TODO: Change to your clinic phone number
+    contactEmail: 'hello@pearldentalstudio.com', // TODO: Change to your clinic email
+    address: 'Delhi, NCR', // TODO: Change to your clinic address
     workingHours: {
       monday: { start: '10:00', end: '21:00', enabled: true },
       tuesday: { start: '10:00', end: '21:00', enabled: true },
@@ -125,9 +133,9 @@ export const CLINICS: Record<string, ClinicConfig> = {
       sunday: { start: '11:00', end: '18:00', enabled: true }
     },
     emailSettings: {
-      fromEmail: 'poorn8105@gmail.com',
-      fromName: 'Pearl Dental Studio',
-      replyTo: 'poorn8105@gmail.com'
+      fromEmail: 'poorn8105@gmail.com', // TODO: Change to your email
+      fromName: 'Pearl Dental Studio', // TODO: Change to your clinic name
+      replyTo: 'poorn8105@gmail.com' // TODO: Change to your reply-to email
     },
     notificationSettings: {
       emailNotifications: true,
@@ -138,7 +146,7 @@ export const CLINICS: Record<string, ClinicConfig> = {
 }
 
 // Default clinic to use when no specific clinic is detected
-export const DEFAULT_CLINIC_SLUG = 'jeshna-dental'
+export const DEFAULT_CLINIC_SLUG = 'jeshna-dental' // TODO: Change to your default clinic slug
 
 // Get clinic config by slug
 export const getClinicConfig = (slug: string): ClinicConfig => {

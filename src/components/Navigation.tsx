@@ -36,15 +36,15 @@ const Navigation = () => {
           <div className="flex justify-center items-center space-x-8 text-sm text-secondary-foreground">
             <div className="flex items-center space-x-2">
               <Phone className="w-4 h-4 text-accent" />
-              <span>6363116263</span>
+              <span>6363116263</span> {/* TODO: Change to your clinic phone number */}
             </div>
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-accent" />
-              <span>Mon to Sat 09:00 - 20:00</span>
+              <span>Mon to Sat 09:00 - 20:00</span> {/* TODO: Change to your clinic working hours */}
             </div>
             <div className="flex items-center space-x-2">
               <Mail className="w-4 h-4 text-accent" />
-              <span>contact@jeshnadentalclinic.com</span>
+              <span>contact@jeshnadentalclinic.com</span> {/* TODO: Change to your clinic email */}
             </div>
           </div>
         </div>
@@ -55,33 +55,14 @@ const Navigation = () => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center py-4">
             {/* Logo */}
-            {/* <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-accent rounded-full flex items-center justify-center">
-                <span className="text-accent-foreground font-bold text-sm">🦷</span>
-              </div>
-              <span className="text-xl font-bold">Jeshna</span>
-            </Link> */}
-
-            {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <div className="w-12 h-12 rounded-full overflow-hidden mr-2 flex-shrink-0">
-                <img 
-                  src={logo} 
-                  alt="Jeshna Dental Logo" 
-                  className="w-full h-full object-cover"
-                  style={{ 
-                    WebkitUserSelect: 'none',
-                    WebkitTouchCallout: 'none',
-                    WebkitTapHighlightColor: 'transparent'
-                  }}
-                />
-              </div>
-              <span className="text-xl font-bold text-primary-foreground" style={{ 
-                WebkitFontSmoothing: 'antialiased',
-                MozOsxFontSmoothing: 'grayscale',
-                textRendering: 'optimizeLegibility'
-              }}>
-                Jeshna
+            <Link to="/" className="flex items-center space-x-2">
+              <img 
+                src={logo} 
+                alt="Jeshna Dental Logo" 
+                className="h-12 w-auto" 
+              /> {/* TODO: Change logo and alt text to your clinic */}
+              <span className="text-xl font-bold text-primary hidden sm:block">
+                Jeshna Dental {/* TODO: Change to your clinic name */}
               </span>
             </Link>
 
@@ -188,7 +169,7 @@ const Navigation = () => {
                 Contact
               </Link>
               <div className="space-y-2 pt-4">
-                <a href="tel:6363116263" onClick={() => setIsMenuOpen(false)}>
+                <a href="tel:6363116263" onClick={() => setIsMenuOpen(false)}> {/* TODO: Change to your clinic phone number */}
                   <Button className="btn-call w-full">
                     <Phone className="w-4 h-4 mr-2" />
                     Call Now

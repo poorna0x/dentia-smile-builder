@@ -24,7 +24,7 @@ interface ClinicProviderProps {
   clinicSlug?: string
 }
 
-export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinicSlug = 'jeshna-dental' }) => {
+export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinicSlug = 'jeshna-dental' }) => { // TODO: Change default clinic slug to your clinic
   const [clinic, setClinic] = useState<Clinic | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,11 +47,11 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
           const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
           setClinic({
             id: defaultClinicId,
-            name: 'Jeshna Dental Clinic',
+            name: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
             slug: currentClinicSlug,
-            contact_phone: '6363116263',
-            contact_email: 'poorn8105@gmail.com',
-            address: 'Bangalore, Karnataka',
+            contact_phone: '6363116263', // TODO: Change to your clinic phone number
+            contact_email: 'poorn8105@gmail.com', // TODO: Change to your clinic email
+            address: 'Bangalore, Karnataka', // TODO: Change to your clinic address
             working_hours: {},
             is_active: true,
             created_at: new Date().toISOString(),
@@ -74,11 +74,11 @@ export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinic
         const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
         setClinic({
           id: defaultClinicId,
-          name: 'Jeshna Dental Clinic',
+          name: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
           slug: currentClinicSlug,
-          contact_phone: '6363116263',
-          contact_email: 'poorn8105@gmail.com',
-          address: 'Bangalore, Karnataka',
+          contact_phone: '6363116263', // TODO: Change to your clinic phone number
+          contact_email: 'poorn8105@gmail.com', // TODO: Change to your clinic email
+          address: 'Bangalore, Karnataka', // TODO: Change to your clinic address
           working_hours: {},
           is_active: true,
           created_at: new Date().toISOString(),

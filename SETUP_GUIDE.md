@@ -8,6 +8,53 @@ This system allows you to manage multiple dental clinics using a single Supabase
 - Separate appointment data
 - Individual email notifications
 
+## 🔗 **UNDERSTANDING CLINIC SLUGS**
+
+### **What is a Clinic Slug?**
+
+A **clinic slug** is a URL-friendly identifier for your dental clinic. It's a short, unique name that appears in the website URL and helps identify which clinic the system should load.
+
+**Definition**: A clinic slug is a simplified version of your clinic name that:
+- Contains only lowercase letters, numbers, and hyphens
+- Is used in URLs to identify specific clinics
+- Must be unique across all clinics in the system
+
+### **Examples:**
+
+| Clinic Name | Clinic Slug | URL Example |
+|-------------|-------------|-------------|
+| Jeshna Dental Clinic | `jeshna-dental` | `yoursite.com/appointment?clinic=jeshna-dental` |
+| Smile Dental Care | `smile-dental` | `yoursite.com/appointment?clinic=smile-dental` |
+| Pearl Dental Studio | `pearl-dental` | `yoursite.com/appointment?clinic=pearl-dental` |
+
+### **How It Works:**
+
+1. **URL Identification**: When someone visits `yoursite.com/appointment?clinic=my-clinic`, the system knows to load "My Clinic" data
+2. **Database Separation**: Each clinic slug corresponds to a unique clinic ID in the database
+3. **Multi-tenant Support**: Different clinics can use the same system with different slugs
+
+### **Creating Your Own Clinic Slug:**
+
+**Good Examples:**
+- `my-dental-clinic`
+- `sunshine-dental`
+- `family-dental-care`
+- `dental-studio-2024`
+
+**Bad Examples:**
+- `My Dental Clinic` (spaces not allowed)
+- `MY_DENTAL` (uppercase and underscores not allowed)
+- `dental-clinic!` (special characters not allowed)
+
+**Rules for Clinic Slugs:**
+- ✅ Use only lowercase letters (a-z)
+- ✅ Use numbers (0-9)
+- ✅ Use hyphens (-) to separate words
+- ❌ No spaces
+- ❌ No uppercase letters
+- ❌ No special characters
+- ❌ No underscores
+
 ## 🚀 **QUICK START**
 
 ### 1. **Environment Setup**

@@ -22,18 +22,18 @@ const Footer = () => {
                     WebkitTouchCallout: 'none',
                     WebkitTapHighlightColor: 'transparent'
                   }}
-                />
+                /> {/* TODO: Change logo and alt text to your clinic */}
               </div>
               <span className="text-xl font-bold text-primary-foreground" style={{ 
                 WebkitFontSmoothing: 'antialiased',
                 MozOsxFontSmoothing: 'grayscale',
                 textRendering: 'optimizeLegibility'
               }}>
-                Jeshna
+                Jeshna {/* TODO: Change to your clinic name */}
               </span>
             </Link>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
-              Providing exceptional dental care with a personal touch. Your smile is our priority, and we're committed to helping you achieve optimal oral health.
+              Providing exceptional dental care with a personal touch. Your smile is our priority, and we're committed to helping you achieve optimal oral health. {/* TODO: Change description to your clinic */}
             </p>
             <div className="flex space-x-4">
               <Facebook className="w-5 h-5 text-primary-foreground/60 hover:text-accent cursor-pointer transition-colors" />
@@ -102,7 +102,7 @@ const Footer = () => {
                   rel="noopener noreferrer" 
                   className="text-primary-foreground/80 hover:text-accent transition-colors"
                 >
-                  Location
+                  Location {/* TODO: Change to your clinic location */}
                 </a>
               </div>
               <div className="flex items-center space-x-3">

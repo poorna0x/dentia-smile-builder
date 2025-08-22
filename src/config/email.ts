@@ -13,6 +13,12 @@
  * 1. Set up SMTP credentials in environment variables
  * 2. Update email templates as needed
  * 3. Configure clinic-specific email settings in clinics.ts
+ * 
+ * TEMPLATE NOTES:
+ * - All email templates use clinic name from clinic configuration
+ * - Email sender name is configured in clinics.ts
+ * - SMTP settings are configured in environment variables
+ * - No hardcoded clinic names in this file - all dynamic
  */
 
 export interface EmailTemplate {

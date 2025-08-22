@@ -104,15 +104,15 @@ const Hero = () => {
           <div className="space-y-3 text-sm text-primary">
             <div className="flex items-center justify-center space-x-2">
               <Phone className="w-4 h-4 text-accent" />
-              <span>6363116263</span>
+              <span>6363116263</span> {/* TODO: Change to your clinic phone number */}
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Clock className="w-4 h-4 text-accent" />
-              <span>Mon to Sat 09:00 - 20:00</span>
+              <span>Mon to Sat 09:00 - 20:00</span> {/* TODO: Change to your clinic working hours */}
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Mail className="w-4 h-4 text-accent" />
-              <span>contact@jeshnadentalclinic.com</span>
+              <span>contact@jeshnadentalclinic.com</span> {/* TODO: Change to your clinic email */}
             </div>
           </div>
         </div>
