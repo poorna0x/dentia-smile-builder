@@ -1383,12 +1383,12 @@ Jeshna Dental Clinic Team`;
     }
   };
 
-  // Run automatic cleanup when admin page loads
-  useEffect(() => {
-    // Run cleanup once when admin page is accessed
-    // This ensures old data is cleaned up every time admin visits the page
-    runAutomaticCleanup();
-  }, []);
+  // Automatic cleanup disabled - function not created in database yet
+  // useEffect(() => {
+  //   // Run cleanup once when admin page is accessed
+  //   // This ensures old data is cleaned up every time admin visits the page
+  //   runAutomaticCleanup();
+  // }, []);
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {

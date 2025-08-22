@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -137,7 +137,7 @@ const Appointment = () => {
 
 
   // Check for booked slots and disabled slots when date changes
-  const checkBookedSlots = async () => {
+  const checkBookedSlots = useCallback(async () => {
     if (!clinic?.id) return;
     
     setIsLoadingSlots(true);
@@ -163,7 +163,7 @@ const Appointment = () => {
     } finally {
       setIsLoadingSlots(false);
     }
-  };
+  }, [clinic?.id, date]);
 
   // Initial load when date or clinic changes
   useEffect(() => {
@@ -178,7 +178,11 @@ const Appointment = () => {
 
     const setupLightweightRealtime = async () => {
       try {
-        const { useLightweightRealtime } = await import('@/lib/lightweight-realtime');
+        const { initializeLightweightRealtime, useLightweightRealtime } = await import('@/lib/lightweight-realtime');
+        
+        // Initialize the lightweight real-time manager first
+        initializeLightweightRealtime(supabase, clinic.id);
+        
         const { subscribeToAppointments, subscribeToDisabledSlots } = useLightweightRealtime(clinic.id);
 
         // Subscribe to appointments with smart polling
@@ -234,8 +238,18 @@ const Appointment = () => {
     const cleanup = setupLightweightRealtime();
     return () => {
       cleanup.then(unsubscribe => unsubscribe?.());
+      // Also cleanup the lightweight manager when component unmounts
+      const cleanupManager = async () => {
+        try {
+          const { cleanupLightweightRealtime } = await import('@/lib/lightweight-realtime');
+          cleanupLightweightRealtime();
+        } catch (error) {
+          console.warn('⚠️ Failed to cleanup lightweight real-time manager:', error);
+        }
+      };
+      cleanupManager();
     };
-  }, [clinic?.id, date, checkBookedSlots]);
+  }, [clinic?.id, date]);
 
   // Phone number formatting function
   const formatPhoneNumber = (phoneNumber: string): string => {
@@ -348,7 +362,7 @@ const Appointment = () => {
   const currentSettings = getDaySettings(date);
 
   // Load disabled slots for a specific date
-  const loadDisabledSlots = async (targetDate: Date) => {
+  const loadDisabledSlots = useCallback(async (targetDate: Date) => {
     if (!clinic?.id) return;
     
     try {
@@ -358,7 +372,7 @@ const Appointment = () => {
     } catch (error) {
       console.error('Error loading disabled slots:', error);
     }
-  };
+  }, [clinic?.id]);
 
   const isHoliday = (d: Date) => {
     return isDateHoliday(d);
@@ -973,6 +987,9 @@ const Appointment = () => {
             <DialogTitle className="text-lg font-semibold text-gray-900">
               {isSubmitting ? 'Processing Appointment...' : 'Confirm Appointment'}
             </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Please review your appointment details before confirming.
+            </DialogDescription>
           </DialogHeader>
           
           <div className={`space-y-4 py-2 relative transition-opacity duration-300 ${isSubmitting ? 'opacity-50' : 'opacity-100'}`}>

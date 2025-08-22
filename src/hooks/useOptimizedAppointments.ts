@@ -88,7 +88,11 @@ export const useOptimizedAppointments = () => {
     // Use lightweight real-time simulation
     const setupLightweightRealtime = async () => {
       try {
-        const { useLightweightRealtime } = await import('@/lib/lightweight-realtime')
+        const { initializeLightweightRealtime, useLightweightRealtime } = await import('@/lib/lightweight-realtime')
+        
+        // Initialize the lightweight real-time manager first
+        initializeLightweightRealtime(supabase, clinic.id)
+        
         const { subscribeToAppointments } = useLightweightRealtime(clinic.id)
         
         const unsubscribe = await subscribeToAppointments((update: any) => {
@@ -119,6 +123,16 @@ export const useOptimizedAppointments = () => {
     
     return () => {
       unsubscribe.then(unsub => unsub?.())
+      // Also cleanup the lightweight manager when component unmounts
+      const cleanupManager = async () => {
+        try {
+          const { cleanupLightweightRealtime } = await import('@/lib/lightweight-realtime')
+          cleanupLightweightRealtime()
+        } catch (error) {
+          console.warn('⚠️ Failed to cleanup lightweight real-time manager:', error)
+        }
+      }
+      cleanupManager()
     }
   }, [clinic?.id, loadAppointments])
 

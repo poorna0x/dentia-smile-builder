@@ -79,38 +79,7 @@ class ErrorBoundary extends Component<
 function App() {
       // App component rendering with optimized real-time
   
-  // Initialize lightweight real-time simulation system
-  useEffect(() => {
-    const initializeLightweight = async () => {
-      try {
-        // Initializing lightweight real-time simulation
-        const { initializeLightweightRealtime } = await import('./lib/lightweight-realtime')
-        // Initialize with default clinic ID - will be updated when clinic context loads
-        initializeLightweightRealtime(supabase, 'default')
-                  // Lightweight real-time simulation initialized successfully
-      } catch (error) {
-        console.warn('⚠️ Failed to initialize lightweight real-time, using fallback:', error)
-        // Continue without lightweight real-time - app will still work
-      }
-    }
-
-    // Temporarily disable lightweight real-time to test navigation
-    // initializeLightweight()
-
-    // Cleanup on unmount
-    return () => {
-      const cleanup = async () => {
-        try {
-          const { cleanupLightweightRealtime } = await import('./lib/lightweight-realtime')
-          cleanupLightweightRealtime()
-          // Lightweight real-time cleanup completed
-        } catch (error) {
-          console.warn('⚠️ Failed to cleanup lightweight real-time:', error)
-        }
-      }
-      // cleanup()
-    }
-  }, [])
+  // Lightweight real-time will be initialized by individual pages when clinic context is available
   
   return (
     <ErrorBoundary>

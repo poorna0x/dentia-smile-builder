@@ -254,7 +254,7 @@ export class LightweightRealtime {
   private async fetchAppointments() {
     const { data, error } = await this.supabase
       .from('appointments')
-      .select('id, patient_name, appointment_date, appointment_time, status, created_at')
+      .select('id, name, date, time, status, created_at')
       .eq('clinic_id', this.clinicId)
       .order('created_at', { ascending: false })
       .limit(50) // Limit to recent appointments
