@@ -1878,15 +1878,37 @@ Please confirm by replying "Yes" or "No"`;
           <div className="flex flex-col gap-4 mb-6 p-4 bg-gradient-to-br from-slate-50 to-gray-100 rounded-lg border border-slate-200 shadow-sm">
             {/* Search Bar - Full Width */}
             <div className="w-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <Input
-                  placeholder="Search by name, email, or phone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80 w-full"
-                />
-              </div>
+                              <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <input
+                    type="search"
+                    name="adminSearchQuery"
+                    placeholder="Search by name, email, or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white/80 w-full rounded-md px-3 py-2 text-sm"
+                    autoComplete="new-password"
+                    aria-autocomplete="none"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    onFocus={(e) => {
+                      e.target.setAttribute('autocomplete', 'new-password');
+                      e.target.setAttribute('readonly', 'true');
+                      setTimeout(() => {
+                        e.target.removeAttribute('readonly');
+                        e.target.focus();
+                      }, 10);
+                    }}
+                    onBlur={(e) => {
+                      e.target.setAttribute('autocomplete', 'new-password');
+                    }}
+                    style={{
+                      WebkitAppearance: 'none',
+                      WebkitAutofill: 'off'
+                    }}
+                  />
+                </div>
             </div>
             
             {/* Filter Controls - Responsive Grid */}
@@ -2707,6 +2729,13 @@ Please confirm by replying "Yes" or "No"`;
         </div>
       </main>
 
+      {/* Hidden dummy form to prevent autofill */}
+      <form style={{ display: 'none' }}>
+        <input type="text" name="email" autoComplete="email" />
+        <input type="text" name="name" autoComplete="name" />
+        <input type="tel" name="phone" autoComplete="tel" />
+      </form>
+
       {/* Edit Appointment Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-lg w-[95vw] sm:w-auto max-h-[95vh] overflow-hidden flex flex-col">
@@ -2951,21 +2980,42 @@ Please confirm by replying "Yes" or "No"`;
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-5 px-2 pb-2">
             {/* Patient Information */}
-            <div className="space-y-4">
+            <form autoComplete="new-password" onSubmit={(e) => e.preventDefault()}>
+              <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Patient Name *</Label>
+                <Label htmlFor="appointmentPatientName">Patient Name *</Label>
                 <Input
-                  id="name"
+                  id="appointmentPatientName"
+                  name="appointmentPatientName"
+                  type="text"
                   value={generalNewAppointment.name}
                   onChange={(e) => setGeneralNewAppointment(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter patient name"
                   className="border-2 border-slate-300 focus:border-blue-500"
+                  autoComplete="new-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onFocus={(e) => {
+                    e.target.setAttribute('autocomplete', 'new-password');
+                    e.target.setAttribute('readonly', 'true');
+                    setTimeout(() => {
+                      e.target.removeAttribute('readonly');
+                      e.target.focus();
+                    }, 10);
+                  }}
+                  onBlur={(e) => {
+                    e.target.setAttribute('autocomplete', 'new-password');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
+                <Label htmlFor="appointmentPhoneNumber">Phone Number *</Label>
                 <Input
-                  id="phone"
+                  id="appointmentPhoneNumber"
+                  name="appointmentPhoneNumber"
+                  type="text"
+                  inputMode="tel"
                   value={generalNewAppointment.phone}
                   onChange={(e) => setGeneralNewAppointment(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="Enter phone number"
@@ -2975,6 +3025,21 @@ Please confirm by replying "Yes" or "No"`;
                       ? "border-red-300 focus:border-red-500" 
                       : "border-slate-300"
                   )}
+                  autoComplete="new-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onFocus={(e) => {
+                    e.target.setAttribute('autocomplete', 'new-password');
+                    e.target.setAttribute('readonly', 'true');
+                    setTimeout(() => {
+                      e.target.removeAttribute('readonly');
+                      e.target.focus();
+                    }, 10);
+                  }}
+                  onBlur={(e) => {
+                    e.target.setAttribute('autocomplete', 'new-password');
+                  }}
                 />
                 {generalNewAppointment.phone && !validatePhone(generalNewAppointment.phone) && (
                   <div className="text-sm text-red-600">
@@ -2983,10 +3048,12 @@ Please confirm by replying "Yes" or "No"`;
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="appointmentEmail">Email</Label>
                 <Input
-                  id="email"
-                  type="email"
+                  id="appointmentEmail"
+                  name="appointmentEmail"
+                  type="text"
+                  inputMode="email"
                   value={generalNewAppointment.email}
                   onChange={(e) => setGeneralNewAppointment(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="Enter email address"
@@ -2996,6 +3063,21 @@ Please confirm by replying "Yes" or "No"`;
                       ? "border-red-300 focus:border-red-500" 
                       : "border-slate-300"
                   )}
+                  autoComplete="new-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onFocus={(e) => {
+                    e.target.setAttribute('autocomplete', 'new-password');
+                    e.target.setAttribute('readonly', 'true');
+                    setTimeout(() => {
+                      e.target.removeAttribute('readonly');
+                      e.target.focus();
+                    }, 10);
+                  }}
+                  onBlur={(e) => {
+                    e.target.setAttribute('autocomplete', 'new-password');
+                  }}
                 />
                 {generalNewAppointment.email && !validateEmail(generalNewAppointment.email) && (
                   <div className="text-sm text-red-600">
@@ -3009,6 +3091,7 @@ Please confirm by replying "Yes" or "No"`;
                 )}
               </div>
             </div>
+            </form>
 
             {/* Date Selection */}
             <div className="space-y-2">
