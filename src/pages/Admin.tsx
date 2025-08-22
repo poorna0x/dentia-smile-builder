@@ -223,10 +223,8 @@ const Admin = () => {
       
       if (permission) {
         console.log('✅ Admin notification permission granted');
-        toast.success('🔔 Web notifications enabled', { duration: 2000 });
       } else {
         console.log('❌ Admin notification permission denied');
-        toast.info('🔕 Web notifications disabled - you can enable them in browser settings', { duration: 3000 });
       }
     };
     
@@ -701,6 +699,9 @@ Please confirm by replying "Yes" or "No"`;
       }
       
       toast.success('Appointment marked as completed');
+      
+      // Auto-close the edit dialog
+      setShowEditDialog(false);
     } catch (error) {
       toast.error('Failed to complete appointment');
     }
@@ -719,6 +720,9 @@ Please confirm by replying "Yes" or "No"`;
         }
         
         toast.success('Appointment cancelled');
+        
+        // Auto-close the edit dialog
+        setShowEditDialog(false);
         
         // Show WhatsApp button for cancellation message
         const appointment = appointments?.find(apt => apt.id === appointmentId);
@@ -801,7 +805,13 @@ Please confirm by replying "Yes" or "No"`;
       isCalendarOpen: false
     });
     setBookedSlotsForNewAppointment([]);
+    
+    // Close the edit dialog first
+    setShowEditDialog(false);
+    
+    // Then open the new appointment dialog
     setShowNewAppointmentForClient(true);
+    
     // Check booked slots for tomorrow's date when dialog opens
     checkBookedSlotsForNewAppointment(tomorrow);
   };
