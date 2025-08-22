@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { useOptimizedRealtime } from '@/lib/optimized-realtime'
+import { useLightweightRealtime } from '@/lib/lightweight-realtime'
 
 const PerformanceMonitor: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<any>(null)
 
-  const { getConnectionStatus } = useOptimizedRealtime()
+  const { getStats } = useLightweightRealtime('default')
 
   useEffect(() => {
     // Only show in development mode
@@ -15,8 +15,8 @@ const PerformanceMonitor: React.FC = () => {
 
     const updateStatus = () => {
       try {
-        const status = getConnectionStatus()
-        setConnectionStatus(status)
+            const stats = getStats()
+    setConnectionStatus(stats)
       } catch (error) {
         console.warn('Failed to get connection status:', error)
       }

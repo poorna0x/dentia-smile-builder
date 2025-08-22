@@ -158,8 +158,8 @@ const Admin = () => {
   } = useOptimizedAppointments()
   const { settings, loading: settingsLoading } = useSettings();
 
-  // Realtime functionality
-  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
+      // Lightweight real-time simulation
+    const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   
   // PWA functionality
@@ -388,183 +388,67 @@ const Admin = () => {
   useEffect(() => {
     if (!clinic?.id) return;
 
-    console.log('🔌 Setting up admin realtime subscriptions for clinic:', clinic.id);
+    console.log('🔌 Setting up admin lightweight real-time simulation for clinic:', clinic.id);
 
-    // Direct Supabase realtime subscription for appointments
-    const appointmentChannel = supabase
-      .channel(`admin_appointments_${clinic.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'appointments',
-          filter: `clinic_id=eq.${clinic.id}`
-        },
-        (payload) => {
-          console.log('🎯 Admin realtime appointment change detected:', payload);
-          const { eventType, new: newRecord, old: oldRecord } = payload;
-          
-          // Show notification for new appointments
-          if (eventType === 'INSERT') {
-            console.log('🆕 New appointment detected in admin:', newRecord);
-            
-            // Show toast notification
-            toast.success(`🆕 New appointment: ${newRecord.name} - ${newRecord.date} at ${newRecord.time}`, {
-              duration: 5000,
-              action: {
-                label: 'View',
-                onClick: () => {
-                  // Scroll to the new appointment in the list
-                  const appointmentElement = document.getElementById(`appointment-${newRecord.id}`);
-                  if (appointmentElement) {
-                    appointmentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    appointmentElement.classList.add('bg-green-50', 'border-green-200');
-                    setTimeout(() => {
-                      appointmentElement.classList.remove('bg-green-50', 'border-green-200');
-                    }, 3000);
-                  }
-                }
-              }
-            });
-            
-            // Show web notification (works even when tab is not active)
-            if (notificationPermission === 'granted') {
-              showLocalNotification({
-                title: '🆕 New Appointment Booked!',
-                body: `${newRecord.name} - ${newRecord.date} at ${newRecord.time}`,
-                icon: '/logo.png',
-                data: {
-                  url: '/admin',
-                  appointment: newRecord
-                },
-                actions: [
-                  {
-                    action: 'view',
-                    title: 'View Details'
-                  },
-                  {
-                    action: 'call',
-                    title: 'Call Patient'
-                  }
-                ]
-              });
-            }
-          }
-          
-          // Show notification for status changes
-          if (eventType === 'UPDATE' && oldRecord?.status !== newRecord?.status) {
-            console.log('📝 Appointment status change detected:', { old: oldRecord?.status, new: newRecord?.status });
-            
-            // Show toast notification
-            toast.info(`📝 Appointment updated: ${newRecord.name} - Status changed to ${newRecord.status}`, {
-              duration: 4000
-            });
-            
-            // Show web notification for important status changes
-            if (notificationPermission === 'granted' && 
-                (newRecord.status === 'Cancelled' || newRecord.status === 'Completed')) {
-              showLocalNotification({
-                title: `📝 Appointment ${newRecord.status}`,
-                body: `${newRecord.name} - ${newRecord.date} at ${newRecord.time}`,
-                icon: '/logo.png',
-                data: {
-                  url: '/admin',
-                  appointment: newRecord
-                }
-              });
-            }
-          }
-          
-          // Show notification for cancellations
-          if (eventType === 'DELETE') {
-            console.log('❌ Appointment deletion detected:', oldRecord);
-            toast.warning(`❌ Appointment cancelled: ${oldRecord.name} - ${oldRecord.date} at ${oldRecord.time}`, {
-              duration: 4000
-            });
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Admin appointment realtime subscription status:', status);
-        setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 'disconnected');
-        
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Admin appointment realtime subscription active');
-          toast.success('🔗 Admin live updates connected', { duration: 2000 });
-        } else {
-          console.log('❌ Admin appointment realtime subscription failed');
-          toast.error('🔌 Admin live updates disconnected', { duration: 2000 });
-        }
-      });
+    const setupLightweightRealtime = async () => {
+      try {
+        const { useLightweightRealtime } = await import('@/lib/lightweight-realtime');
+        const { subscribeToAppointments, subscribeToSettings, subscribeToDisabledSlots } = useLightweightRealtime(clinic.id);
 
-    // Direct Supabase realtime subscription for settings
-    const settingsChannel = supabase
-      .channel(`admin_settings_${clinic.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'scheduling_settings',
-          filter: `clinic_id=eq.${clinic.id}`
-        },
-        (payload) => {
-          console.log('⚙️ Admin realtime settings change detected:', payload);
-          const { eventType, new: newRecord } = payload;
-          
-          if (eventType === 'UPDATE') {
-            toast.info('⚙️ Clinic settings updated', {
-              duration: 3000
-            });
-            // Refresh settings
-            window.location.reload();
+        // Subscribe to appointments with smart polling
+        const unsubscribeAppointments = await subscribeToAppointments((update) => {
+          console.log('🎯 Admin lightweight appointment update:', update.type);
+          if (update.type === 'UPDATED') {
+            // Refresh appointments data
+            refetchAppointments();
+            toast.info('📊 Appointments updated', { duration: 2000 });
           }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Admin settings realtime subscription status:', status);
-      });
+          setRealtimeStatus('connected');
+        });
 
-    // Direct Supabase realtime subscription for disabled slots
-    const disabledSlotsChannel = supabase
-      .channel(`admin_disabled_slots_${clinic.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'disabled_slots',
-          filter: `clinic_id=eq.${clinic.id}`
-        },
-        (payload) => {
-          console.log('🚫 Admin realtime disabled slots change detected:', payload);
-          const { eventType, new: newRecord, old: oldRecord } = payload;
-          
-          if (eventType === 'INSERT') {
-            toast.info(`🚫 Time slot disabled: ${newRecord.date} ${newRecord.start_time}-${newRecord.end_time}`, {
-              duration: 4000
-            });
+        // Subscribe to settings with longer intervals
+        const unsubscribeSettings = await subscribeToSettings((update) => {
+          console.log('⚙️ Admin lightweight settings update:', update.type);
+          if (update.type === 'UPDATED') {
+            // Refresh settings data
+            refetchSettings();
+            toast.info('⚙️ Clinic settings updated', { duration: 3000 });
           }
-          
-          if (eventType === 'DELETE') {
-            toast.success(`✅ Time slot re-enabled: ${oldRecord.date} ${oldRecord.start_time}-${oldRecord.end_time}`, {
-              duration: 4000
-            });
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Admin disabled slots realtime subscription status:', status);
-      });
+        });
 
-    return () => {
-      console.log('🧹 Cleaning up admin realtime subscriptions');
-      supabase.removeChannel(appointmentChannel);
-      supabase.removeChannel(settingsChannel);
-      supabase.removeChannel(disabledSlotsChannel);
+        // Subscribe to disabled slots
+        const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
+          console.log('🚫 Admin lightweight disabled slots update:', update.type);
+          if (update.type === 'UPDATED') {
+            // Refresh disabled slots data
+            refetchDisabledSlots();
+            toast.info('🚫 Disabled slots updated', { duration: 2000 });
+          }
+        });
+
+        setRealtimeStatus('connected');
+        console.log('✅ Admin lightweight real-time simulation active');
+        toast.success('🔗 Admin live updates connected (lightweight)', { duration: 2000 });
+
+        // Cleanup function
+        return () => {
+          console.log('🧹 Cleaning up admin lightweight real-time subscriptions');
+          unsubscribeAppointments();
+          unsubscribeSettings();
+          unsubscribeDisabledSlots();
+        };
+      } catch (error) {
+        console.error('❌ Failed to setup admin lightweight real-time:', error);
+        setRealtimeStatus('disconnected');
+        toast.error('🔌 Admin live updates disconnected', { duration: 2000 });
+      }
     };
-  }, [clinic?.id]);
+
+    const cleanup = setupLightweightRealtime();
+    return () => {
+      cleanup.then(unsubscribe => unsubscribe?.());
+    };
+  }, [clinic?.id, refetchAppointments, refetchSettings, refetchDisabledSlots]);
 
   // PWA install functions
   const handlePWAInstall = async () => {

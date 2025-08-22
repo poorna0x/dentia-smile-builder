@@ -260,103 +260,72 @@ const Appointment = () => {
     checkBookedSlots();
   }, [date, clinic?.id]);
 
-  // Enhanced realtime subscription for slot availability
+  // Lightweight real-time simulation for slot availability
   useEffect(() => {
     if (!clinic?.id) return;
 
-    console.log('🔌 Setting up realtime subscriptions for clinic:', clinic.id);
+    console.log('🔌 Setting up lightweight real-time simulation for clinic:', clinic.id);
 
-    // Set realtime status to connected when subscription is active
-    setRealtimeStatus('connected');
+    const setupLightweightRealtime = async () => {
+      try {
+        const { useLightweightRealtime } = await import('@/lib/lightweight-realtime');
+        const { subscribeToAppointments, subscribeToDisabledSlots } = useLightweightRealtime(clinic.id);
 
-    // Direct Supabase realtime subscription for appointments
-    const appointmentChannel = supabase
-      .channel(`appointments_realtime_${clinic.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'appointments',
-          filter: `clinic_id=eq.${clinic.id}`
-        },
-        (payload) => {
-          console.log('🎯 Realtime appointment change detected:', payload);
-          const { eventType, new: newRecord, old: oldRecord } = payload;
-          
-          // Only update if the change affects the current date
-          const currentDate = format(date, 'yyyy-MM-dd');
-          const changedDate = newRecord?.date || oldRecord?.date;
-          
-          console.log('📅 Date comparison:', { currentDate, changedDate, matches: changedDate === currentDate });
-          
-          if (changedDate === currentDate) {
-            if (eventType === 'INSERT') {
-              console.log('🆕 New appointment detected:', newRecord);
-            } else if (eventType === 'DELETE' && oldRecord?.status === 'Cancelled') {
-              console.log('✅ Cancelled appointment detected:', oldRecord);
-            }
+        // Subscribe to appointments with smart polling
+        const unsubscribeAppointments = await subscribeToAppointments((update) => {
+          console.log('🎯 Appointment lightweight update:', update.type);
+          if (update.type === 'UPDATED') {
+            // Check if any changes affect the current date
+            const currentDate = format(date, 'yyyy-MM-dd');
+            const hasRelevantChanges = update.data.some((appointment: any) => 
+              appointment.date === currentDate
+            );
             
-            // Refresh booked slots immediately
-            console.log('🔄 Refreshing booked slots...');
-            checkBookedSlots();
+            if (hasRelevantChanges) {
+              console.log('🔄 Refreshing booked slots due to appointment changes...');
+              checkBookedSlots();
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Appointment realtime subscription status:', status);
-        setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 'disconnected');
-        
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Appointment realtime subscription active');
-        } else {
-          console.log('❌ Appointment realtime subscription failed');
-        }
-      });
+          setRealtimeStatus('connected');
+        });
 
-    // Direct Supabase realtime subscription for disabled slots
-    const disabledSlotsChannel = supabase
-      .channel(`disabled_slots_realtime_${clinic.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'disabled_slots',
-          filter: `clinic_id=eq.${clinic.id}`
-        },
-        (payload) => {
-          console.log('🚫 Realtime disabled slots change detected:', payload);
-          const { eventType, new: newRecord, old: oldRecord } = payload;
-          
-          // Only update if the change affects the current date
-          const currentDate = format(date, 'yyyy-MM-dd');
-          const changedDate = newRecord?.date || oldRecord?.date;
-          
-          if (changedDate === currentDate) {
-            if (eventType === 'INSERT') {
-              console.log('🚫 Time slot disabled:', newRecord);
-            } else if (eventType === 'DELETE') {
-              console.log('✅ Time slot enabled:', oldRecord);
-            }
+        // Subscribe to disabled slots with date-specific polling
+        const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
+          console.log('🚫 Disabled slots lightweight update:', update.type);
+          if (update.type === 'UPDATED') {
+            // Check if any changes affect the current date
+            const currentDate = format(date, 'yyyy-MM-dd');
+            const hasRelevantChanges = update.data.some((slot: any) => 
+              slot.date === currentDate
+            );
             
-            // Refresh disabled slots immediately
-            setTimeout(() => {
+            if (hasRelevantChanges) {
+              console.log('🔄 Refreshing disabled slots due to changes...');
               loadDisabledSlots(date);
-            }, 500);
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Disabled slots realtime subscription status:', status);
-      });
+        }, format(date, 'yyyy-MM-dd'));
 
-    return () => {
-      console.log('🧹 Cleaning up realtime subscriptions');
-      supabase.removeChannel(appointmentChannel);
-      supabase.removeChannel(disabledSlotsChannel);
+        setRealtimeStatus('connected');
+        console.log('✅ Appointment lightweight real-time simulation active');
+
+        // Cleanup function
+        return () => {
+          console.log('🧹 Cleaning up appointment lightweight real-time subscriptions');
+          unsubscribeAppointments();
+          unsubscribeDisabledSlots();
+        };
+      } catch (error) {
+        console.error('❌ Failed to setup appointment lightweight real-time:', error);
+        setRealtimeStatus('disconnected');
+      }
     };
-  }, [clinic?.id, date]);
+
+    const cleanup = setupLightweightRealtime();
+    return () => {
+      cleanup.then(unsubscribe => unsubscribe?.());
+    };
+  }, [clinic?.id, date, checkBookedSlots, loadDisabledSlots]);
 
   // Phone number formatting function
   const formatPhoneNumber = (phoneNumber: string): string => {

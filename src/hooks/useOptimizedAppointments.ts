@@ -85,66 +85,37 @@ export const useOptimizedAppointments = () => {
     // Load initial data
     loadAppointments()
 
-    // Try to use optimized real-time, fallback to simple subscription
-    const setupRealtime = async () => {
+    // Use lightweight real-time simulation
+    const setupLightweightRealtime = async () => {
       try {
-        const { useOptimizedRealtime } = await import('@/lib/optimized-realtime')
-        const { subscribe } = useOptimizedRealtime()
+        const { useLightweightRealtime } = await import('@/lib/lightweight-realtime')
+        const { subscribeToAppointments } = useLightweightRealtime(clinic.id)
         
-        const unsubscribe = subscribe('appointments', (payload: any) => {
-          const { eventType, new: newRecord, old: oldRecord } = payload
+        const unsubscribe = await subscribeToAppointments((update: any) => {
+          console.log('📊 Appointments lightweight update:', update.type)
           
-          setAppointments(prev => {
-            switch (eventType) {
-              case 'INSERT':
-                return [newRecord, ...prev]
-              case 'UPDATE':
-                return prev.map(apt => apt.id === newRecord.id ? newRecord : apt)
-              case 'DELETE':
-                return prev.filter(apt => apt.id !== oldRecord.id)
-              default:
-                return prev
-            }
-          })
-        }, { debounceMs: 1000 })
+          if (update.type === 'UPDATED') {
+            // Refresh appointments data
+            loadAppointments()
+          }
+        })
 
         return unsubscribe
       } catch (error) {
-        console.warn('⚠️ Using fallback real-time subscription:', error)
+        console.warn('⚠️ Lightweight real-time not available, using polling fallback:', error)
         
-        // Fallback to simple real-time subscription
-        const channel = supabase
-          .channel('appointments_fallback')
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'appointments',
-            filter: `clinic_id=eq.${clinic.id}`
-          }, (payload) => {
-            const { eventType, new: newRecord, old: oldRecord } = payload
-            
-            setAppointments(prev => {
-              switch (eventType) {
-                case 'INSERT':
-                  return [newRecord, ...prev]
-                case 'UPDATE':
-                  return prev.map(apt => apt.id === newRecord.id ? newRecord : apt)
-                case 'DELETE':
-                  return prev.filter(apt => apt.id !== oldRecord.id)
-                default:
-                  return prev
-              }
-            })
-          })
-          .subscribe()
+        // Simple polling fallback
+        const interval = setInterval(() => {
+          loadAppointments()
+        }, 30000) // Poll every 30 seconds
 
         return () => {
-          supabase.removeChannel(channel)
+          clearInterval(interval)
         }
       }
     }
 
-    const unsubscribe = setupRealtime()
+    const unsubscribe = setupLightweightRealtime()
     
     return () => {
       unsubscribe.then(unsub => unsub?.())

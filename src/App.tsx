@@ -79,31 +79,32 @@ class ErrorBoundary extends Component<
 function App() {
   console.log('🎯 App component rendering with optimized real-time...')
   
-  // Initialize optimized real-time system
+  // Initialize lightweight real-time simulation system
   useEffect(() => {
-    const initializeRealtime = async () => {
+    const initializeLightweight = async () => {
       try {
-        console.log('📡 Initializing optimized real-time system...')
-        const { initializeRealtime } = await import('./lib/optimized-realtime')
-        initializeRealtime(supabase)
-        console.log('✅ Optimized real-time system initialized successfully')
+        console.log('📡 Initializing lightweight real-time simulation...')
+        const { initializeLightweightRealtime } = await import('./lib/lightweight-realtime')
+        // Initialize with default clinic ID - will be updated when clinic context loads
+        initializeLightweightRealtime(supabase, 'default')
+        console.log('✅ Lightweight real-time simulation initialized successfully')
       } catch (error) {
-        console.warn('⚠️ Failed to initialize optimized real-time, using fallback:', error)
-        // Continue without optimized real-time - app will still work
+        console.warn('⚠️ Failed to initialize lightweight real-time, using fallback:', error)
+        // Continue without lightweight real-time - app will still work
       }
     }
 
-    initializeRealtime()
+    initializeLightweight()
 
     // Cleanup on unmount
     return () => {
       const cleanup = async () => {
         try {
-          const { cleanupRealtime } = await import('./lib/optimized-realtime')
-          cleanupRealtime()
-          console.log('✅ Real-time cleanup completed')
+          const { cleanupLightweightRealtime } = await import('./lib/lightweight-realtime')
+          cleanupLightweightRealtime()
+          console.log('✅ Lightweight real-time cleanup completed')
         } catch (error) {
-          console.warn('⚠️ Failed to cleanup real-time:', error)
+          console.warn('⚠️ Failed to cleanup lightweight real-time:', error)
         }
       }
       cleanup()
