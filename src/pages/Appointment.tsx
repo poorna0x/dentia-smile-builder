@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navigation from '@/components/Navigation';
+// import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -663,7 +663,6 @@ const Appointment = () => {
   if (clinicLoading) {
     return (
       <div className="min-h-screen">
-        <Navigation />
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -678,7 +677,6 @@ const Appointment = () => {
   if (clinicLoading || settingsLoading) {
     return (
       <div className="min-h-screen">
-        <Navigation />
         <main className="py-12 lg:py-20">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -699,7 +697,6 @@ const Appointment = () => {
   if (clinicLoading || settingsLoading) {
     return (
       <div className="min-h-screen">
-        <Navigation />
         <main className="py-12 lg:py-20">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -720,7 +717,6 @@ const Appointment = () => {
   if (clinicError) {
     return (
       <div className="min-h-screen">
-        <Navigation />
         <main className="py-12 lg:py-20">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -738,7 +734,6 @@ const Appointment = () => {
   if (!clinic && !clinicLoading) {
     return (
       <div className="min-h-screen">
-        <Navigation />
         <main className="py-12 lg:py-20">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -756,7 +751,6 @@ const Appointment = () => {
   
   return (
     <div className="min-h-screen">
-      <Navigation />
 
       <main className="py-12 lg:py-20">
         <div className="container mx-auto px-4">

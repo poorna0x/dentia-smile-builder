@@ -179,7 +179,10 @@ This email was sent to ${data.email}
           .label { font-weight: bold; color: #64748b; }
           .value { color: #1e293b; }
           .contact-links { margin-top: 20px; }
-          .contact-link { display: inline-block; margin: 5px 10px 5px 0; padding: 8px 15px; background: #059669; color: white; text-decoration: none; border-radius: 5px; font-size: 14px; }
+          .contact-link { display: block; margin: 8px 0; padding: 12px 20px; background: #059669; color: white; text-decoration: none; border-radius: 5px; font-size: 14px; text-align: center; }
+          @media (max-width: 480px) {
+            .contact-link { margin: 10px 0; padding: 15px 20px; font-size: 16px; }
+          }
         </style>
       </head>
       <body>
