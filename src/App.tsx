@@ -94,7 +94,8 @@ function App() {
       }
     }
 
-    initializeLightweight()
+    // Temporarily disable lightweight real-time to test navigation
+    // initializeLightweight()
 
     // Cleanup on unmount
     return () => {
@@ -107,7 +108,7 @@ function App() {
           console.warn('⚠️ Failed to cleanup lightweight real-time:', error)
         }
       }
-      cleanup()
+      // cleanup()
     }
   }, [])
   

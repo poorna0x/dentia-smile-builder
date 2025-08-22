@@ -7,21 +7,24 @@ export const usePWA = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [updateAvailable, setUpdateAvailable] = useState(false)
 
-  // Register service worker
-  const updateSW = registerSW({
-    onNeedRefresh() {
-      setUpdateAvailable(true)
-    },
-    onOfflineReady() {
-      console.log('App is ready for offline use')
-    },
-    onRegistered(swRegistration) {
-      console.log('Service Worker registered:', swRegistration)
-    },
-    onRegisterError(error) {
-      console.error('Service Worker registration error:', error)
-    },
-  })
+  // Register service worker (temporarily disabled to test navigation)
+  const updateSW = () => {
+    console.log('Service Worker registration disabled for testing')
+  }
+  // const updateSW = registerSW({
+  //   onNeedRefresh() {
+  //     setUpdateAvailable(true)
+  //   },
+  //   onOfflineReady() {
+  //     console.log('App is ready for offline use')
+  //   },
+  //   onRegistered(swRegistration) {
+  //     console.log('Service Worker registered:', swRegistration)
+  //   },
+  //   onRegisterError(error) {
+  //     console.error('Service Worker registration error:', error)
+  //   },
+  // })
 
   // Check if app is installed
   useEffect(() => {

@@ -111,9 +111,17 @@ const Admin = () => {
     time: ''
   });
   const [newAppointmentForClient, setNewAppointmentForClient] = useState({
-    date: new Date(),
+    date: (() => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    })(),
     time: '',
-    selectedDate: new Date(),
+    selectedDate: (() => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    })(),
     isCalendarOpen: false
   });
   const [bookedSlotsForNewAppointment, setBookedSlotsForNewAppointment] = useState<string[]>([]);
@@ -124,9 +132,17 @@ const Admin = () => {
     name: '',
     phone: '',
     email: '',
-    date: new Date(),
+    date: (() => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    })(),
     time: '',
-    selectedDate: new Date(),
+    selectedDate: (() => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    })(),
     isCalendarOpen: false
   });
   const [bookedSlotsForGeneral, setBookedSlotsForGeneral] = useState<string[]>([]);
@@ -216,32 +232,12 @@ const Admin = () => {
     
     setupNotifications();
     
-    // Setup PWA functionality
+    // Setup PWA functionality (temporarily disabled)
     const setupPWA = () => {
-      // Check if device is mobile
-      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const android = /Android/i.test(navigator.userAgent);
-      
-      setIsMobile(mobile);
-      setIsIOS(ios);
-      
-      // Check if PWA is already installed
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      const isIOSInstalled = ios && (window.navigator as any).standalone;
-      const isAndroidInstalled = android && window.matchMedia('(display-mode: standalone)').matches;
-      
-      setIsPWAInstalled(isStandalone || isIOSInstalled || isAndroidInstalled);
-      
-      console.log('📱 Mobile PWA Setup:', {
-        mobile,
-        ios,
-        android,
-        isStandalone,
-        isIOSInstalled,
-        isAndroidInstalled,
-        isPWAInstalled: isStandalone || isIOSInstalled || isAndroidInstalled
-      });
+      // Temporarily disabled to test navigation
+      setIsMobile(false);
+      setIsIOS(false);
+      setIsPWAInstalled(false);
     };
     
     setupPWA();
@@ -282,14 +278,9 @@ const Admin = () => {
           });
         } else {
           console.log('⚠️ No service worker registrations found');
-          // Try to register service worker manually
+          // Try to register service worker manually (temporarily disabled)
           if (import.meta.env.DEV) {
-            console.log('🔄 Attempting to register service worker manually...');
-            navigator.serviceWorker.register('/sw.js').then(registration => {
-              console.log('✅ Service Worker registered manually:', registration);
-            }).catch(error => {
-              console.log('❌ Failed to register service worker manually:', error);
-            });
+            console.log('🔄 Service worker registration temporarily disabled for testing');
           }
         }
       });
@@ -434,10 +425,11 @@ const Admin = () => {
       }
     };
 
-    const cleanup = setupLightweightRealtime();
-    return () => {
-      cleanup.then(unsubscribe => unsubscribe?.());
-    };
+    // Temporarily disable lightweight real-time to test navigation
+    // const cleanup = setupLightweightRealtime();
+    // return () => {
+    //   cleanup.then(unsubscribe => unsubscribe?.());
+    // };
   }, [clinic?.id, refreshAppointments, refreshSettings]);
 
   // PWA install functions
@@ -482,52 +474,10 @@ const Admin = () => {
     }
   };
 
-  // Check if PWA can be installed
-  const canInstallPWA = () => {
-    // Check if it's a supported browser
-    const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent);
-    const isEdge = /Edge/.test(navigator.userAgent);
-    const isFirefox = /Firefox/.test(navigator.userAgent);
-    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-    
-    // Check if service worker is supported and available
-    const hasServiceWorker = 'serviceWorker' in navigator;
-    
-    // Check if it's HTTPS or localhost (required for PWA)
-    const isSecure = window.location.protocol === 'https:' || 
-                    window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' ||
-                    window.location.hostname.includes('localhost');
-    
-    // Check if it's not already installed
-    const isNotInstalled = !isPWAInstalled;
-    
-    // For development, be more lenient with service worker check
-    const isDevelopment = import.meta.env.DEV;
-    
-    // Mobile-specific checks
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    // Always allow installation if basic requirements are met
-    const basicRequirements = (isChrome || isEdge || isFirefox || (isSafari && isIOS)) && isSecure && isNotInstalled;
-    
-    const result = isDevelopment ? basicRequirements : 
-                  isMobile ? basicRequirements : 
-                  basicRequirements && hasServiceWorker;
-    
-    // Debug logging
-    if (import.meta.env.DEV) {
-      console.log('🔍 canInstallPWA Debug:', {
-        isChrome, isEdge, isFirefox, isSafari,
-        hasServiceWorker, isSecure, isNotInstalled,
-        isDevelopment, isMobile, isIOS,
-        basicRequirements, result
-      });
-    }
-    
-    return result;
-  };
+      // Check if PWA can be installed (temporarily disabled)
+    const canInstallPWA = () => {
+      return false; // Temporarily disabled to test navigation
+    };
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -842,17 +792,18 @@ Please confirm by replying "Yes" or "No"`;
 
 
   const handleNewAppointmentForClient = (appointment: Appointment) => {
-    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
     setNewAppointmentForClient({
-      date: today,
+      date: tomorrow,
       time: '',
-      selectedDate: today,
+      selectedDate: tomorrow,
       isCalendarOpen: false
     });
     setBookedSlotsForNewAppointment([]);
     setShowNewAppointmentForClient(true);
-    // Check booked slots for today's date when dialog opens
-    checkBookedSlotsForNewAppointment(today);
+    // Check booked slots for tomorrow's date when dialog opens
+    checkBookedSlotsForNewAppointment(tomorrow);
   };
 
   const checkBookedSlotsForNewAppointment = async (date: Date) => {
@@ -1138,9 +1089,17 @@ Please confirm by replying "Yes" or "No"`;
         name: '',
         phone: '',
         email: '',
-        date: new Date(),
+        date: (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow;
+        })(),
         time: '',
-        selectedDate: new Date(),
+        selectedDate: (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow;
+        })(),
         isCalendarOpen: false
       });
     } catch (error) {
@@ -2606,15 +2565,9 @@ Please confirm by replying "Yes" or "No"`;
                                   console.log('Can install:', canInstallPWA());
                                   console.log('Mobile:', isMobile, 'iOS:', isIOS);
                                   
-                                  // Try to manually register service worker
+                                  // Try to manually register service worker (temporarily disabled)
                                   if ('serviceWorker' in navigator) {
-                                    navigator.serviceWorker.register('/sw.js').then(registration => {
-                                      console.log('✅ Service Worker registered manually:', registration);
-                                      toast.success('Service Worker registered!');
-                                    }).catch(error => {
-                                      console.log('❌ Failed to register service worker:', error);
-                                      toast.error('Service Worker registration failed');
-                                    });
+                                    console.log('🔄 Service worker registration temporarily disabled for testing');
                                   }
                                 }}
                                 className="text-xs"

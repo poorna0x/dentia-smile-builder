@@ -325,7 +325,7 @@ const Appointment = () => {
     return () => {
       cleanup.then(unsubscribe => unsubscribe?.());
     };
-  }, [clinic?.id, date, checkBookedSlots, loadDisabledSlots]);
+  }, [clinic?.id, date, checkBookedSlots]);
 
   // Phone number formatting function
   const formatPhoneNumber = (phoneNumber: string): string => {

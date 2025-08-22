@@ -107,17 +107,8 @@ self.addEventListener('sync', (event) => {
   }
 });
 
-// Fetch event - serve cached content when offline and redirect to admin
+// Fetch event - serve cached content when offline (redirect disabled)
 self.addEventListener('fetch', (event) => {
-  // Redirect root URL to admin page for PWA
-  if (event.request.url.endsWith('/') || event.request.url.endsWith('/index.html')) {
-    const adminUrl = new URL('/admin', event.request.url);
-    event.respondWith(
-      Response.redirect(adminUrl, 302)
-    );
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request)
       .then((response) => {

@@ -269,21 +269,23 @@ export const checkSecurityStatus = (): SecurityStatus => {
     }
   }
   
-  // Only check appointment spam if we're on the appointment page
-  // For admin login, we only care about failed login attempts
-  const isOnAppointmentPage = window.location.pathname.includes('/appointment');
-  if (isOnAppointmentPage) {
+  // Only check appointment spam for admin login protection
+  // Normal appointment booking doesn't require captcha
+  const isOnAdminPage = window.location.pathname.includes('/admin');
+  if (isOnAdminPage) {
     const appointmentCounts = getAppointmentAttemptCounts();
-    if (appointmentCounts.ipCount > SECURITY_CONFIG.MAX_APPOINTMENTS_PER_IP ||
-        appointmentCounts.emailCount > SECURITY_CONFIG.MAX_APPOINTMENTS_PER_EMAIL ||
-        appointmentCounts.phoneCount > SECURITY_CONFIG.MAX_APPOINTMENTS_PER_PHONE) {
+    
+    // Only require captcha for admin pages if there are suspicious attempts
+    if (appointmentCounts.ipCount > SECURITY_CONFIG.MAX_APPOINTMENTS_PER_IP * 3 ||
+        appointmentCounts.emailCount > SECURITY_CONFIG.MAX_APPOINTMENTS_PER_EMAIL * 3 ||
+        appointmentCounts.phoneCount > SECURITY_CONFIG.MAX_APPOINTMENTS_PER_PHONE * 3) {
       return {
         requiresCaptcha: true,
-        reason: 'Suspicious appointment booking pattern detected. Please complete CAPTCHA.',
+        reason: 'Suspicious activity detected. Please complete CAPTCHA.',
         attemptsRemaining: Math.max(
-          SECURITY_CONFIG.MAX_APPOINTMENTS_PER_IP - appointmentCounts.ipCount,
-          SECURITY_CONFIG.MAX_APPOINTMENTS_PER_EMAIL - appointmentCounts.emailCount,
-          SECURITY_CONFIG.MAX_APPOINTMENTS_PER_PHONE - appointmentCounts.phoneCount
+          SECURITY_CONFIG.MAX_APPOINTMENTS_PER_IP * 3 - appointmentCounts.ipCount,
+          SECURITY_CONFIG.MAX_APPOINTMENTS_PER_EMAIL * 3 - appointmentCounts.emailCount,
+          SECURITY_CONFIG.MAX_APPOINTMENTS_PER_PHONE * 3 - appointmentCounts.phoneCount
         )
       };
     }
