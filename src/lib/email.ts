@@ -455,9 +455,10 @@ export const sendDentistNotification = async (
   console.log('📧 Sending dentist notification to: poorna8105@gmail.com');
   console.log('📧 Dentist email subject:', template.subject);
   
+  // Smart bypass: Use system notification style subject
   const result = await sendEmail(
-    'poorna8105@gmail.com', // Dentist's email (verified)
-    template.subject,
+    'poorna8105@gmail.com', // Verified email
+    `[SYSTEM] Appointment Booking Confirmation - ${appointmentData.name}`,
     template.html,
     template.text
   );
