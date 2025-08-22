@@ -1643,27 +1643,37 @@ Please confirm by replying "Yes" or "No"`;
 
   // Show loading while data is being fetched
   if (isLoading || clinicLoading || appointmentsLoading || settingsLoading) {
-  return (
-      <div className="min-h-screen bg-gray-50">
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         {/* Centered Logo Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="container mx-auto px-4 py-4">
+        <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-slate-200">
+          <div className="container mx-auto px-4 py-6">
             <div className="flex justify-center">
-              <img 
-                src="/src/assets/logo.png" 
-                alt="Dentia Smile Builder" 
-                className="h-12 w-auto"
-              />
+              <div className="text-center">
+                <img 
+                  src="/logo.png" 
+                  alt="Dentia Smile Builder" 
+                  className="h-16 w-auto mx-auto mb-2"
+                />
+                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  Dentia Smile Builder
+                </h1>
+                <p className="text-slate-600 text-sm md:text-base font-medium">
+                  Professional Dental Care Management
+                </p>
+              </div>
             </div>
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading admin dashboard...</p>
-            {clinicLoading && <p className="text-sm text-gray-500 mt-2">Loading clinic data...</p>}
-            {appointmentsLoading && <p className="text-sm text-gray-500 mt-2">Loading appointments...</p>}
-            {settingsLoading && <p className="text-sm text-gray-500 mt-2">Loading settings...</p>}
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
+            <p className="text-slate-700 text-lg font-medium mb-2">Loading admin dashboard...</p>
+            <div className="space-y-1">
+              {clinicLoading && <p className="text-sm text-slate-500">Loading clinic data...</p>}
+              {appointmentsLoading && <p className="text-sm text-slate-500">Loading appointments...</p>}
+              {settingsLoading && <p className="text-sm text-slate-500">Loading settings...</p>}
+            </div>
           </div>
         </div>
       </div>
