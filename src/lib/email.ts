@@ -408,7 +408,7 @@ export const sendEmail = async (
           text,
           type: 'appointment',
           from: 'Jeshna Dental Clinic <appointments@resend.dev>',
-          replyTo: 'poorna8105@gmail.com'
+          replyTo: 'poorna.shetty@outlook.com'
         }),
       });
 
@@ -452,12 +452,12 @@ export const sendDentistNotification = async (
 ): Promise<boolean> => {
   const template = emailTemplates.dentistNotification(appointmentData);
   
-  console.log('📧 Sending dentist notification to: poorna8105@gmail.com');
+  console.log('📧 Sending dentist notification to: poorna.shetty@outlook.com');
   console.log('📧 Dentist email subject:', template.subject);
   
   // Smart bypass: Use system notification style subject
   const result = await sendEmail(
-    'poorna8105@gmail.com', // Verified email
+    'poorna.shetty@outlook.com', // Dentist's Outlook email
     `[SYSTEM] Appointment Booking Confirmation - ${appointmentData.name}`,
     template.html,
     template.text

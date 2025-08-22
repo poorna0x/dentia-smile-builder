@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
           const { data, error } = await resend.emails.send({
         from: 'Jeshna Dental Clinic <appointments@resend.dev>',
         to: [to],
-        reply_to: 'poorna8105@gmail.com',
+        reply_to: 'poorna.shetty@outlook.com',
         subject: subject,
         html: html,
         text: text,
