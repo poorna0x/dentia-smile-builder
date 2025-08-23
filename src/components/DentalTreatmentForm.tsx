@@ -39,7 +39,6 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
     treatment_description: '',
     treatment_status: 'Planned' as const,
     treatment_date: '',
-    cost: '',
     notes: ''
   })
   const [loading, setLoading] = useState(false)
@@ -64,7 +63,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         treatment_description: initialData.treatment_description || '',
         treatment_status: initialData.treatment_status || 'Planned',
         treatment_date: initialData.treatment_date || '',
-        cost: initialData.cost?.toString() || '',
+
         notes: initialData.notes || ''
       })
     }
@@ -85,7 +84,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         treatment_description: formData.treatment_description || undefined,
         treatment_status: formData.treatment_status,
         treatment_date: formData.treatment_date || undefined,
-        cost: formData.cost ? parseFloat(formData.cost) : undefined,
+
         notes: formData.notes || undefined,
         created_by: 'Doctor' // TODO: Get from auth context
       }
@@ -222,23 +221,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
             </div>
           </div>
 
-          {/* Cost */}
-          <div className="space-y-2">
-            <Label htmlFor="cost">Cost</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                id="cost"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.cost}
-                onChange={(e) => handleInputChange('cost', e.target.value)}
-                placeholder="0.00"
-                className="pl-10"
-              />
-            </div>
-          </div>
+
 
           {/* Notes */}
           <div className="space-y-2">

@@ -24,6 +24,7 @@ import {
   dentalTreatmentApi,
   toothConditionApi
 } from '@/lib/dental-treatments'
+import DentalTreatmentForm from './DentalTreatmentForm'
 
 interface ToothChartProps {
   patientId: string
@@ -54,6 +55,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [showConditionDialog, setShowConditionDialog] = useState(false)
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false)
   const [showAddConditionDialog, setShowAddConditionDialog] = useState(false)
+  const [showEditTreatmentDialog, setShowEditTreatmentDialog] = useState(false)
+  const [editingTreatment, setEditingTreatment] = useState<DentalTreatment | null>(null)
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -240,6 +243,20 @@ const ToothChart: React.FC<ToothChartProps> = ({
     } catch (error) {
       console.error('Error adding condition:', error)
     }
+  }
+
+  // Handle edit treatment
+  const handleEditTreatment = (treatment: DentalTreatment) => {
+    setEditingTreatment(treatment)
+    setShowEditTreatmentDialog(true)
+  }
+
+  // Handle treatment updated
+  const handleTreatmentUpdated = async () => {
+    setShowEditTreatmentDialog(false)
+    setEditingTreatment(null)
+    await loadToothData()
+    onTreatmentAdded?.()
   }
 
   if (loading) {
@@ -467,7 +484,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
         {/* Tooth Details Dialog */}
         {selectedTooth && (
           <Dialog open={showTreatmentDialog} onOpenChange={setShowTreatmentDialog}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[60vw] h-[80vh] sm:h-[75vh] rounded-2xl border-2">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Circle className="h-5 w-5" />
@@ -475,14 +492,14 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 </DialogTitle>
               </DialogHeader>
 
-              <Tabs defaultValue="treatments" className="w-full">
+              <Tabs defaultValue="treatments" className="w-full h-full flex flex-col">
                 <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
                   <TabsTrigger value="treatments">Treatments</TabsTrigger>
                   <TabsTrigger value="condition">Condition</TabsTrigger>
                   <TabsTrigger value="details">Details</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="treatments" className="space-y-4">
+                <TabsContent value="treatments" className="space-y-4 flex-1 min-h-0 overflow-y-auto min-h-[400px]">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 className="text-base sm:text-lg font-semibold">Treatment History</h3>
                     <Button size="sm" onClick={() => setShowAddTreatmentDialog(true)} className="w-full sm:w-auto">
@@ -492,34 +509,45 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   </div>
 
                   {selectedTooth.treatments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      No treatments recorded for this tooth
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-500 min-h-[300px]">
+                      <Circle className="h-12 w-12 text-gray-300 mb-4" />
+                      <p className="text-lg font-medium">No treatments recorded</p>
+                      <p className="text-sm">for this tooth</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {selectedTooth.treatments.map((treatment) => (
                         <Card key={treatment.id}>
                           <CardContent className="p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-semibold">{treatment.treatment_type}</h4>
-                                <p className="text-sm text-gray-600">{treatment.treatment_description}</p>
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-sm sm:text-base">{treatment.treatment_type}</h4>
+                                {treatment.treatment_description && (
+                                  <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{treatment.treatment_description}</p>
+                                )}
                                 {treatment.treatment_date && (
-                                  <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                                    <Calendar className="h-3 w-3" />
+                                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 mt-2">
+                                    <Calendar className="h-3 w-3 flex-shrink-0" />
                                     {new Date(treatment.treatment_date).toLocaleDateString()}
                                   </div>
                                 )}
-                                {treatment.cost && (
-                                  <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                                    <DollarSign className="h-3 w-3" />
-                                    ${treatment.cost}
-                                  </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Badge className={`text-xs ${getTreatmentStatusColor(treatment.treatment_status)}`}>
+                                  {treatment.treatment_status}
+                                </Badge>
+                                {(treatment.treatment_status === 'In Progress' || treatment.treatment_status === 'Planned') && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditTreatment(treatment)}
+                                    className="h-6 w-6 p-0 flex-shrink-0"
+                                    title="Edit Treatment"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
                                 )}
                               </div>
-                              <Badge className={getTreatmentStatusColor(treatment.treatment_status)}>
-                                {treatment.treatment_status}
-                              </Badge>
                             </div>
                           </CardContent>
                         </Card>
@@ -528,7 +556,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   )}
                 </TabsContent>
 
-                <TabsContent value="condition" className="space-y-4">
+                <TabsContent value="condition" className="space-y-4 flex-1 min-h-0 overflow-y-auto min-h-[400px]">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Current Condition</h3>
                     <Button size="sm" onClick={() => setShowAddConditionDialog(true)}>
@@ -540,45 +568,99 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   {selectedTooth.condition ? (
                     <Card>
                       <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <div>
-                            <span className="font-semibold">Condition:</span> {selectedTooth.condition.condition_type}
-                          </div>
-                          <div>
-                            <span className="font-semibold">Severity:</span> {selectedTooth.condition.severity}
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <span className="font-semibold text-gray-600">Condition:</span>
+                              <p className="text-sm mt-1">{selectedTooth.condition.condition_type}</p>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-600">Severity:</span>
+                              <p className="text-sm mt-1">{selectedTooth.condition.severity}</p>
+                            </div>
                           </div>
                           {selectedTooth.condition.condition_description && (
                             <div>
-                              <span className="font-semibold">Description:</span> {selectedTooth.condition.condition_description}
+                              <span className="font-semibold text-gray-600">Description:</span>
+                              <p className="text-sm mt-1">{selectedTooth.condition.condition_description}</p>
                             </div>
                           )}
                           {selectedTooth.condition.notes && (
                             <div>
-                              <span className="font-semibold">Notes:</span> {selectedTooth.condition.notes}
+                              <span className="font-semibold text-gray-600">Notes:</span>
+                              <p className="text-sm mt-1">{selectedTooth.condition.notes}</p>
                             </div>
                           )}
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs sm:text-sm text-gray-500 pt-2 border-t">
                             Last updated: {new Date(selectedTooth.condition.last_updated).toLocaleDateString()}
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      No condition recorded for this tooth
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-500 min-h-[300px]">
+                      <Circle className="h-12 w-12 text-gray-300 mb-4" />
+                      <p className="text-lg font-medium">No condition recorded</p>
+                      <p className="text-sm">for this tooth</p>
                     </div>
                   )}
                 </TabsContent>
 
-                <TabsContent value="details" className="space-y-4">
+                <TabsContent value="details" className="space-y-4 flex-1 min-h-0 overflow-y-auto min-h-[400px]">
                   <h3 className="text-lg font-semibold">Tooth Information</h3>
-                  <div className="space-y-2">
-                    <div><span className="font-semibold">Number:</span> {selectedTooth.number}</div>
-                    <div><span className="font-semibold">Name:</span> {selectedTooth.name}</div>
-                    <div><span className="font-semibold">Position:</span> {selectedTooth.position}</div>
-                    <div><span className="font-semibold">Total Treatments:</span> {selectedTooth.treatments.length}</div>
-                    <div><span className="font-semibold">Current Condition:</span> {selectedTooth.condition?.condition_type || 'Not recorded'}</div>
-                  </div>
+                  <Card className="flex-1">
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-gray-600">Number:</span>
+                              <span className="font-medium">{selectedTooth.number}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-gray-600">Position:</span>
+                              <span className="font-medium">{selectedTooth.position}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-gray-600">Total Treatments:</span>
+                              <span className="font-medium">{selectedTooth.treatments.length}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-gray-600">Name:</span>
+                              <span className="font-medium text-right">{selectedTooth.name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-gray-600">Current Condition:</span>
+                              <span className="font-medium text-right">{selectedTooth.condition?.condition_type || 'Not recorded'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Additional spacing to match other tabs */}
+                        <div className="pt-8">
+                          <div className="border-t border-gray-200 pt-4">
+                            <h4 className="font-medium text-gray-700 mb-3">Tooth Summary</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                <div className="text-lg font-bold text-blue-600">{selectedTooth.number}</div>
+                                <div className="text-xs text-gray-600">Tooth Number</div>
+                              </div>
+                              <div className="text-center p-3 bg-green-50 rounded-lg">
+                                <div className="text-lg font-bold text-green-600">{selectedTooth.treatments.length}</div>
+                                <div className="text-xs text-gray-600">Total Treatments</div>
+                              </div>
+                              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                                <div className="text-lg font-bold text-purple-600">{selectedTooth.condition ? 'Yes' : 'No'}</div>
+                                <div className="text-xs text-gray-600">Has Condition</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             </DialogContent>
@@ -825,6 +907,26 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 Update Condition
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Treatment Dialog */}
+        <Dialog open={showEditTreatmentDialog} onOpenChange={setShowEditTreatmentDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
+            <DialogHeader>
+              <DialogTitle>Edit Treatment - Tooth {selectedTooth?.number}</DialogTitle>
+            </DialogHeader>
+            
+            {editingTreatment && (
+              <DentalTreatmentForm
+                patientId={patientId}
+                clinicId={clinicId}
+                selectedTooth={selectedTooth?.number}
+                initialData={editingTreatment}
+                onSuccess={handleTreatmentUpdated}
+                onCancel={() => setShowEditTreatmentDialog(false)}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </CardContent>

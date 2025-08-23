@@ -6,14 +6,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useClinic } from '@/contexts/ClinicContext';
 import { patientApi, treatmentPlanApi, medicalRecordApi } from '@/lib/patient-management';
 import { dentalTreatmentApi, toothConditionApi, dentalNoteApi, toothChartUtils } from '@/lib/dental-treatments';
+import { labWorkApi } from '@/lib/lab-work';
 import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
+import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill } from 'lucide-react';
 
 interface Patient {
@@ -86,6 +88,8 @@ export default function AdminPatientManagement() {
   const [showMedicalRecordForm, setShowMedicalRecordForm] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [existingPatients, setExistingPatients] = useState<Patient[]>([]);
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
   const [nameSimilarity, setNameSimilarity] = useState(0);
@@ -139,6 +143,16 @@ export default function AdminPatientManagement() {
   const [toothConditions, setToothConditions] = useState<any[]>([]);
   const [dentalNotes, setDentalNotes] = useState<any[]>([]);
   const [loadingDentalData, setLoadingDentalData] = useState(false);
+  const [showEditTreatmentDialog, setShowEditTreatmentDialog] = useState(false);
+  const [editingTreatment, setEditingTreatment] = useState<any>(null);
+  
+  // Filter states
+  const [activeFilter, setActiveFilter] = useState<'all' | 'in-progress' | 'lab-orders'>('all');
+  const [patientsWithAppointments, setPatientsWithAppointments] = useState<{[key: string]: any[]}>({});
+  const [patientsWithLabOrders, setPatientsWithLabOrders] = useState<{[key: string]: any[]}>({});
+  
+  // Lab work form validation state
+  const [labWorkFormErrors, setLabWorkFormErrors] = useState<{[key: string]: string}>({});
   
   // Form validation states
   const [phoneError, setPhoneError] = useState('');
@@ -485,6 +499,38 @@ export default function AdminPatientManagement() {
     setShowPatientForm(true);
   };
 
+  // Delete patient function
+  const handleDeletePatient = async () => {
+    if (!clinic?.id || !patientToDelete) return;
+    
+    try {
+      await patientApi.delete(patientToDelete.id, clinic.id);
+      toast({
+        title: "Success",
+        description: "Patient deleted successfully"
+      });
+      setShowDeleteConfirmDialog(false);
+      setPatientToDelete(null);
+      setShowPatientForm(false);
+      setIsEditMode(false);
+      setEditingPatient(null);
+      
+      // Refresh the patient list
+      if (filteredPatients.length > 0) {
+        const updatedPatients = filteredPatients.filter(p => p.id !== patientToDelete.id);
+        setFilteredPatients(updatedPatients);
+        setDisplayedPatients(updatedPatients);
+      }
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete patient",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Update patient function
   const handleUpdatePatient = async () => {
     if (!clinic?.id || !editingPatient) return;
@@ -681,16 +727,12 @@ export default function AdminPatientManagement() {
     if (!clinic?.id) return;
     
     try {
-      const { data, error } = await supabase
-        .rpc('get_lab_work_orders', {
-          p_patient_id: patientId,
-          p_clinic_id: clinic.id
-        });
-      
-      if (error) throw error;
-      setLabWorkOrders(data || []);
+      const labWorkData = await labWorkApi.getByPatient(patientId, clinic.id);
+      setLabWorkOrders(labWorkData);
     } catch (error) {
       console.error('Error loading lab work data:', error);
+      // If lab work table doesn't exist yet, show empty array
+      setLabWorkOrders([]);
     }
   };
 
@@ -708,29 +750,15 @@ export default function AdminPatientManagement() {
 
   // Save status update
   const handleSaveStatusUpdate = async () => {
-    console.log('handleSaveStatusUpdate called');
-    console.log('selectedLabOrder:', selectedLabOrder);
-    console.log('clinic?.id:', clinic?.id);
-    console.log('statusUpdateForm:', statusUpdateForm);
-    
     if (!selectedLabOrder || !clinic?.id) {
-      console.log('Missing required data');
       return;
     }
     
     try {
-      console.log('Calling update_lab_work_status RPC...');
-      const { data, error } = await supabase
-        .rpc('update_lab_work_status', {
-          p_order_id: selectedLabOrder.id,
-          p_new_status: statusUpdateForm.new_status,
-          p_action_by: 'Admin',
-          p_notes: statusUpdateForm.notes
-        });
-      
-      console.log('RPC response - data:', data, 'error:', error);
-      
-      if (error) throw error;
+      await labWorkApi.update(selectedLabOrder.id, {
+        status: statusUpdateForm.new_status,
+        notes: statusUpdateForm.notes || undefined
+      });
       
       toast({
         title: "Status Updated",
@@ -749,26 +777,44 @@ export default function AdminPatientManagement() {
     }
   };
 
+  // Validate lab work form
+  const validateLabWorkForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    // Lab type is compulsory
+    if (!labWorkForm.lab_type.trim()) {
+      errors.lab_type = 'Lab type is required';
+    }
+    
+    setLabWorkFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Save lab work order
   const handleSaveLabWorkOrder = async () => {
     if (!selectedPatientHistory?.id || !clinic?.id) return;
     
+    // Validate form
+    if (!validateLabWorkForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors in the form",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      const { error } = await supabase
-        .rpc('create_lab_work_order', {
-          p_clinic_id: clinic.id,
-          p_patient_id: selectedPatientHistory.id,
-          p_lab_type: labWorkForm.lab_type,
-          p_test_name: labWorkForm.test_name,
-          p_description: labWorkForm.description || null,
-          p_expected_date: labWorkForm.expected_date || null,
-          p_ordered_by: 'Admin',
-          p_lab_facility: labWorkForm.lab_facility || null,
-          p_cost: labWorkForm.cost ? parseFloat(labWorkForm.cost) : null,
-          p_notes: labWorkForm.notes || null
-        });
-      
-      if (error) throw error;
+      await labWorkApi.create({
+        patient_id: selectedPatientHistory.id,
+        lab_name: labWorkForm.lab_facility || 'Dental Lab Pro',
+        work_type: labWorkForm.lab_type,
+        description: labWorkForm.description || undefined,
+        expected_completion_date: labWorkForm.expected_date || undefined,
+        cost: labWorkForm.cost ? parseFloat(labWorkForm.cost) : undefined,
+        notes: labWorkForm.notes || undefined,
+        created_by: 'Admin'
+      }, clinic.id);
       
       toast({
         title: "Lab Work Order Created",
@@ -785,6 +831,7 @@ export default function AdminPatientManagement() {
         cost: '',
         notes: ''
       });
+      setLabWorkFormErrors({});
       loadLabWorkData(selectedPatientHistory.id);
     } catch (error) {
       console.error('Error creating lab work order:', error);
@@ -1318,7 +1365,157 @@ export default function AdminPatientManagement() {
     setDataLoaded(false);
     setShowSearchResults(false);
     setSearchResults([]);
+    setActiveFilter('all');
   };
+
+  // Handle filter for in-progress treatments
+  const handleInProgressFilter = async () => {
+    setLoading(true);
+    setActiveFilter('in-progress');
+    try {
+      // Get patients with in-progress treatments
+      const { data: treatments } = await supabase
+        .from('dental_treatments')
+        .select(`
+          patient_id,
+          patients!inner(
+            id,
+            first_name,
+            last_name,
+            phone,
+            email,
+            date_of_birth,
+            allergies
+          )
+        `)
+        .eq('clinic_id', clinic!.id)
+        .eq('treatment_status', 'In Progress');
+
+      if (treatments && treatments.length > 0) {
+        const uniquePatients = treatments.map(t => t.patients).filter((patient, index, self) => 
+          index === self.findIndex(p => p.id === patient.id)
+        );
+        setFilteredPatients(uniquePatients);
+        setDisplayedPatients(uniquePatients);
+        setDataLoaded(true);
+        
+        toast({
+          title: "In Progress Patients",
+          description: `Showing ${uniquePatients.length} patients with active treatments`,
+        });
+      } else {
+        setFilteredPatients([]);
+        setDisplayedPatients([]);
+        setDataLoaded(true);
+        toast({
+          title: "No Active Patients",
+          description: "No patients with in-progress treatments found",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load in-progress patients",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle filter for lab orders
+  const handleLabOrdersFilter = async () => {
+    setLoading(true);
+    setActiveFilter('lab-orders');
+    try {
+      // Get patients with lab orders (we'll create this table later)
+      const { data: labOrders } = await supabase
+        .from('lab_work')
+        .select(`
+          patient_id,
+          patients!inner(
+            id,
+            first_name,
+            last_name,
+            phone,
+            email,
+            date_of_birth,
+            allergies
+          )
+        `)
+        .eq('clinic_id', clinic!.id)
+        .in('status', ['Ordered', 'In Progress', 'Quality Check']);
+
+      if (labOrders && labOrders.length > 0) {
+        const uniquePatients = labOrders.map(l => l.patients).filter((patient, index, self) => 
+          index === self.findIndex(p => p.id === patient.id)
+        );
+        setFilteredPatients(uniquePatients);
+        setDisplayedPatients(uniquePatients);
+        setDataLoaded(true);
+        
+        toast({
+          title: "Lab Orders Patients",
+          description: `Showing ${uniquePatients.length} patients with lab orders`,
+        });
+      } else {
+        setFilteredPatients([]);
+        setDisplayedPatients([]);
+        setDataLoaded(true);
+        toast({
+          title: "No Lab Orders",
+          description: "No patients with lab orders found",
+        });
+      }
+    } catch (error) {
+      // If lab_work table doesn't exist yet, show a message
+      setFilteredPatients([]);
+      setDisplayedPatients([]);
+      setDataLoaded(true);
+      toast({
+        title: "Lab Orders Feature",
+        description: "Lab orders functionality will be available soon",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load upcoming appointments for patients
+  const loadUpcomingAppointments = async (patientIds: string[]) => {
+    if (!clinic?.id || patientIds.length === 0) return;
+    
+    try {
+      const { data: appointments } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('clinic_id', clinic.id)
+        .in('patient_id', patientIds)
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date', { ascending: true });
+
+      if (appointments) {
+        const appointmentsByPatient: {[key: string]: any[]} = {};
+        appointments.forEach(appointment => {
+          if (!appointmentsByPatient[appointment.patient_id]) {
+            appointmentsByPatient[appointment.patient_id] = [];
+          }
+          appointmentsByPatient[appointment.patient_id].push(appointment);
+        });
+        setPatientsWithAppointments(appointmentsByPatient);
+      }
+    } catch (error) {
+      console.error('Error loading upcoming appointments:', error);
+    }
+  };
+
+  // Load appointments when patients are loaded
+  useEffect(() => {
+    if (filteredPatients.length > 0) {
+      const patientIds = filteredPatients.map(p => p.id);
+      loadUpcomingAppointments(patientIds);
+    }
+  }, [filteredPatients]);
 
   const handleShowAll = () => {
     setShowConfirmDialog(true);
@@ -1571,6 +1768,22 @@ export default function AdminPatientManagement() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Handle edit treatment
+  const handleEditTreatment = (treatment: any) => {
+    setEditingTreatment(treatment);
+    setShowEditTreatmentDialog(true);
+  };
+
+  // Handle treatment updated
+  const handleTreatmentUpdated = async () => {
+    setShowEditTreatmentDialog(false);
+    setEditingTreatment(null);
+    // Refresh dental treatments data
+    if (selectedPatientForDental) {
+      await loadDentalData(selectedPatientForDental.id);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
@@ -1738,6 +1951,32 @@ export default function AdminPatientManagement() {
                   className="flex items-center gap-2 w-full sm:w-auto"
                 >
                   Clear
+                </Button>
+                <Button 
+                  onClick={handleInProgressFilter}
+                  variant={activeFilter === 'in-progress' ? 'default' : 'outline'}
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  {loading && activeFilter === 'in-progress' ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Activity className="w-4 h-4" />
+                  )}
+                  In Progress
+                </Button>
+                <Button 
+                  onClick={handleLabOrdersFilter}
+                  variant={activeFilter === 'lab-orders' ? 'default' : 'outline'}
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  {loading && activeFilter === 'lab-orders' ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Stethoscope className="w-4 h-4" />
+                  )}
+                  Lab Orders
                 </Button>
 
 
@@ -1917,30 +2156,47 @@ export default function AdminPatientManagement() {
                     />
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 mt-6">
-                  <Button variant="outline" onClick={() => {
-                    setShowPatientForm(false);
-                    setIsEditMode(false);
-                    setEditingPatient(null);
-                    setPatientForm({
-                      first_name: '',
-                      last_name: '',
-                      email: '',
-                      phone: '',
-                      date_of_birth: '',
-                      gender: '',
-                      address: '',
-                      medical_history: { conditions: [], surgeries: [] },
-                      allergies: [],
-                      current_medications: [],
-                      notes: ''
-                    });
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button onClick={isEditMode ? handleUpdatePatient : handleAddPatient}>
-                    {isEditMode ? 'Update Patient' : 'Add Patient'}
-                  </Button>
+                <div className="flex justify-between items-center mt-6">
+                  <div>
+                    {isEditMode && (
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => {
+                          setPatientToDelete(editingPatient);
+                          setShowDeleteConfirmDialog(true);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete Patient
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => {
+                      setShowPatientForm(false);
+                      setIsEditMode(false);
+                      setEditingPatient(null);
+                      setPatientForm({
+                        first_name: '',
+                        last_name: '',
+                        email: '',
+                        phone: '',
+                        date_of_birth: '',
+                        gender: '',
+                        address: '',
+                        medical_history: { conditions: [], surgeries: [] },
+                        allergies: [],
+                        current_medications: [],
+                        notes: ''
+                      });
+                    }}>
+                      Cancel
+                    </Button>
+                    <Button onClick={isEditMode ? handleUpdatePatient : handleAddPatient}>
+                      {isEditMode ? 'Update Patient' : 'Add Patient'}
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -2095,6 +2351,36 @@ export default function AdminPatientManagement() {
                         <p>{patient.allergies?.length > 0 ? patient.allergies.join(', ') : 'None'}</p>
                       </div>
                     </div>
+                    
+                    {/* Upcoming Appointments */}
+                    {patientsWithAppointments[patient.id] && patientsWithAppointments[patient.id].length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium text-blue-600">Upcoming Appointments</span>
+                        </div>
+                        <div className="space-y-2">
+                          {patientsWithAppointments[patient.id].slice(0, 3).map((appointment: any) => (
+                            <div key={appointment.id} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span className="text-sm font-medium">
+                                  {new Date(appointment.date).toLocaleDateString()} at {appointment.time}
+                                </span>
+                              </div>
+                              <Badge className={getAppointmentStatusColor(appointment.status)}>
+                                {appointment.status}
+                              </Badge>
+                            </div>
+                          ))}
+                          {patientsWithAppointments[patient.id].length > 3 && (
+                            <div className="text-xs text-gray-500 text-center">
+                              +{patientsWithAppointments[patient.id].length - 3} more appointments
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Mobile: Show buttons at bottom */}
                     <div className="sm:hidden mt-6 pt-4 border-t border-gray-100">
@@ -2421,9 +2707,22 @@ export default function AdminPatientManagement() {
                                     {new Date(treatment.treatment_date).toLocaleDateString()}
                                   </p>
                                 </div>
-                                <Badge variant={treatment.treatment_status === 'Completed' ? 'default' : 'secondary'}>
-                                  {treatment.treatment_status}
-                                </Badge>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={treatment.treatment_status === 'Completed' ? 'default' : 'secondary'}>
+                                    {treatment.treatment_status}
+                                  </Badge>
+                                  {(treatment.treatment_status === 'In Progress' || treatment.treatment_status === 'Planned') && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEditTreatment(treatment)}
+                                      className="h-6 w-6 p-0"
+                                      title="Edit Treatment"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -2447,6 +2746,26 @@ export default function AdminPatientManagement() {
                   </Button>
                 </div>
               </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Treatment Dialog */}
+        <Dialog open={showEditTreatmentDialog} onOpenChange={setShowEditTreatmentDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
+            <DialogHeader>
+              <DialogTitle>Edit Treatment</DialogTitle>
+            </DialogHeader>
+            
+            {editingTreatment && (
+              <DentalTreatmentForm
+                patientId={selectedPatientForDental?.id || ''}
+                clinicId={clinic?.id || ''}
+                selectedTooth={editingTreatment.tooth_number}
+                initialData={editingTreatment}
+                onSuccess={handleTreatmentUpdated}
+                onCancel={() => setShowEditTreatmentDialog(false)}
+              />
             )}
           </DialogContent>
         </Dialog>
@@ -3122,30 +3441,30 @@ export default function AdminPatientManagement() {
         >
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <DialogTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
-                  </DialogTitle>
-                  <DialogDescription className="mt-2">
-                    Manage lab work orders and results for the patient
-                  </DialogDescription>
-                </div>
-                <div className="flex-shrink-0">
-                  <Button 
-                    size="sm" 
-                    onClick={() => setShowNewLabWorkForm(true)}
-                    className="flex items-center gap-2 whitespace-nowrap"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Lab Order
-                  </Button>
-                </div>
+              <div className="flex-1 min-w-0">
+                <DialogTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+                </DialogTitle>
+                <DialogDescription className="mt-2">
+                  Manage lab work orders and results for the patient
+                </DialogDescription>
               </div>
             </DialogHeader>
 
             <div className="space-y-6">
+              {/* New Order Button */}
+              <div className="flex justify-end">
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowNewLabWorkForm(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Order
+                </Button>
+              </div>
+              
               {/* Lab Work Orders */}
               {labWorkOrders.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -3249,12 +3568,21 @@ export default function AdminPatientManagement() {
             <div className="space-y-6">
               {/* Lab Type */}
               <div>
-                <Label htmlFor="lab_type">Lab Type</Label>
+                <Label htmlFor="lab_type" className="flex items-center gap-1">
+                  Lab Type
+                  <span className="text-red-500">*</span>
+                </Label>
                 <Select 
                   value={labWorkForm.lab_type} 
-                  onValueChange={(value) => setLabWorkForm({...labWorkForm, lab_type: value})}
+                  onValueChange={(value) => {
+                    setLabWorkForm({...labWorkForm, lab_type: value});
+                    // Clear error when user selects a value
+                    if (labWorkFormErrors.lab_type) {
+                      setLabWorkFormErrors({...labWorkFormErrors, lab_type: ''});
+                    }
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={labWorkFormErrors.lab_type ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select lab type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -3268,11 +3596,14 @@ export default function AdminPatientManagement() {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                {labWorkFormErrors.lab_type && (
+                  <p className="text-sm text-red-600 mt-1">{labWorkFormErrors.lab_type}</p>
+                )}
               </div>
 
               {/* Test Name */}
               <div>
-                <Label htmlFor="test_name">Test Name</Label>
+                <Label htmlFor="test_name">Test Name (Optional)</Label>
                 <Input
                   id="test_name"
                   value={labWorkForm.test_name}
@@ -3283,7 +3614,7 @@ export default function AdminPatientManagement() {
 
               {/* Description */}
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description (Optional)</Label>
                 <Textarea
                   id="description"
                   value={labWorkForm.description}
@@ -3295,7 +3626,7 @@ export default function AdminPatientManagement() {
 
               {/* Expected Date */}
               <div>
-                <Label htmlFor="expected_date">Expected Date</Label>
+                <Label htmlFor="expected_date">Expected Date (Optional)</Label>
                 <Input
                   id="expected_date"
                   type="date"
@@ -3306,7 +3637,7 @@ export default function AdminPatientManagement() {
 
               {/* Lab Facility */}
               <div>
-                <Label htmlFor="lab_facility">Lab Facility</Label>
+                <Label htmlFor="lab_facility">Lab Facility (Optional)</Label>
                 <Input
                   id="lab_facility"
                   value={labWorkForm.lab_facility}
@@ -3330,7 +3661,7 @@ export default function AdminPatientManagement() {
 
               {/* Notes */}
               <div>
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">Notes (Optional)</Label>
                 <Textarea
                   id="notes"
                   value={labWorkForm.notes}
@@ -3344,7 +3675,10 @@ export default function AdminPatientManagement() {
             <div className="flex gap-2 justify-end pt-4">
               <Button 
                 variant="outline" 
-                onClick={() => setShowNewLabWorkForm(false)}
+                onClick={() => {
+                  setShowNewLabWorkForm(false);
+                  setLabWorkFormErrors({});
+                }}
               >
                 Cancel
               </Button>
@@ -3433,6 +3767,54 @@ export default function AdminPatientManagement() {
                 disabled={!statusUpdateForm.new_status}
               >
                 Update Status
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Patient Confirmation Dialog */}
+        <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <Trash2 className="h-5 w-5" />
+                Delete Patient
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete <strong>{patientToDelete?.first_name} {patientToDelete?.last_name || ''}</strong>? This action cannot be undone and will permanently remove all patient data including:
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <ul className="text-sm text-red-700 space-y-1">
+                  <li>• Patient information</li>
+                  <li>• Medical history</li>
+                  <li>• Dental treatments</li>
+                  <li>• Lab work orders</li>
+                  <li>• Prescriptions</li>
+                  <li>• Appointments</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowDeleteConfirmDialog(false);
+                  setPatientToDelete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeletePatient}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Patient
               </Button>
             </div>
           </DialogContent>
