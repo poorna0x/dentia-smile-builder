@@ -96,6 +96,8 @@ export default function AdminPatientManagement() {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
   const [selectedPatientHistory, setSelectedPatientHistory] = useState<Patient | null>(null);
+  const [medicalHistoryDentalTreatments, setMedicalHistoryDentalTreatments] = useState<any[]>([]);
+  const [medicalHistoryAppointments, setMedicalHistoryAppointments] = useState<any[]>([]);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
 
@@ -565,8 +567,30 @@ export default function AdminPatientManagement() {
   const handleViewMedicalHistory = async (patient: Patient) => {
     setSelectedPatientHistory(patient);
     setShowMedicalHistory(true);
-    // Load all medical data for this patient
-    // This will include treatments, conditions, appointments, etc.
+    
+    // Load dental treatments for this patient
+    try {
+      const { data: dentalData } = await supabase
+        .from('dental_treatments')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .eq('clinic_id', clinic?.id)
+        .order('created_at', { ascending: false });
+      
+      setMedicalHistoryDentalTreatments(dentalData || []);
+      
+      // Load appointments for this patient
+      const { data: appointmentsData } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .eq('clinic_id', clinic?.id)
+        .order('date', { ascending: false });
+      
+      setMedicalHistoryAppointments(appointmentsData || []);
+    } catch (error) {
+      console.error('Error loading medical history data:', error);
+    }
   };
 
   // New appointment function - redirect to appointment page with pre-filled data
@@ -2228,11 +2252,42 @@ export default function AdminPatientManagement() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-center py-8 text-gray-500">
-                        <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p>Dental treatment history will be displayed here</p>
-                        <p className="text-sm">Connect to dental treatment system to view records</p>
-                      </div>
+                      {dentalTreatments.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>No dental treatments found</p>
+                          <p className="text-sm">Add dental treatments to see history</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {dentalTreatments.map((treatment) => (
+                            <div key={treatment.id} className="border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h3 className="font-semibold">{treatment.treatment_type}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    Tooth: {treatment.tooth_number} • {treatment.treatment_status}
+                                  </p>
+                                  {treatment.treatment_description && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      {treatment.treatment_description}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge className={getTreatmentStatusColor(treatment.treatment_status)}>
+                                  {treatment.treatment_status}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                <p>Date: {treatment.treatment_date ? formatDate(treatment.treatment_date) : 'Not specified'}</p>
+                                {treatment.notes && (
+                                  <p className="mt-2 text-gray-600">{treatment.notes}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
@@ -2246,11 +2301,35 @@ export default function AdminPatientManagement() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-center py-8 text-gray-500">
-                        <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p>Appointment history will be displayed here</p>
-                        <p className="text-sm">Connect to appointment system to view records</p>
-                      </div>
+                      {medicalHistoryAppointments.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>No appointments found</p>
+                          <p className="text-sm">Add appointments to see history</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {medicalHistoryAppointments.map((appointment) => (
+                            <div key={appointment.id} className="border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h3 className="font-semibold">{appointment.name}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    {formatDate(appointment.date)} at {appointment.time}
+                                  </p>
+                                </div>
+                                <Badge className={getAppointmentStatusColor(appointment.status)}>
+                                  {appointment.status}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                <p>Phone: {appointment.phone}</p>
+                                {appointment.email && <p>Email: {appointment.email}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
