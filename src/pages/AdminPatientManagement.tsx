@@ -145,6 +145,8 @@ export default function AdminPatientManagement() {
   const [loadingDentalData, setLoadingDentalData] = useState(false);
   const [showEditTreatmentDialog, setShowEditTreatmentDialog] = useState(false);
   const [editingTreatment, setEditingTreatment] = useState<any>(null);
+  const [showDeleteTreatmentConfirmDialog, setShowDeleteTreatmentConfirmDialog] = useState(false);
+  const [treatmentToDelete, setTreatmentToDelete] = useState<any>(null);
   
   // Filter states
   const [activeFilter, setActiveFilter] = useState<'all' | 'in-progress' | 'lab-orders'>('all');
@@ -1799,6 +1801,40 @@ export default function AdminPatientManagement() {
     }
   };
 
+  // Handle delete treatment
+  const handleDeleteTreatment = (treatment: any) => {
+    setTreatmentToDelete(treatment);
+    setShowDeleteTreatmentConfirmDialog(true);
+  };
+
+  // Confirm delete treatment
+  const confirmDeleteTreatment = async () => {
+    if (!treatmentToDelete) return;
+    
+    try {
+      await dentalTreatmentApi.delete(treatmentToDelete.id);
+      setShowDeleteTreatmentConfirmDialog(false);
+      setTreatmentToDelete(null);
+      
+      // Refresh dental treatments data
+      if (selectedPatientForDental) {
+        await handleOpenDentalChart(selectedPatientForDental);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Treatment deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting treatment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete treatment",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
@@ -2710,7 +2746,17 @@ export default function AdminPatientManagement() {
                         <p className="text-gray-500 text-center py-4">No treatments recorded</p>
                       ) : (
                         <div className="space-y-3">
-                          {dentalTreatments.slice(0, 5).map((treatment) => (
+                          {dentalTreatments
+                            .filter(treatment => treatment.treatment_date) // Only show treatments with dates
+                            .sort((a, b) => {
+                              // First sort by date (newest first)
+                              const dateComparison = new Date(b.treatment_date).getTime() - new Date(a.treatment_date).getTime();
+                              if (dateComparison !== 0) return dateComparison;
+                              // If dates are the same, sort by creation time (newest first)
+                              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                            })
+                            .slice(0, 5)
+                            .map((treatment) => (
                             <div key={treatment.id} className="border rounded p-3">
                               <div className="flex justify-between items-start">
                                 <div>
@@ -2721,20 +2767,9 @@ export default function AdminPatientManagement() {
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant={treatment.treatment_status === 'Completed' ? 'default' : 'secondary'}>
+                                  <Badge className={getTreatmentStatusColor(treatment.treatment_status)}>
                                     {treatment.treatment_status}
                                   </Badge>
-                                  {(treatment.treatment_status === 'In Progress' || treatment.treatment_status === 'Planned') && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleEditTreatment(treatment)}
-                                      className="h-6 w-6 p-0"
-                                      title="Edit Treatment"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </Button>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3828,6 +3863,53 @@ export default function AdminPatientManagement() {
               >
                 <Trash2 className="w-4 h-4" />
                 Delete Patient
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Treatment Confirmation Dialog */}
+        <Dialog open={showDeleteTreatmentConfirmDialog} onOpenChange={setShowDeleteTreatmentConfirmDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <Trash2 className="h-5 w-5" />
+                Delete Treatment
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this treatment? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {treatmentToDelete && (
+              <div className="space-y-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <p className="font-medium">{treatmentToDelete.treatment_type}</p>
+                  <p className="text-sm text-gray-600">Tooth {treatmentToDelete.tooth_number}</p>
+                  <p className="text-sm text-gray-500">
+                    {treatmentToDelete.treatment_date && new Date(treatmentToDelete.treatment_date).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowDeleteTreatmentConfirmDialog(false);
+                  setTreatmentToDelete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={confirmDeleteTreatment}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Treatment
               </Button>
             </div>
           </DialogContent>
