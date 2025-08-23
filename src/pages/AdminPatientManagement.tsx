@@ -98,6 +98,7 @@ export default function AdminPatientManagement() {
   const [selectedPatientHistory, setSelectedPatientHistory] = useState<Patient | null>(null);
   const [medicalHistoryDentalTreatments, setMedicalHistoryDentalTreatments] = useState<any[]>([]);
   const [medicalHistoryAppointments, setMedicalHistoryAppointments] = useState<any[]>([]);
+  const [medicalHistoryPrescriptions, setMedicalHistoryPrescriptions] = useState<any[]>([]);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
 
@@ -588,6 +589,24 @@ export default function AdminPatientManagement() {
         .order('date', { ascending: false });
       
       setMedicalHistoryAppointments(appointmentsData || []);
+      
+      // Load prescriptions for this patient
+      const { data: prescriptionsData } = await supabase
+        .from('prescriptions')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .eq('clinic_id', clinic?.id)
+        .order('created_at', { ascending: false });
+      
+      setMedicalHistoryPrescriptions(prescriptionsData || []);
+      
+      console.log('Medical History Data Loaded:', {
+        patientId: patient.id,
+        clinicId: clinic?.id,
+        dentalTreatments: dentalData?.length || 0,
+        appointments: appointmentsData?.length || 0,
+        prescriptions: prescriptionsData?.length || 0
+      });
     } catch (error) {
       console.error('Error loading medical history data:', error);
     }
@@ -2247,9 +2266,10 @@ export default function AdminPatientManagement() {
 
               {/* Tabs for different sections */}
               <Tabs defaultValue="dental" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="dental">Dental Treatments</TabsTrigger>
                   <TabsTrigger value="appointments">Appointments</TabsTrigger>
+                  <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
                   <TabsTrigger value="notes">Notes & Records</TabsTrigger>
                 </TabsList>
                 
@@ -2262,7 +2282,7 @@ export default function AdminPatientManagement() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {dentalTreatments.length === 0 ? (
+                      {medicalHistoryDentalTreatments.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                           <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                           <p>No dental treatments found</p>
@@ -2270,7 +2290,7 @@ export default function AdminPatientManagement() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {dentalTreatments.map((treatment) => (
+                          {medicalHistoryDentalTreatments.map((treatment) => (
                             <div key={treatment.id} className="border rounded-lg p-4">
                               <div className="flex justify-between items-start mb-2">
                                 <div>
@@ -2335,6 +2355,59 @@ export default function AdminPatientManagement() {
                               <div className="text-sm text-gray-500">
                                 <p>Phone: {appointment.phone}</p>
                                 {appointment.email && <p>Email: {appointment.email}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="prescriptions" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Pill className="h-5 w-5" />
+                        Prescription History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {medicalHistoryPrescriptions.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Pill className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>No prescriptions found</p>
+                          <p className="text-sm">Add prescriptions to see history</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {medicalHistoryPrescriptions.map((prescription) => (
+                            <div key={prescription.id} className="border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h3 className="font-semibold">{prescription.medication_name}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    {prescription.dosage && `Dosage: ${prescription.dosage} • `}
+                                    Frequency: {prescription.frequency} • Duration: {prescription.duration}
+                                  </p>
+                                  {prescription.instructions && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      Instructions: {prescription.instructions}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge className={prescription.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
+                                  {prescription.status}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                <p>Prescribed: {prescription.created_at ? formatDate(prescription.created_at) : 'Not specified'}</p>
+                                {prescription.pharmacy_notes && (
+                                  <p className="mt-2 text-gray-600">Pharmacy Notes: {prescription.pharmacy_notes}</p>
+                                )}
+                                {prescription.patient_notes && (
+                                  <p className="mt-2 text-gray-600">Patient Notes: {prescription.patient_notes}</p>
+                                )}
                               </div>
                             </div>
                           ))}
