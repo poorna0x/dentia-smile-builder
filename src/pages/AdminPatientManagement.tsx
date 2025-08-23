@@ -659,6 +659,8 @@ export default function AdminPatientManagement() {
     });
   };
 
+
+
   // Add prescription function
   const handleAddPrescription = (patient: Patient) => {
     setSelectedPatientForPrescription(patient);
@@ -1364,27 +1366,62 @@ export default function AdminPatientManagement() {
     }
   };
 
-  const handleAddMedicalRecord = async () => {
-    if (!clinic?.id) return;
+  const handleAddMedicalRecord = (patient: Patient) => {
+    setSelectedPatientHistory(patient);
+    setNewMedicalRecordForm({
+      record_type: 'consultation',
+      title: '',
+      description: '',
+      file_url: '',
+      record_date: new Date().toISOString().split('T')[0],
+      created_by: '',
+      notes: ''
+    });
+    setShowMedicalRecordDialog(true);
+  };
+
+  const handleSaveMedicalRecord = async () => {
+    if (!clinic?.id || !selectedPatientHistory?.id) return;
     
     try {
-      await medicalRecordApi.create(clinic.id, medicalRecordForm);
+      const { data, error } = await supabase
+        .from('medical_records')
+        .insert({
+          clinic_id: clinic.id,
+          patient_id: selectedPatientHistory.id,
+          record_type: newMedicalRecordForm.record_type,
+          title: newMedicalRecordForm.title,
+          description: newMedicalRecordForm.description,
+          file_url: newMedicalRecordForm.file_url || null,
+          record_date: newMedicalRecordForm.record_date,
+          created_by: newMedicalRecordForm.created_by,
+          notes: newMedicalRecordForm.notes
+        });
+
+      if (error) throw error;
+
       toast({
         title: "Success",
         description: "Medical record added successfully"
       });
-      setShowMedicalRecordForm(false);
-      setMedicalRecordForm({
-        patient_id: '',
-        record_type: '',
+      
+      setShowMedicalRecordDialog(false);
+      setNewMedicalRecordForm({
+        record_type: 'consultation',
         title: '',
         description: '',
         file_url: '',
-        record_date: '',
+        record_date: new Date().toISOString().split('T')[0],
         created_by: '',
         notes: ''
       });
+      
+      // Refresh medical history data
+      if (showMedicalHistory) {
+        handleViewMedicalHistory(selectedPatientHistory);
+      }
     } catch (error) {
+      console.error('Error adding medical record:', error);
       toast({
         title: "Error",
         description: "Failed to add medical record",
@@ -1835,6 +1872,16 @@ export default function AdminPatientManagement() {
                           >
                             <FileText className="w-4 h-4" />
                             <span className="text-sm font-medium">History</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddMedicalRecord(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-indigo-50 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300 text-indigo-700 hover:text-indigo-800 transition-all duration-200"
+                            title="Add Medical Record"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm font-medium">Records</span>
                           </Button>
                           <Button
                             size="sm"
@@ -2456,20 +2503,10 @@ export default function AdminPatientManagement() {
                 <TabsContent value="notes" className="space-y-4">
                   <Card>
                     <CardHeader>
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          Notes & Medical Records
-                        </CardTitle>
-                        <Button 
-                          size="sm" 
-                          onClick={() => setShowMedicalRecordDialog(true)}
-                          className="flex items-center gap-2"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Add Record
-                        </Button>
-                      </div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Notes & Medical Records
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       {/* Patient Notes from patient profile */}
