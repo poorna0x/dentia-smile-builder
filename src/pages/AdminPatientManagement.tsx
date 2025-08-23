@@ -696,26 +696,39 @@ export default function AdminPatientManagement() {
 
   // Handle status update
   const handleStatusUpdate = (order: any) => {
+    console.log('handleStatusUpdate called with order:', order);
     setSelectedLabOrder(order);
     setStatusUpdateForm({
       new_status: order.status,
       notes: ''
     });
     setShowStatusUpdateDialog(true);
+    console.log('Dialog should be opening now');
   };
 
   // Save status update
   const handleSaveStatusUpdate = async () => {
-    if (!selectedLabOrder || !clinic?.id) return;
+    console.log('handleSaveStatusUpdate called');
+    console.log('selectedLabOrder:', selectedLabOrder);
+    console.log('clinic?.id:', clinic?.id);
+    console.log('statusUpdateForm:', statusUpdateForm);
+    
+    if (!selectedLabOrder || !clinic?.id) {
+      console.log('Missing required data');
+      return;
+    }
     
     try {
-      const { error } = await supabase
+      console.log('Calling update_lab_work_status RPC...');
+      const { data, error } = await supabase
         .rpc('update_lab_work_status', {
           p_order_id: selectedLabOrder.id,
           p_new_status: statusUpdateForm.new_status,
           p_action_by: 'Admin',
           p_notes: statusUpdateForm.notes
         });
+      
+      console.log('RPC response - data:', data, 'error:', error);
       
       if (error) throw error;
       
@@ -731,6 +744,53 @@ export default function AdminPatientManagement() {
       toast({
         title: "Error",
         description: "Failed to update lab work status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Save lab work order
+  const handleSaveLabWorkOrder = async () => {
+    if (!selectedPatientHistory?.id || !clinic?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .rpc('create_lab_work_order', {
+          p_clinic_id: clinic.id,
+          p_patient_id: selectedPatientHistory.id,
+          p_lab_type: labWorkForm.lab_type,
+          p_test_name: labWorkForm.test_name,
+          p_description: labWorkForm.description || null,
+          p_expected_date: labWorkForm.expected_date || null,
+          p_ordered_by: 'Admin',
+          p_lab_facility: labWorkForm.lab_facility || null,
+          p_cost: labWorkForm.cost ? parseFloat(labWorkForm.cost) : null,
+          p_notes: labWorkForm.notes || null
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Lab Work Order Created",
+        description: "Lab work order has been created successfully.",
+      });
+      
+      setShowNewLabWorkForm(false);
+      setLabWorkForm({
+        lab_type: 'crown',
+        test_name: '',
+        description: '',
+        expected_date: '',
+        lab_facility: '',
+        cost: '',
+        notes: ''
+      });
+      loadLabWorkData(selectedPatientHistory.id);
+    } catch (error) {
+      console.error('Error creating lab work order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create lab work order.",
         variant: "destructive",
       });
     }
@@ -3062,8 +3122,8 @@ export default function AdminPatientManagement() {
         >
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
                   <DialogTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
                     Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
@@ -3072,11 +3132,11 @@ export default function AdminPatientManagement() {
                     Manage lab work orders and results for the patient
                   </DialogDescription>
                 </div>
-                <div className="ml-4">
+                <div className="flex-shrink-0">
                   <Button 
                     size="sm" 
                     onClick={() => setShowNewLabWorkForm(true)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4" />
                     New Lab Order
@@ -3127,7 +3187,7 @@ export default function AdminPatientManagement() {
                           </div>
                           <div>
                             <span className="font-medium">Cost:</span>
-                            <p>{order.cost ? `$${order.cost}` : 'Not specified'}</p>
+                            <p>{order.cost ? `₹${order.cost}` : 'Not specified'}</p>
                           </div>
                           <div className="md:col-span-2">
                             <span className="font-medium">Description:</span>
@@ -3143,14 +3203,13 @@ export default function AdminPatientManagement() {
                         
                         {/* Action Buttons */}
                         <div className="flex gap-2 mt-4 pt-4 border-t">
-                          <Button size="sm" variant="outline">
-                            <FileText className="w-4 h-4 mr-2" />
-                            View Results
-                          </Button>
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => handleStatusUpdate(order)}
+                            onClick={() => {
+                              console.log('Update Status button clicked for order:', order);
+                              handleStatusUpdate(order);
+                            }}
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Update Status
@@ -3258,14 +3317,14 @@ export default function AdminPatientManagement() {
 
               {/* Cost */}
               <div>
-                <Label htmlFor="cost">Cost (Optional)</Label>
+                <Label htmlFor="cost">Cost in INR (Optional)</Label>
                 <Input
                   id="cost"
                   type="number"
                   step="0.01"
                   value={labWorkForm.cost}
                   onChange={(e) => setLabWorkForm({...labWorkForm, cost: e.target.value})}
-                  placeholder="0.00"
+                  placeholder="₹0.00"
                 />
               </div>
 
@@ -3290,13 +3349,8 @@ export default function AdminPatientManagement() {
                 Cancel
               </Button>
               <Button 
-                onClick={() => {
-                  // TODO: Implement save lab work order
-                  toast({
-                    title: "Lab Work Order",
-                    description: "Lab work order creation coming soon!",
-                  });
-                }}
+                onClick={handleSaveLabWorkOrder}
+                disabled={!labWorkForm.lab_type}
               >
                 Create Lab Order
               </Button>

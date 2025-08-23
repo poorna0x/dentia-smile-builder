@@ -405,6 +405,9 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
                       {order.expected_date && (
                         <span>Expected: {new Date(order.expected_date).toLocaleDateString()}</span>
                       )}
+                      {order.cost && (
+                        <span>Cost: ₹{order.cost}</span>
+                      )}
                     </div>
                   </div>
                   <Badge className={`text-xs ${getLabWorkStatusColor(order.status)}`}>

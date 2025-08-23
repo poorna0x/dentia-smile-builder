@@ -63,10 +63,10 @@ DECLARE
     order_number VARCHAR(50);
 BEGIN
     -- Get the next number for this clinic
-    SELECT COALESCE(MAX(CAST(SUBSTRING(order_number FROM 'LAB-(\d+)') AS INTEGER)), 0) + 1
+    SELECT COALESCE(MAX(CAST(SUBSTRING(lwo.order_number FROM 'LAB-(\d+)') AS INTEGER)), 0) + 1
     INTO next_number
-    FROM lab_work_orders
-    WHERE clinic_id = p_clinic_id;
+    FROM lab_work_orders lwo
+    WHERE lwo.clinic_id = p_clinic_id;
     
     -- Format: LAB-YYYYMMDD-001
     order_number := 'LAB-' || TO_CHAR(CURRENT_DATE, 'YYYYMMDD') || '-' || LPAD(next_number::TEXT, 3, '0');
@@ -232,16 +232,16 @@ BEGIN
     FROM lab_work_orders
     WHERE id = p_order_id;
     
-    -- Validate status transition
+    -- Validate status transition (more flexible)
     CASE current_status
         WHEN 'Ordered' THEN
-            valid_transition := p_new_status IN ('In Progress', 'Cancelled', 'Delayed');
+            valid_transition := p_new_status IN ('In Progress', 'Quality Check', 'Ready for Pickup', 'Cancelled', 'Delayed');
         WHEN 'In Progress' THEN
-            valid_transition := p_new_status IN ('Quality Check', 'Cancelled', 'Delayed');
+            valid_transition := p_new_status IN ('Quality Check', 'Ready for Pickup', 'Cancelled', 'Delayed');
         WHEN 'Quality Check' THEN
             valid_transition := p_new_status IN ('Ready for Pickup', 'In Progress', 'Cancelled');
         WHEN 'Ready for Pickup' THEN
-            valid_transition := p_new_status IN ('Patient Notified', 'Quality Check', 'Cancelled');
+            valid_transition := p_new_status IN ('Patient Notified', 'Completed', 'Quality Check', 'Cancelled');
         WHEN 'Patient Notified' THEN
             valid_transition := p_new_status IN ('Completed', 'Ready for Pickup', 'Cancelled');
         WHEN 'Completed' THEN
@@ -365,42 +365,49 @@ ALTER TABLE lab_work_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lab_work_history ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for lab_work_orders
-CREATE POLICY IF NOT EXISTS "Users can view lab work orders for their clinic" ON lab_work_orders
+DROP POLICY IF EXISTS "Users can view lab work orders for their clinic" ON lab_work_orders;
+CREATE POLICY "Users can view lab work orders for their clinic" ON lab_work_orders
     FOR SELECT USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY IF NOT EXISTS "Users can insert lab work orders for their clinic" ON lab_work_orders
+DROP POLICY IF EXISTS "Users can insert lab work orders for their clinic" ON lab_work_orders;
+CREATE POLICY "Users can insert lab work orders for their clinic" ON lab_work_orders
     FOR INSERT WITH CHECK (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY IF NOT EXISTS "Users can update lab work orders for their clinic" ON lab_work_orders
+DROP POLICY IF EXISTS "Users can update lab work orders for their clinic" ON lab_work_orders;
+CREATE POLICY "Users can update lab work orders for their clinic" ON lab_work_orders
     FOR UPDATE USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY IF NOT EXISTS "Users can delete lab work orders for their clinic" ON lab_work_orders
+DROP POLICY IF EXISTS "Users can delete lab work orders for their clinic" ON lab_work_orders;
+CREATE POLICY "Users can delete lab work orders for their clinic" ON lab_work_orders
     FOR DELETE USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
 -- Create RLS policies for lab_work_results
-CREATE POLICY IF NOT EXISTS "Users can view lab work results for their clinic" ON lab_work_results
+DROP POLICY IF EXISTS "Users can view lab work results for their clinic" ON lab_work_results;
+CREATE POLICY "Users can view lab work results for their clinic" ON lab_work_results
     FOR SELECT USING (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
         )
     ));
 
-CREATE POLICY IF NOT EXISTS "Users can insert lab work results for their clinic" ON lab_work_results
+DROP POLICY IF EXISTS "Users can insert lab work results for their clinic" ON lab_work_results;
+CREATE POLICY "Users can insert lab work results for their clinic" ON lab_work_results
     FOR INSERT WITH CHECK (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
         )
     ));
 
-CREATE POLICY IF NOT EXISTS "Users can update lab work results for their clinic" ON lab_work_results
+DROP POLICY IF EXISTS "Users can update lab work results for their clinic" ON lab_work_results;
+CREATE POLICY "Users can update lab work results for their clinic" ON lab_work_results
     FOR UPDATE USING (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
@@ -408,14 +415,16 @@ CREATE POLICY IF NOT EXISTS "Users can update lab work results for their clinic"
     ));
 
 -- Create RLS policies for lab_work_history
-CREATE POLICY IF NOT EXISTS "Users can view lab work history for their clinic" ON lab_work_history
+DROP POLICY IF EXISTS "Users can view lab work history for their clinic" ON lab_work_history;
+CREATE POLICY "Users can view lab work history for their clinic" ON lab_work_history
     FOR SELECT USING (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
         )
     ));
 
-CREATE POLICY IF NOT EXISTS "Users can insert lab work history for their clinic" ON lab_work_history
+DROP POLICY IF EXISTS "Users can insert lab work history for their clinic" ON lab_work_history;
+CREATE POLICY "Users can insert lab work history for their clinic" ON lab_work_history
     FOR INSERT WITH CHECK (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
@@ -431,11 +440,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_lab_work_orders_updated_at ON lab_work_orders;
 CREATE TRIGGER trigger_update_lab_work_orders_updated_at
     BEFORE UPDATE ON lab_work_orders
     FOR EACH ROW
     EXECUTE FUNCTION update_lab_work_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_lab_work_results_updated_at ON lab_work_results;
 CREATE TRIGGER trigger_update_lab_work_results_updated_at
     BEFORE UPDATE ON lab_work_results
     FOR EACH ROW
