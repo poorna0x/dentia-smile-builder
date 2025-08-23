@@ -118,6 +118,12 @@ export default function AdminPatientManagement() {
     cost: '',
     notes: ''
   });
+  const [showStatusUpdateDialog, setShowStatusUpdateDialog] = useState(false);
+  const [selectedLabOrder, setSelectedLabOrder] = useState<any>(null);
+  const [statusUpdateForm, setStatusUpdateForm] = useState({
+    new_status: '',
+    notes: ''
+  });
   const [medicalHistoryDentalTreatments, setMedicalHistoryDentalTreatments] = useState<any[]>([]);
   const [medicalHistoryAppointments, setMedicalHistoryAppointments] = useState<any[]>([]);
   const [medicalHistoryPrescriptions, setMedicalHistoryPrescriptions] = useState<any[]>([]);
@@ -685,6 +691,48 @@ export default function AdminPatientManagement() {
       setLabWorkOrders(data || []);
     } catch (error) {
       console.error('Error loading lab work data:', error);
+    }
+  };
+
+  // Handle status update
+  const handleStatusUpdate = (order: any) => {
+    setSelectedLabOrder(order);
+    setStatusUpdateForm({
+      new_status: order.status,
+      notes: ''
+    });
+    setShowStatusUpdateDialog(true);
+  };
+
+  // Save status update
+  const handleSaveStatusUpdate = async () => {
+    if (!selectedLabOrder || !clinic?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .rpc('update_lab_work_status', {
+          p_order_id: selectedLabOrder.id,
+          p_new_status: statusUpdateForm.new_status,
+          p_action_by: 'Admin',
+          p_notes: statusUpdateForm.notes
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Status Updated",
+        description: "Lab work status has been updated successfully.",
+      });
+      
+      setShowStatusUpdateDialog(false);
+      loadLabWorkData(selectedLabOrder.patient_id);
+    } catch (error) {
+      console.error('Error updating lab work status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update lab work status.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1501,8 +1549,10 @@ export default function AdminPatientManagement() {
     switch (status) {
       case 'Ordered': return 'bg-blue-100 text-blue-800';
       case 'In Progress': return 'bg-orange-100 text-orange-800';
-      case 'Completed': return 'bg-green-100 text-green-800';
+      case 'Quality Check': return 'bg-indigo-100 text-indigo-800';
       case 'Ready for Pickup': return 'bg-purple-100 text-purple-800';
+      case 'Patient Notified': return 'bg-pink-100 text-pink-800';
+      case 'Completed': return 'bg-green-100 text-green-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
       case 'Delayed': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -3012,23 +3062,27 @@ export default function AdminPatientManagement() {
         >
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex justify-between items-center">
-                <DialogTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
-                </DialogTitle>
-                <Button 
-                  size="sm" 
-                  onClick={() => setShowNewLabWorkForm(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Lab Order
-                </Button>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <DialogTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+                  </DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Manage lab work orders and results for the patient
+                  </DialogDescription>
+                </div>
+                <div className="ml-4">
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowNewLabWorkForm(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Lab Order
+                  </Button>
+                </div>
               </div>
-              <DialogDescription>
-                Manage lab work orders and results for the patient
-              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6">
@@ -3093,7 +3147,11 @@ export default function AdminPatientManagement() {
                             <FileText className="w-4 h-4 mr-2" />
                             View Results
                           </Button>
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleStatusUpdate(order)}
+                          >
                             <Edit className="w-4 h-4 mr-2" />
                             Update Status
                           </Button>
@@ -3241,6 +3299,86 @@ export default function AdminPatientManagement() {
                 }}
               >
                 Create Lab Order
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Status Update Dialog */}
+        <Dialog 
+          open={showStatusUpdateDialog} 
+          onOpenChange={setShowStatusUpdateDialog}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Update Lab Work Status
+              </DialogTitle>
+              <DialogDescription>
+                Update the status for: {selectedLabOrder?.test_name}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Current Status */}
+              <div>
+                <Label>Current Status</Label>
+                <div className="mt-1 p-2 bg-gray-50 rounded border">
+                  <Badge className={getLabWorkStatusColor(selectedLabOrder?.status || '')}>
+                    {selectedLabOrder?.status || 'Unknown'}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* New Status */}
+              <div>
+                <Label htmlFor="new_status">New Status</Label>
+                <Select 
+                  value={statusUpdateForm.new_status} 
+                  onValueChange={(value) => setStatusUpdateForm({...statusUpdateForm, new_status: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select new status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ordered">Ordered</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Quality Check">Quality Check</SelectItem>
+                    <SelectItem value="Ready for Pickup">Ready for Pickup</SelectItem>
+                    <SelectItem value="Patient Notified">Patient Notified</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    <SelectItem value="Delayed">Delayed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="status_notes">Notes (Optional)</Label>
+                <Textarea
+                  id="status_notes"
+                  value={statusUpdateForm.notes}
+                  onChange={(e) => setStatusUpdateForm({...statusUpdateForm, notes: e.target.value})}
+                  placeholder="Add notes about this status change"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowStatusUpdateDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveStatusUpdate}
+                disabled={!statusUpdateForm.new_status}
+              >
+                Update Status
               </Button>
             </div>
           </DialogContent>

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS lab_work_orders (
     description TEXT,
     ordered_date DATE NOT NULL DEFAULT CURRENT_DATE,
     expected_date DATE,
-    status VARCHAR(50) NOT NULL DEFAULT 'Ordered' CHECK (status IN ('Ordered', 'In Progress', 'Completed', 'Cancelled', 'Delayed', 'Ready for Pickup')),
+    status VARCHAR(50) NOT NULL DEFAULT 'Ordered' CHECK (status IN ('Ordered', 'In Progress', 'Quality Check', 'Ready for Pickup', 'Patient Notified', 'Completed', 'Cancelled', 'Delayed')),
     ordered_by VARCHAR(255),
     lab_facility VARCHAR(255),
     cost DECIMAL(10,2),
@@ -215,7 +215,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to update lab work status
+-- Function to update lab work status with validation
 CREATE OR REPLACE FUNCTION update_lab_work_status(
     p_order_id UUID,
     p_new_status VARCHAR(50),
@@ -223,7 +223,42 @@ CREATE OR REPLACE FUNCTION update_lab_work_status(
     p_notes TEXT DEFAULT NULL
 )
 RETURNS BOOLEAN AS $$
+DECLARE
+    current_status VARCHAR(50);
+    valid_transition BOOLEAN := FALSE;
 BEGIN
+    -- Get current status
+    SELECT status INTO current_status
+    FROM lab_work_orders
+    WHERE id = p_order_id;
+    
+    -- Validate status transition
+    CASE current_status
+        WHEN 'Ordered' THEN
+            valid_transition := p_new_status IN ('In Progress', 'Cancelled', 'Delayed');
+        WHEN 'In Progress' THEN
+            valid_transition := p_new_status IN ('Quality Check', 'Cancelled', 'Delayed');
+        WHEN 'Quality Check' THEN
+            valid_transition := p_new_status IN ('Ready for Pickup', 'In Progress', 'Cancelled');
+        WHEN 'Ready for Pickup' THEN
+            valid_transition := p_new_status IN ('Patient Notified', 'Quality Check', 'Cancelled');
+        WHEN 'Patient Notified' THEN
+            valid_transition := p_new_status IN ('Completed', 'Ready for Pickup', 'Cancelled');
+        WHEN 'Completed' THEN
+            valid_transition := FALSE; -- Cannot change from completed
+        WHEN 'Cancelled' THEN
+            valid_transition := FALSE; -- Cannot change from cancelled
+        WHEN 'Delayed' THEN
+            valid_transition := p_new_status IN ('In Progress', 'Cancelled');
+        ELSE
+            valid_transition := FALSE;
+    END CASE;
+    
+    -- If invalid transition, raise error
+    IF NOT valid_transition THEN
+        RAISE EXCEPTION 'Invalid status transition from % to %', current_status, p_new_status;
+    END IF;
+    
     -- Update status
     UPDATE lab_work_orders
     SET status = p_new_status,
@@ -240,10 +275,31 @@ BEGIN
         p_order_id,
         'Status Changed',
         p_action_by,
-        COALESCE(p_notes, 'Status changed to ' || p_new_status)
+        COALESCE(p_notes, 'Status changed from ' || current_status || ' to ' || p_new_status)
     );
     
     RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get lab work status history
+CREATE OR REPLACE FUNCTION get_lab_work_status_history(p_order_id UUID)
+RETURNS TABLE (
+    action VARCHAR(100),
+    action_date TIMESTAMP WITH TIME ZONE,
+    action_by VARCHAR(255),
+    notes TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        lwh.action,
+        lwh.action_date,
+        lwh.action_by,
+        lwh.notes
+    FROM lab_work_history lwh
+    WHERE lwh.order_id = p_order_id
+    ORDER BY lwh.action_date DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
