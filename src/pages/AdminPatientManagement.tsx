@@ -96,9 +96,20 @@ export default function AdminPatientManagement() {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
   const [selectedPatientHistory, setSelectedPatientHistory] = useState<Patient | null>(null);
+  const [showMedicalRecordDialog, setShowMedicalRecordDialog] = useState(false);
+  const [newMedicalRecordForm, setNewMedicalRecordForm] = useState({
+    record_type: 'consultation',
+    title: '',
+    description: '',
+    file_url: '',
+    record_date: new Date().toISOString().split('T')[0],
+    created_by: '',
+    notes: ''
+  });
   const [medicalHistoryDentalTreatments, setMedicalHistoryDentalTreatments] = useState<any[]>([]);
   const [medicalHistoryAppointments, setMedicalHistoryAppointments] = useState<any[]>([]);
   const [medicalHistoryPrescriptions, setMedicalHistoryPrescriptions] = useState<any[]>([]);
+  const [medicalHistoryRecords, setMedicalHistoryRecords] = useState<any[]>([]);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
 
@@ -600,12 +611,23 @@ export default function AdminPatientManagement() {
       
       setMedicalHistoryPrescriptions(prescriptionsData || []);
       
+      // Load medical records for this patient
+      const { data: medicalRecordsData } = await supabase
+        .from('medical_records')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .eq('clinic_id', clinic?.id)
+        .order('record_date', { ascending: false });
+      
+      setMedicalHistoryRecords(medicalRecordsData || []);
+      
       console.log('Medical History Data Loaded:', {
         patientId: patient.id,
         clinicId: clinic?.id,
         dentalTreatments: dentalData?.length || 0,
         appointments: appointmentsData?.length || 0,
-        prescriptions: prescriptionsData?.length || 0
+        prescriptions: prescriptionsData?.length || 0,
+        medicalRecords: medicalRecordsData?.length || 0
       });
     } catch (error) {
       console.error('Error loading medical history data:', error);
@@ -2434,24 +2456,79 @@ export default function AdminPatientManagement() {
                 <TabsContent value="notes" className="space-y-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Notes & Medical Records
-                      </CardTitle>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          Notes & Medical Records
+                        </CardTitle>
+                        <Button 
+                          size="sm" 
+                          onClick={() => setShowMedicalRecordDialog(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Record
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      {selectedPatientHistory?.notes ? (
-                        <div className="space-y-4">
+                      {/* Patient Notes from patient profile */}
+                      {selectedPatientHistory?.notes && (
+                        <div className="mb-6">
+                          <h4 className="font-medium mb-2 text-gray-900">Patient Profile Notes:</h4>
                           <div className="bg-gray-50 p-4 rounded-lg">
-                            <h4 className="font-medium mb-2">Patient Notes:</h4>
                             <p className="text-gray-700">{selectedPatientHistory.notes}</p>
                           </div>
                         </div>
-                      ) : (
+                      )}
+                      
+                      {/* Medical Records */}
+                      {medicalHistoryRecords.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                           <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>No notes or medical records found</p>
-                          <p className="text-sm">Add notes during patient visits</p>
+                          <p>No medical records found</p>
+                          <p className="text-sm">Add medical records to track patient history</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <h4 className="font-medium mb-2 text-gray-900">Medical Records:</h4>
+                          {medicalHistoryRecords.map((record) => (
+                            <div key={record.id} className="border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h3 className="font-semibold">{record.title}</h3>
+                                  <p className="text-sm text-gray-600">
+                                    Type: {record.record_type} • Date: {formatDate(record.record_date)}
+                                  </p>
+                                  {record.created_by && (
+                                    <p className="text-sm text-gray-600">By: {record.created_by}</p>
+                                  )}
+                                </div>
+                                <Badge className="bg-blue-100 text-blue-800">
+                                  {record.record_type}
+                                </Badge>
+                              </div>
+                              {record.description && (
+                                <div className="text-sm text-gray-700 mb-2">
+                                  <p>{record.description}</p>
+                                </div>
+                              )}
+                              {record.notes && (
+                                <div className="text-sm text-gray-600">
+                                  <p className="font-medium">Notes:</p>
+                                  <p>{record.notes}</p>
+                                </div>
+                              )}
+                              {record.file_url && (
+                                <div className="mt-2">
+                                  <Button size="sm" variant="outline" onClick={() => window.open(record.file_url, '_blank')}>
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    View File
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
                     </CardContent>
