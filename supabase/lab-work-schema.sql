@@ -383,7 +383,7 @@ CREATE TRIGGER trigger_update_lab_work_orders_updated_at
 CREATE TRIGGER trigger_update_lab_work_results_updated_at
     BEFORE UPDATE ON lab_work_results
     FOR EACH ROW
-    EXECUTE FUNCTION update_lab_work_results_updated_at();
+    EXECUTE FUNCTION update_lab_work_updated_at();
 
 -- Sample data will be inserted here after we have patients
 -- This is just the schema structure
