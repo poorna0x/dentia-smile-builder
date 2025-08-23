@@ -385,23 +385,9 @@ CREATE TRIGGER trigger_update_lab_work_results_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_lab_work_results_updated_at();
 
--- Insert sample lab work data for testing
-INSERT INTO lab_work_orders (
-    clinic_id,
-    patient_id,
-    order_number,
-    lab_type,
-    test_name,
-    description,
-    expected_date,
-    ordered_by,
-    lab_facility,
-    cost,
-    notes
-) VALUES 
 -- Sample data will be inserted here after we have patients
 -- This is just the schema structure
-;
+-- INSERT INTO lab_work_orders (...) VALUES (...);
 
 -- ✅ LAB WORK SYSTEM SETUP COMPLETE!
 -- 
