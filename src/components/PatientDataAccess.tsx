@@ -54,6 +54,17 @@ const PatientDataAccess = () => {
   const [multiplePatients, setMultiplePatients] = useState<any[]>([]);
   const [showPatientSelection, setShowPatientSelection] = useState(false);
 
+  // Debug useEffect to monitor state changes
+  useEffect(() => {
+    console.log('PatientDataAccess: State changed:');
+    console.log('- showData:', showData);
+    console.log('- patient:', patient ? 'exists' : 'null');
+    console.log('- appointments length:', appointments.length);
+    console.log('- treatmentPlans length:', treatmentPlans.length);
+    console.log('- medicalRecords length:', medicalRecords.length);
+    console.log('- prescriptions length:', prescriptions.length);
+  }, [showData, patient, appointments, treatmentPlans, medicalRecords, prescriptions]);
+
   // Handle phone number input
   const handlePhoneChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -256,6 +267,17 @@ const PatientDataAccess = () => {
 
       // Get medical records
       console.log('PatientDataAccess: Loading medical records for patient:', patientData.id);
+      
+      // First, let's test if the medical_records table has any data at all
+      const { data: allMedicalRecords, error: allMedicalRecordsError } = await supabase
+        .from('medical_records')
+        .select('*')
+        .eq('clinic_id', clinic?.id)
+        .limit(5);
+      
+      console.log('PatientDataAccess: All medical records in clinic:', allMedicalRecords);
+      console.log('PatientDataAccess: All medical records error:', allMedicalRecordsError);
+      
       const { data: recordsData, error: recordsError } = await supabase
         .from('medical_records')
         .select('*')
@@ -271,6 +293,16 @@ const PatientDataAccess = () => {
       console.log('PatientDataAccess: Fetching prescriptions for patient:', patientData.id);
       console.log('PatientDataAccess: Clinic ID:', clinic?.id);
       
+      // First, let's test if the prescriptions table has any data at all
+      const { data: allPrescriptions, error: allPrescriptionsError } = await supabase
+        .from('prescriptions')
+        .select('*')
+        .eq('clinic_id', clinic?.id)
+        .limit(5);
+      
+      console.log('PatientDataAccess: All prescriptions in clinic:', allPrescriptions);
+      console.log('PatientDataAccess: All prescriptions error:', allPrescriptionsError);
+      
       const { data: prescriptionsData, error: prescriptionsError } = await supabase
         .from('prescriptions')
         .select('*')
@@ -284,6 +316,14 @@ const PatientDataAccess = () => {
       
       setPrescriptions(prescriptionsData || []);
       setShowData(true);
+      
+      // Debug state after setting
+      console.log('PatientDataAccess: State after loading:');
+      console.log('- showData:', true);
+      console.log('- appointments count:', appointmentsData?.length || 0);
+      console.log('- treatments count:', treatmentsData?.length || 0);
+      console.log('- medical records count:', recordsData?.length || 0);
+      console.log('- prescriptions count:', prescriptionsData?.length || 0);
     } catch (error) {
       console.error('PatientDataAccess: Error loading patient data:', error);
       toast.error('Error loading patient data');
