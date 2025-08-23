@@ -653,10 +653,13 @@ export default function AdminPatientManagement() {
     // Prevent double-click using both state and ref
     if (isSavingPrescription || isSavingRef.current) {
       console.log('Save already in progress, ignoring click');
+      console.log('isSavingPrescription:', isSavingPrescription);
+      console.log('isSavingRef.current:', isSavingRef.current);
       return;
     }
 
     console.log('handleSavePrescription called');
+    console.log('multipleMedications count:', multipleMedications.length);
     console.log('selectedPatientForPrescription:', selectedPatientForPrescription);
     console.log('clinic?.id:', clinic?.id);
     console.log('multipleMedications:', multipleMedications);
@@ -756,8 +759,27 @@ export default function AdminPatientManagement() {
 
       // Close dialog first
       console.log('Closing prescription dialog...');
-      setShowPrescriptionDialog(false);
+      console.log('Current dialog state:', showPrescriptionDialog);
+      
+      // Use state update function to ensure it closes
+      setShowPrescriptionDialog((prev) => {
+        console.log('Setting dialog state from', prev, 'to false');
+        return false;
+      });
+      
       console.log('Dialog state set to false');
+      
+      // Force a re-render by updating state
+      setTimeout(() => {
+        console.log('Checking dialog state after timeout:', showPrescriptionDialog);
+        setShowPrescriptionDialog((prev) => {
+          if (prev) {
+            console.log('Dialog still open, forcing close...');
+            return false;
+          }
+          return prev;
+        });
+      }, 50);
       
       // Clear form data
       setPrescriptionForm({
@@ -2272,7 +2294,13 @@ export default function AdminPatientManagement() {
         </Dialog>
 
         {/* Prescription Dialog */}
-        <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
+        <Dialog 
+          open={showPrescriptionDialog} 
+          onOpenChange={(open) => {
+            console.log('Dialog onOpenChange called with:', open);
+            setShowPrescriptionDialog(open);
+          }}
+        >
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
