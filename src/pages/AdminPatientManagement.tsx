@@ -14,7 +14,7 @@ import { patientApi, treatmentPlanApi, medicalRecordApi } from '@/lib/patient-ma
 import { dentalTreatmentApi, toothConditionApi, dentalNoteApi, toothChartUtils } from '@/lib/dental-treatments';
 import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
-import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -94,6 +94,11 @@ export default function AdminPatientManagement() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
+  const [showMedicalHistory, setShowMedicalHistory] = useState(false);
+  const [selectedPatientHistory, setSelectedPatientHistory] = useState<Patient | null>(null);
+  const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
+  const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
+
   
   // Dental chart state
   const [showDentalChart, setShowDentalChart] = useState(false);
@@ -556,6 +561,240 @@ export default function AdminPatientManagement() {
     window.open(`https://wa.me/${whatsappNumber}`, '_blank');
   };
 
+  // Medical history function
+  const handleViewMedicalHistory = async (patient: Patient) => {
+    setSelectedPatientHistory(patient);
+    setShowMedicalHistory(true);
+    // Load all medical data for this patient
+    // This will include treatments, conditions, appointments, etc.
+  };
+
+  // New appointment function - redirect to appointment page with pre-filled data
+  const handleNewAppointment = (patient: Patient) => {
+    // Redirect to appointment page with patient data as URL parameters
+    const patientData = encodeURIComponent(JSON.stringify({
+      id: patient.id,
+      name: `${patient.first_name} ${patient.last_name || ''}`.trim(),
+      phone: patient.phone,
+      email: patient.email || '',
+      allergies: patient.allergies || []
+    }));
+    
+    // Navigate to appointment page with pre-filled patient data
+    window.location.href = `/appointment?clinic=${clinic?.slug || 'default'}&patient=${patientData}`;
+  };
+
+
+
+  // Lab work function (placeholder)
+  const handleLabWork = (patient: Patient) => {
+    toast({
+      title: "Lab Work",
+      description: "Lab work management feature coming soon!",
+    });
+  };
+
+  // Add prescription function
+  const handleAddPrescription = (patient: Patient) => {
+    setSelectedPatientForPrescription(patient);
+    setPrescriptionForm({
+      medication_name: '',
+      dosage: '',
+      frequency: '',
+      duration: '',
+      instructions: '',
+      pharmacy_notes: '',
+      patient_notes: '',
+      side_effects: '',
+      interactions: ''
+    });
+    setMultipleMedications([
+      {
+        medication_name: '',
+        dosage: '',
+        frequency: '',
+        duration: '',
+        instructions: ''
+      }
+    ]);
+    setShowPrescriptionDialog(true);
+  };
+
+  // Add another medication
+  const addAnotherMedication = () => {
+    setMultipleMedications([
+      ...multipleMedications,
+      {
+        medication_name: '',
+        dosage: '',
+        frequency: '',
+        duration: '',
+        instructions: ''
+      }
+    ]);
+  };
+
+  // Remove medication
+  const removeMedication = (index: number) => {
+    if (multipleMedications.length > 1) {
+      setMultipleMedications(multipleMedications.filter((_, i) => i !== index));
+    }
+  };
+
+  // Update medication
+  const updateMedication = (index: number, field: string, value: string) => {
+    const updated = [...multipleMedications];
+    updated[index] = { ...updated[index], [field]: value };
+    setMultipleMedications(updated);
+  };
+
+  // Save prescription function
+  const handleSavePrescription = async () => {
+    // Prevent double-click
+    if (isSavingPrescription) {
+      return;
+    }
+
+    console.log('handleSavePrescription called');
+    console.log('selectedPatientForPrescription:', selectedPatientForPrescription);
+    console.log('clinic?.id:', clinic?.id);
+    console.log('multipleMedications:', multipleMedications);
+
+    if (!selectedPatientForPrescription || !clinic?.id) {
+      toast({
+        title: "Error",
+        description: "Patient or clinic information missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set loading state
+    setIsSavingPrescription(true);
+
+    // Validate all medications (dosage is optional)
+    const errors = [];
+    multipleMedications.forEach((med, index) => {
+      if (!med.medication_name.trim()) {
+        errors.push(`Medication ${index + 1}: Name`);
+      }
+      if (!med.frequency.trim()) {
+        errors.push(`Medication ${index + 1}: Frequency`);
+      }
+      if (!med.duration.trim()) {
+        errors.push(`Medication ${index + 1}: Duration`);
+      }
+      // Dosage is optional, so no validation needed
+    });
+
+    if (errors.length > 0) {
+      toast({
+        title: "Required Fields Missing",
+        description: `Please fill in: ${errors.join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('Starting to save medications...');
+      
+      // Save each medication
+      for (const medication of multipleMedications) {
+        console.log('Saving medication:', medication);
+        
+        // Use direct insert (simpler and more reliable)
+        console.log('Using direct insert...');
+        
+        const { data: insertData, error: insertError } = await supabase
+          .from('prescriptions')
+          .insert({
+            clinic_id: clinic.id,
+            patient_id: selectedPatientForPrescription.id,
+            medication_name: medication.medication_name.trim(),
+            dosage: medication.dosage.trim() || 'Not specified',
+            frequency: medication.frequency.trim(),
+            duration: medication.duration.trim(),
+            instructions: medication.instructions.trim() || '',
+            status: 'Active',
+            refills_remaining: 0,
+            refill_quantity: null,
+            pharmacy_notes: prescriptionForm.pharmacy_notes.trim() || null,
+            patient_notes: prescriptionForm.patient_notes.trim() || null,
+            side_effects: prescriptionForm.side_effects.trim() || null,
+            interactions: prescriptionForm.interactions.trim() || null
+          })
+          .select()
+          .single();
+
+        console.log('Direct insert response:', { insertData, insertError });
+        console.log('Direct insert error details:', insertError);
+        console.log('Full error object:', JSON.stringify(insertError, null, 2));
+        console.log('Error message:', insertError?.message);
+        console.log('Error code:', insertError?.code);
+        console.log('Error details:', insertError?.details);
+
+        if (insertError) {
+          console.error('Direct insert failed:', insertError);
+          throw insertError;
+        }
+        
+        data = insertData;
+        error = null;
+
+        if (error) {
+          console.error('Database error:', error);
+          throw error;
+        }
+      }
+
+      console.log('All medications saved successfully');
+
+      // Close dialog first
+      setShowPrescriptionDialog(false);
+      
+      // Clear form data
+      setPrescriptionForm({
+        medication_name: '',
+        dosage: '',
+        frequency: '',
+        duration: '',
+        instructions: '',
+        pharmacy_notes: '',
+        patient_notes: '',
+        side_effects: '',
+        interactions: ''
+      });
+      setMultipleMedications([
+        {
+          medication_name: '',
+          dosage: '',
+          frequency: '',
+          duration: '',
+          instructions: ''
+        }
+      ]);
+
+      // Show success message after a small delay to ensure dialog closes
+      setTimeout(() => {
+        toast({
+          title: "Success",
+          description: `${multipleMedications.length} prescription(s) added successfully`,
+        });
+      }, 100);
+    } catch (error) {
+      console.error('Error saving prescription:', error);
+      toast({
+        title: "Error",
+        description: `Failed to save prescription: ${error.message || error}`,
+        variant: "destructive",
+      });
+    } finally {
+      // Reset loading state
+      setIsSavingPrescription(false);
+    }
+  };
+
   // Form data
   const [patientForm, setPatientForm] = useState({
     first_name: '',
@@ -593,6 +832,116 @@ export default function AdminPatientManagement() {
     created_by: '',
     notes: ''
   });
+
+  const [prescriptionForm, setPrescriptionForm] = useState({
+    medication_name: '',
+    dosage: '',
+    frequency: '',
+    duration: '',
+    instructions: '',
+    pharmacy_notes: '',
+    patient_notes: '',
+    side_effects: '',
+    interactions: ''
+  });
+
+  // Multiple medications support
+  const [multipleMedications, setMultipleMedications] = useState([
+    {
+      medication_name: '',
+      dosage: '',
+      frequency: '',
+      duration: '',
+      instructions: ''
+    }
+  ]);
+
+  // Loading state for prescription save
+  const [isSavingPrescription, setIsSavingPrescription] = useState(false);
+
+  // Common dental medications for suggestions
+  const commonDentalMedications = [
+    'Amoxicillin',
+    'Ibuprofen',
+    'Paracetamol',
+    'Chlorhexidine Mouthwash',
+    'Metronidazole',
+    'Diclofenac',
+    'Ciprofloxacin',
+    'Clindamycin',
+    'Azithromycin',
+    'Doxycycline',
+    'Penicillin V',
+    'Erythromycin',
+    'Cephalexin',
+    'Fluconazole',
+    'Nystatin',
+    'Lidocaine Gel',
+    'Benzocaine Gel',
+    'Orajel',
+    'Anbesol',
+    'Salt Water Rinse'
+  ];
+
+  // Common dosages for suggestions
+  const commonDosages = [
+    '250mg',
+    '500mg',
+    '750mg',
+    '1000mg',
+    '0.12%',
+    '0.2%',
+    '5ml',
+    '10ml',
+    '15ml',
+    '20ml'
+  ];
+
+  // Common frequencies for suggestions
+  const commonFrequencies = [
+    'Once daily',
+    'Twice daily',
+    '3 times daily',
+    '4 times daily',
+    'Every 6 hours',
+    'Every 8 hours',
+    'Every 12 hours',
+    'As needed',
+    'Before meals',
+    'After meals'
+  ];
+
+  // Common durations for suggestions
+  const commonDurations = [
+    '3 days',
+    '5 days',
+    '7 days',
+    '10 days',
+    '14 days',
+    '21 days',
+    '30 days',
+    'Until finished',
+    'As needed'
+  ];
+
+  // Common instructions for suggestions
+  const commonInstructions = [
+    'Take with food',
+    'Take on empty stomach',
+    'Take before meals',
+    'Take after meals',
+    'Take with plenty of water',
+    'Do not take with dairy products',
+    'Complete the full course',
+    'Do not stop early',
+    'Take at the same time daily',
+    'Store in refrigerator',
+    'Shake well before use',
+    'Rinse mouth after use',
+    'Avoid alcohol while taking',
+    'Take with or without food',
+    'Take 1 hour before or 2 hours after meals'
+  ];
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredPatients.length / recordsPerPage);
@@ -1299,65 +1648,116 @@ export default function AdminPatientManagement() {
               {displayedPatients.map((patient) => (
                 <Card key={patient.id}>
                   <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg mb-2">
                           {patient.first_name} {patient.last_name || ''}
                         </CardTitle>
-                        <CardDescription>
-                          Phone: {patient.phone} | Email: {patient.email}
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {/* Mobile: Stack vertically, Desktop: Row */}
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                          {/* Action buttons */}
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditPatient(patient)}
-                              className="flex items-center gap-1 h-8 px-2"
-                              title="Edit Patient"
-                            >
-                              <Edit className="w-3 h-3" />
-                              <span className="hidden sm:inline">Edit</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenDentalChart(patient)}
-                              className="flex items-center gap-1 h-8 px-2"
-                              title="Treatments & Chart"
-                            >
-                              <Stethoscope className="w-3 h-3" />
-                              <span className="hidden sm:inline">Treatments</span>
-                            </Button>
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4" />
+                            <span>{patient.phone}</span>
                           </div>
+                          {patient.email && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              <span>{patient.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Desktop: Show buttons in header */}
+                      <div className="hidden sm:flex flex-col gap-2">
+                        {/* Main action buttons - consistent styling */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditPatient(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Edit Patient"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span className="text-sm font-medium">Edit</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenDentalChart(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Dental Treatments"
+                          >
+                            <Stethoscope className="w-4 h-4" />
+                            <span className="text-sm font-medium">Treatments</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleNewAppointment(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-blue-50 hover:bg-blue-100 border-blue-200 hover:border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-200"
+                            title="Book Appointment"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            <span className="text-sm font-medium">Appointment</span>
+                          </Button>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewMedicalHistory(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Medical History"
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span className="text-sm font-medium">History</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleLabWork(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300 text-purple-700 hover:text-purple-800 transition-all duration-200"
+                            title="Lab Work"
+                          >
+                            <Activity className="w-4 h-4" />
+                            <span className="text-sm font-medium">Lab Work</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddPrescription(patient)}
+                            className="h-9 px-3 flex items-center gap-2 justify-center bg-orange-50 hover:bg-orange-100 border-orange-200 hover:border-orange-300 text-orange-700 hover:text-orange-800 transition-all duration-200"
+                            title="Add Prescription"
+                          >
+                            <Pill className="w-4 h-4" />
+                            <span className="text-sm font-medium">Prescription</span>
+                          </Button>
                           
                           {/* Communication buttons */}
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCallPatient(patient.phone)}
-                              className="flex items-center gap-1 h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              title="Call Patient"
-                            >
-                              <Phone className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleWhatsAppPatient(patient.phone)}
-                              className="flex items-center gap-1 h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              title="WhatsApp Patient"
-                            >
-                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
-                              </svg>
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCallPatient(patient.phone)}
+                            className="h-9 w-9 flex items-center justify-center bg-green-50 hover:bg-green-100 border-green-200 hover:border-green-300 text-green-600 hover:text-green-700 transition-all duration-200 rounded-lg"
+                            title="Call Patient"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleWhatsAppPatient(patient.phone)}
+                            className="h-9 w-9 flex items-center justify-center bg-green-50 hover:bg-green-100 border-green-200 hover:border-green-300 text-green-600 hover:text-green-700 transition-all duration-200 rounded-lg"
+                            title="WhatsApp Patient"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                            </svg>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1375,6 +1775,89 @@ export default function AdminPatientManagement() {
                       <div>
                         <span className="font-medium">Allergies:</span>
                         <p>{patient.allergies?.length > 0 ? patient.allergies.join(', ') : 'None'}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile: Show buttons at bottom */}
+                    <div className="sm:hidden mt-6 pt-4 border-t border-gray-100">
+                      <div className="space-y-3">
+                        {/* Main action buttons - 2 columns */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditPatient(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Edit Patient"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span className="text-sm font-medium">Edit</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenDentalChart(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Dental Treatments"
+                          >
+                            <Stethoscope className="w-4 h-4" />
+                            <span className="text-sm font-medium">Treatments</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleNewAppointment(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-blue-50 hover:bg-blue-100 border-blue-200 hover:border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-200"
+                            title="Book Appointment"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            <span className="text-sm font-medium">Appointment</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewMedicalHistory(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Medical History"
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span className="text-sm font-medium">History</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleLabWork(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300 text-purple-700 hover:text-purple-800 transition-all duration-200"
+                            title="Lab Work"
+                          >
+                            <Activity className="w-4 h-4" />
+                            <span className="text-sm font-medium">Lab Work</span>
+                          </Button>
+                        </div>
+                        
+                        {/* Communication buttons - centered */}
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCallPatient(patient.phone)}
+                            className="h-10 w-10 flex items-center justify-center bg-green-50 hover:bg-green-100 border-green-200 hover:border-green-300 text-green-600 hover:text-green-700 transition-all duration-200 rounded-lg"
+                            title="Call Patient"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleWhatsAppPatient(patient.phone)}
+                            className="h-10 w-10 flex items-center justify-center bg-green-50 hover:bg-green-100 border-green-200 hover:border-green-300 text-green-600 hover:text-green-700 transition-all duration-200 rounded-lg"
+                            title="WhatsApp Patient"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                            </svg>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1649,6 +2132,388 @@ export default function AdminPatientManagement() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Medical History Dialog */}
+        <Dialog open={showMedicalHistory} onOpenChange={setShowMedicalHistory}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Medical History - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+              </DialogTitle>
+              <DialogDescription>
+                Complete medical history including treatments, appointments, and health records
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Patient Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Patient Information</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-medium">Name:</span>
+                    <p>{selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Phone:</span>
+                    <p>{selectedPatientHistory?.phone}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Email:</span>
+                    <p>{selectedPatientHistory?.email || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Date of Birth:</span>
+                    <p>{selectedPatientHistory?.date_of_birth ? formatDate(selectedPatientHistory.date_of_birth) : 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Allergies:</span>
+                    <p>{selectedPatientHistory?.allergies?.length > 0 ? selectedPatientHistory.allergies.join(', ') : 'None'}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Current Medications:</span>
+                    <p>{selectedPatientHistory?.current_medications?.length > 0 ? selectedPatientHistory.current_medications.join(', ') : 'None'}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tabs for different sections */}
+              <Tabs defaultValue="dental" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="dental">Dental Treatments</TabsTrigger>
+                  <TabsTrigger value="appointments">Appointments</TabsTrigger>
+                  <TabsTrigger value="notes">Notes & Records</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="dental" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Stethoscope className="h-5 w-5" />
+                        Dental Treatment History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-8 text-gray-500">
+                        <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>Dental treatment history will be displayed here</p>
+                        <p className="text-sm">Connect to dental treatment system to view records</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="appointments" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Appointment History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-8 text-gray-500">
+                        <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>Appointment history will be displayed here</p>
+                        <p className="text-sm">Connect to appointment system to view records</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="notes" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Notes & Medical Records
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedPatientHistory?.notes ? (
+                        <div className="space-y-4">
+                          <div className="bg-gray-50 p-4 rounded-lg">
+                            <h4 className="font-medium mb-2">Patient Notes:</h4>
+                            <p className="text-gray-700">{selectedPatientHistory.notes}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p>No notes or medical records found</p>
+                          <p className="text-sm">Add notes during patient visits</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+
+              {/* Actions */}
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setShowMedicalHistory(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Prescription Dialog */}
+        <Dialog open={showPrescriptionDialog} onOpenChange={setShowPrescriptionDialog}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pill className="h-5 w-5" />
+                Add Prescription - {selectedPatientForPrescription?.first_name} {selectedPatientForPrescription?.last_name || ''}
+              </DialogTitle>
+              <DialogDescription>
+                Add a new prescription for the patient
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Multiple Medications */}
+              {multipleMedications.map((medication, index) => (
+                <Card key={index} className="border-2 border-gray-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg">Medication {index + 1}</CardTitle>
+                      {multipleMedications.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeMedication(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor={`medication_name_${index}`}>Medication Name *</Label>
+                      <Input
+                        id={`medication_name_${index}`}
+                        value={medication.medication_name}
+                        onChange={(e) => updateMedication(index, 'medication_name', e.target.value)}
+                        placeholder="e.g., Amoxicillin, Ibuprofen"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {commonDentalMedications
+                          .filter(med => med.toLowerCase().includes(medication.medication_name.toLowerCase()) && medication.medication_name.length > 0)
+                          .slice(0, 5)
+                          .map((med) => (
+                            <Button
+                              key={med}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateMedication(index, 'medication_name', med)}
+                              className="text-xs"
+                            >
+                              {med}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor={`dosage_${index}`}>Dosage</Label>
+                      <Input
+                        id={`dosage_${index}`}
+                        value={medication.dosage}
+                        onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
+                        placeholder="e.g., 500mg, 400mg (optional)"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {commonDosages
+                          .filter(dose => dose.toLowerCase().includes(medication.dosage.toLowerCase()) && medication.dosage.length > 0)
+                          .slice(0, 5)
+                          .map((dose) => (
+                            <Button
+                              key={dose}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateMedication(index, 'dosage', dose)}
+                              className="text-xs"
+                            >
+                              {dose}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor={`frequency_${index}`}>Frequency *</Label>
+                      <Input
+                        id={`frequency_${index}`}
+                        value={medication.frequency}
+                        onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
+                        placeholder="e.g., 3 times daily, Every 6 hours"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {commonFrequencies
+                          .filter(freq => freq.toLowerCase().includes(medication.frequency.toLowerCase()) && medication.frequency.length > 0)
+                          .slice(0, 5)
+                          .map((freq) => (
+                            <Button
+                              key={freq}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateMedication(index, 'frequency', freq)}
+                              className="text-xs"
+                            >
+                              {freq}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor={`duration_${index}`}>Duration *</Label>
+                      <Input
+                        id={`duration_${index}`}
+                        value={medication.duration}
+                        onChange={(e) => updateMedication(index, 'duration', e.target.value)}
+                        placeholder="e.g., 7 days, 2 weeks"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {commonDurations
+                          .filter(dur => dur.toLowerCase().includes(medication.duration.toLowerCase()) && medication.duration.length > 0)
+                          .slice(0, 5)
+                          .map((dur) => (
+                            <Button
+                              key={dur}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateMedication(index, 'duration', dur)}
+                              className="text-xs"
+                            >
+                              {dur}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                    
+                    <div className="col-span-2">
+                      <Label htmlFor={`instructions_${index}`}>Instructions</Label>
+                      <Textarea
+                        id={`instructions_${index}`}
+                        value={medication.instructions}
+                        onChange={(e) => updateMedication(index, 'instructions', e.target.value)}
+                        placeholder="e.g., Take with food, Complete the full course"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {commonInstructions
+                          .filter(inst => inst.toLowerCase().includes(medication.instructions.toLowerCase()) && medication.instructions.length > 0)
+                          .slice(0, 5)
+                          .map((inst) => (
+                            <Button
+                              key={inst}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateMedication(index, 'instructions', inst)}
+                              className="text-xs"
+                            >
+                              {inst}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {/* Add Another Medication Button */}
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addAnotherMedication}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Another Medication
+                </Button>
+              </div>
+
+              {/* General Prescription Notes */}
+              <Card className="border-2 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="text-lg">General Notes</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="patient_notes">Patient Notes</Label>
+                    <Textarea
+                      id="patient_notes"
+                      value={prescriptionForm.patient_notes}
+                      onChange={(e) => setPrescriptionForm({...prescriptionForm, patient_notes: e.target.value})}
+                      placeholder="Additional notes for the patient"
+                    />
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Label htmlFor="side_effects">Side Effects</Label>
+                    <Textarea
+                      id="side_effects"
+                      value={prescriptionForm.side_effects}
+                      onChange={(e) => setPrescriptionForm({...prescriptionForm, side_effects: e.target.value})}
+                      placeholder="Known side effects to watch for"
+                    />
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Label htmlFor="interactions">Drug Interactions</Label>
+                    <Textarea
+                      id="interactions"
+                      value={prescriptionForm.interactions}
+                      onChange={(e) => setPrescriptionForm({...prescriptionForm, interactions: e.target.value})}
+                      placeholder="Known drug interactions"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPrescriptionDialog(false)}
+                disabled={isSavingPrescription}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSavePrescription}
+                disabled={isSavingPrescription}
+              >
+                {isSavingPrescription ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Prescription'
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </>
   );

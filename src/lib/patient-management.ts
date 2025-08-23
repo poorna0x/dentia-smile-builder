@@ -157,23 +157,52 @@ export const patientApi = {
     return data;
   },
 
-  // Get patient by phone number
+  // Get patient by phone number (using new patient_phones table)
   async getByPhone(phone: string, clinicId: string): Promise<Patient | null> {
     console.log('API: Searching for patient with phone:', phone);
     console.log('API: Clinic ID:', clinicId);
     
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .eq('phone', phone)
-      .eq('clinic_id', clinicId)
-      .single();
+    try {
+      // Use the new database function to search by phone (handles multiple phones)
+      const { data, error } = await supabase
+        .rpc('get_patient_by_phone', {
+          p_phone: phone,
+          p_clinic_id: clinicId
+        });
 
-    console.log('API: Search result:', data);
-    console.log('API: Search error:', error);
-    
-    if (error && error.code !== 'PGRST116') throw error;
-    return data;
+      console.log('API: Database function result:', data);
+      console.log('API: Database function error:', error);
+      
+      if (error) {
+        console.error('API: Database function error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.log('API: No patient found with phone:', phone);
+        return null;
+      }
+
+      // Get the full patient record using the first result
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', data[0].patient_id)
+        .single();
+
+      console.log('API: Patient data result:', patientData);
+      console.log('API: Patient data error:', patientError);
+      
+      if (patientError) {
+        console.error('API: Error getting patient data:', patientError);
+        throw patientError;
+      }
+
+      return patientData;
+    } catch (error) {
+      console.error('API: Error in getByPhone:', error);
+      throw error;
+    }
   },
 
   // Search patients

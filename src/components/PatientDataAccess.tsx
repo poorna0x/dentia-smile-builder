@@ -1,28 +1,29 @@
 /**
  * Patient Data Access Component
  * 
- * This component allows patients to access their medical data by entering their phone number.
+ * Allows patients to access their medical information by phone number
  * Features:
- * - Phone number lookup
+ * - Phone number validation
+ * - Patient search
+ * - Multiple patient selection
  * - Appointment history
- * - Doctor suggestions/recommendations
- * - Prescriptions
  * - Treatment plans
- * - Medical notes
+ * - Medical records
+ * - Dental chart
+ * - Prescriptions
  */
 
-import { useState } from 'react';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react';
 import { useClinic } from '@/contexts/ClinicContext';
-import { patientApi, treatmentPlanApi, medicalRecordApi, patientUtils, Patient } from '@/lib/patient-management';
 import { supabase } from '@/lib/supabase';
-import ToothChart from './ToothChart';
+import { Patient } from '@/lib/patient-management';
+import { patientUtils } from '@/lib/patient-management';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { 
   Phone, 
   Search, 
@@ -36,6 +37,8 @@ import {
   MapPin,
   Circle
 } from 'lucide-react';
+import SimpleActiveTreatments from './SimpleActiveTreatments';
+import { toast } from 'sonner';
 
 const PatientDataAccess = () => {
   const { clinic } = useClinic();
@@ -45,8 +48,11 @@ const PatientDataAccess = () => {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [showData, setShowData] = useState(false);
   const [showDentalChart, setShowDentalChart] = useState(false);
+  const [multiplePatients, setMultiplePatients] = useState<any[]>([]);
+  const [showPatientSelection, setShowPatientSelection] = useState(false);
 
   // Handle phone number input
   const handlePhoneChange = (value: string) => {
@@ -75,12 +81,44 @@ const PatientDataAccess = () => {
     console.log('PatientDataAccess: Phone validation passed, searching...');
     setIsLoading(true);
     try {
-      // Get patient by phone number
-      const patientData = await patientApi.getByPhone(phone, clinic.id);
-      console.log('PatientDataAccess: Search result:', patientData);
+      // Get all patients by phone number (handles multiple patients)
+      const { data, error } = await supabase
+        .rpc('get_patient_by_phone', {
+          p_phone: phone,
+          p_clinic_id: clinic.id
+        });
+
+      console.log('PatientDataAccess: Search result:', data);
       
-      if (!patientData) {
+      if (error) {
+        console.error('PatientDataAccess: Search error:', error);
+        toast.error('Error searching for patient');
+        return;
+      }
+
+      if (!data || data.length === 0) {
         toast.error('No patient found with this phone number. Please contact the clinic to register.');
+        return;
+      }
+
+      // If multiple patients found, show selection dialog
+      if (data.length > 1) {
+        console.log('PatientDataAccess: Multiple patients found:', data);
+        setMultiplePatients(data);
+        setShowPatientSelection(true);
+        return;
+      }
+
+      // Single patient found, get full patient data
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', data[0].patient_id)
+        .single();
+
+      if (patientError) {
+        console.error('PatientDataAccess: Error getting patient data:', patientError);
+        toast.error('Error retrieving patient data');
         return;
       }
 
@@ -137,32 +175,109 @@ const PatientDataAccess = () => {
 
         // Get treatment plans
         console.log('PatientDataAccess: Loading treatment plans...');
-        const treatmentPlansData = await treatmentPlanApi.getByPatient(patientData.id, clinic.id);
-        console.log('PatientDataAccess: Treatment plans loaded:', treatmentPlansData);
-        setTreatmentPlans(treatmentPlansData);
+        try {
+          const { data: treatmentsData, error: treatmentsError } = await supabase
+            .from('treatment_plans')
+            .select('*')
+            .eq('patient_id', patientData.id)
+            .eq('clinic_id', clinic.id)
+            .order('created_at', { ascending: false });
+
+          console.log('PatientDataAccess: Treatments result:', treatmentsData);
+          console.log('PatientDataAccess: Treatments error:', treatmentsError);
+          
+          setTreatmentPlans(treatmentsData || []);
+        } catch (treatmentsException) {
+          console.error('PatientDataAccess: Exception loading treatments:', treatmentsException);
+          setTreatmentPlans([]);
+        }
 
         // Get medical records
         console.log('PatientDataAccess: Loading medical records...');
-        const medicalRecordsData = await medicalRecordApi.getByPatient(patientData.id, clinic.id);
-        console.log('PatientDataAccess: Medical records loaded:', medicalRecordsData);
-        setMedicalRecords(medicalRecordsData);
+        try {
+          const { data: recordsData, error: recordsError } = await supabase
+            .from('medical_records')
+            .select('*')
+            .eq('patient_id', patientData.id)
+            .eq('clinic_id', clinic.id)
+            .order('created_at', { ascending: false });
+
+          console.log('PatientDataAccess: Medical records result:', recordsData);
+          console.log('PatientDataAccess: Medical records error:', recordsError);
+          
+          setMedicalRecords(recordsData || []);
+        } catch (recordsException) {
+          console.error('PatientDataAccess: Exception loading medical records:', recordsException);
+          setMedicalRecords([]);
+        }
 
         setShowData(true);
         console.log('PatientDataAccess: All data loaded successfully');
-        toast.success(`Welcome back, ${patientData.first_name}!`);
-      } catch (relatedDataError) {
-        console.error('PatientDataAccess: Error loading related data:', relatedDataError);
-        // Still show patient data even if related data fails
-        setShowData(true);
-        toast.success(`Welcome back, ${patientData.first_name}!`);
-        toast.error('Some data could not be loaded. Please try again.');
+      } catch (dataException) {
+        console.error('PatientDataAccess: Exception loading related data:', dataException);
+        toast.error('Error loading patient data');
       }
-      
     } catch (error) {
-      console.error('Error searching patient:', error);
-      toast.error('Failed to load patient data. Please try again.');
+      console.error('PatientDataAccess: Error in handleSearch:', error);
+      toast.error('Error searching for patient');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Load patient data for selected patient
+  const loadPatientData = async (patientData: Patient) => {
+    try {
+      // Get appointments
+      const { data: appointmentsData } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .eq('clinic_id', clinic?.id)
+        .order('date', { ascending: false });
+
+      setAppointments(appointmentsData || []);
+
+      // Get treatment plans
+      const { data: treatmentsData } = await supabase
+        .from('treatment_plans')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .eq('clinic_id', clinic?.id)
+        .order('created_at', { ascending: false });
+
+      setTreatmentPlans(treatmentsData || []);
+
+      // Get medical records
+      const { data: recordsData } = await supabase
+        .from('medical_records')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .eq('clinic_id', clinic?.id)
+        .order('created_at', { ascending: false });
+
+      setMedicalRecords(recordsData || []);
+
+      // Get prescriptions (including expired ones)
+      console.log('PatientDataAccess: Fetching prescriptions for patient:', patientData.id);
+      console.log('PatientDataAccess: Clinic ID:', clinic?.id);
+      
+      const { data: prescriptionsData, error: prescriptionsError } = await supabase
+        .from('prescriptions')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .eq('clinic_id', clinic?.id)
+        .in('status', ['Active', 'Completed'])
+        .order('prescribed_date', { ascending: false });
+
+      console.log('PatientDataAccess: Prescriptions data:', prescriptionsData);
+      console.log('PatientDataAccess: Prescriptions error:', prescriptionsError);
+      
+      setPrescriptions(prescriptionsData || []);
+      setShowData(true);
+    } catch (error) {
+      console.error('PatientDataAccess: Error loading patient data:', error);
+      toast.error('Error loading patient data');
     }
   };
 
@@ -172,8 +287,41 @@ const PatientDataAccess = () => {
     setAppointments([]);
     setTreatmentPlans([]);
     setMedicalRecords([]);
+    setPrescriptions([]);
     setShowData(false);
     setPhone('');
+    setMultiplePatients([]);
+    setShowPatientSelection(false);
+  };
+
+  const handlePatientSelection = async (selectedPatient: any) => {
+    try {
+      console.log('PatientDataAccess: Selected patient from dialog:', selectedPatient);
+      
+      // Get full patient data
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', selectedPatient.patient_id)
+        .single();
+
+      if (patientError) {
+        console.error('PatientDataAccess: Error getting patient data:', patientError);
+        toast.error('Error retrieving patient data');
+        return;
+      }
+
+      console.log('PatientDataAccess: Full patient data loaded:', patientData);
+      setPatient(patientData);
+      setShowPatientSelection(false);
+      setMultiplePatients([]);
+
+      // Load related data for selected patient
+      await loadPatientData(patientData);
+    } catch (error) {
+      console.error('PatientDataAccess: Error selecting patient:', error);
+      toast.error('Error selecting patient');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -208,55 +356,107 @@ const PatientDataAccess = () => {
     <div className="max-w-4xl mx-auto">
       {/* Search Section */}
       {!showData ? (
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl flex items-center justify-center">
-              <User className="w-6 h-6 mr-2" />
-              Access Your Medical Information
-            </CardTitle>
-            <CardDescription>
-              Enter your phone number to view your appointments, treatments, and medical records
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative mt-2">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="Enter your 10-digit phone number"
-                  value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  className="pl-10"
-                  maxLength={10}
-                />
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl flex items-center justify-center">
+                <User className="w-6 h-6 mr-2" />
+                Access Your Medical Information
+              </CardTitle>
+              <CardDescription>
+                Enter your phone number to view your appointments, treatments, and medical records
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <div className="relative mt-2">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter your 10-digit phone number"
+                    value={phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    className="pl-10"
+                    maxLength={10}
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  We'll show you all your medical information associated with this number
+                </p>
               </div>
-              <p className="text-sm text-gray-500 mt-1">
-                We'll show you all your medical information associated with this number
-              </p>
-            </div>
-            
-            <Button
-              onClick={handleSearch}
-              disabled={!patientUtils.validatePhone(phone) || isLoading}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  View My Information
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+              
+              <Button
+                onClick={handleSearch}
+                disabled={!patientUtils.validatePhone(phone) || isLoading}
+                className="w-full"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    View My Information
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Patient Selection Dialog */}
+          {showPatientSelection && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-lg text-blue-800">
+                  Multiple Patients Found
+                </CardTitle>
+                <CardDescription className="text-blue-700">
+                  We found multiple patients with this phone number. Please select the correct one:
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {multiplePatients.map((patient, index) => (
+                    <div
+                      key={patient.patient_id}
+                      className="p-3 bg-white rounded-lg border border-blue-200 hover:border-blue-300 cursor-pointer transition-colors"
+                      onClick={() => handlePatientSelection(patient)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {patient.full_name}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Phone: {phone} • {patient.phone_count} phone number(s)
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Click to select</p>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-1"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPatientSelection(false);
+                    setMultiplePatients([]);
+                  }}
+                  className="mt-4 w-full"
+                >
+                  Cancel
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       ) : (
         /* Patient Data Display */
         <div className="space-y-6">
@@ -280,6 +480,9 @@ const PatientDataAccess = () => {
             </CardHeader>
           </Card>
 
+          {/* Active Treatments Display */}
+          <SimpleActiveTreatments patientPhone={phone} />
+
           {/* Data Tabs */}
           <Tabs defaultValue="appointments" className="space-y-6">
             <TabsList className="grid w-full grid-cols-5">
@@ -301,44 +504,53 @@ const PatientDataAccess = () => {
               </TabsTrigger>
               <TabsTrigger value="records" className="flex items-center">
                 <FileText className="w-4 h-4 mr-2" />
-                Medical Records
+                Records
               </TabsTrigger>
             </TabsList>
 
             {/* Appointments Tab */}
-            <TabsContent value="appointments">
+            <TabsContent value="appointments" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Appointment History</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Appointment History
+                  </CardTitle>
                   <CardDescription>
                     Your past and upcoming appointments
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {appointments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No appointments found</p>
-                      <p className="text-sm text-gray-500 mt-2">Book your first appointment to get started</p>
-                    </div>
+                    <p className="text-gray-500 text-center py-8">No appointments found</p>
                   ) : (
                     <div className="space-y-4">
                       {appointments.map((appointment) => (
-                        <Card key={appointment.id} className="p-4">
-                          <div className="flex justify-between items-start">
+                        <div key={appointment.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
                             <div>
-                              <h3 className="font-semibold">
+                              <h3 className="font-semibold">{appointment.name}</h3>
+                              <p className="text-sm text-gray-600">
                                 {formatDate(appointment.date)} at {appointment.time}
-                              </h3>
-                              <p className="text-gray-600 mt-1">
-                                Status: {appointment.status}
                               </p>
                             </div>
                             <Badge className={getAppointmentStatusColor(appointment.status)}>
                               {appointment.status}
                             </Badge>
                           </div>
-                        </Card>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center">
+                              <Phone className="w-4 h-4 mr-1" />
+                              {appointment.phone}
+                            </span>
+                            {appointment.email && (
+                              <span className="flex items-center">
+                                <MessageSquare className="w-4 h-4 mr-1" />
+                                {appointment.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -347,40 +559,44 @@ const PatientDataAccess = () => {
             </TabsContent>
 
             {/* Treatments Tab */}
-            <TabsContent value="treatments">
+            <TabsContent value="treatments" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Treatment Plans</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <Stethoscope className="w-5 h-5 mr-2" />
+                    Treatment Plans
+                  </CardTitle>
                   <CardDescription>
-                    Your current and completed treatments
+                    Your dental treatment plans and progress
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {treatmentPlans.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Stethoscope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No treatment plans found</p>
-                      <p className="text-sm text-gray-500 mt-2">Your treatment plans will appear here</p>
-                    </div>
+                    <p className="text-gray-500 text-center py-8">No treatment plans found</p>
                   ) : (
                     <div className="space-y-4">
-                      {treatmentPlans.map((plan) => (
-                        <Card key={plan.id} className="p-4">
-                          <div className="flex justify-between items-start">
+                      {treatmentPlans.map((treatment) => (
+                        <div key={treatment.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
                             <div>
-                              <h3 className="font-semibold">{plan.treatment_name}</h3>
-                              {plan.treatment_description && (
-                                <p className="text-gray-600 mt-1">{plan.treatment_description}</p>
-                              )}
-                              {plan.cost && (
-                                <p className="text-gray-600 mt-1">Cost: ₹{plan.cost}</p>
+                              <h3 className="font-semibold">{treatment.treatment_name}</h3>
+                              {treatment.treatment_description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {treatment.treatment_description}
+                                </p>
                               )}
                             </div>
-                            <Badge className={getTreatmentStatusColor(plan.status)}>
-                              {plan.status}
+                            <Badge className={getTreatmentStatusColor(treatment.status)}>
+                              {treatment.status}
                             </Badge>
                           </div>
-                        </Card>
+                          <div className="text-sm text-gray-500">
+                            <p>Created: {formatDate(treatment.created_at)}</p>
+                            {treatment.notes && (
+                              <p className="mt-2 text-gray-600">{treatment.notes}</p>
+                            )}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -389,46 +605,75 @@ const PatientDataAccess = () => {
             </TabsContent>
 
             {/* Dental Chart Tab */}
-            <TabsContent value="dental">
-              <ToothChart 
-                patientId={patient!.id} 
-                clinicId={clinic!.id}
-                onTreatmentAdded={handleSearch}
-                onConditionUpdated={handleSearch}
-              />
+            <TabsContent value="dental" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Circle className="w-5 h-5 mr-2" />
+                    Dental Chart
+                  </CardTitle>
+                  <CardDescription>
+                    Your dental health overview and treatment history
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500 text-center py-8">
+                    Dental chart functionality will be available soon
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Prescriptions Tab */}
-            <TabsContent value="prescriptions">
+            <TabsContent value="prescriptions" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Prescriptions & Medications</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <Pill className="w-5 h-5 mr-2" />
+                    Prescriptions
+                  </CardTitle>
                   <CardDescription>
                     Your current medications and prescriptions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {patient?.current_medications && patient.current_medications.length > 0 ? (
-                    <div className="space-y-4">
-                      {patient.current_medications.map((medication, index) => (
-                        <Card key={index} className="p-4">
-                          <div className="flex items-start">
-                            <Pill className="w-5 h-5 text-blue-600 mr-3 mt-0.5" />
-                            <div>
-                              <h3 className="font-semibold">{medication}</h3>
-                              <p className="text-sm text-gray-600 mt-1">
-                                Current medication
-                              </p>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
+                  {prescriptions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No prescriptions found</p>
                   ) : (
-                    <div className="text-center py-8">
-                      <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No current medications</p>
-                      <p className="text-sm text-gray-500 mt-2">Your prescriptions will appear here</p>
+                    <div className="space-y-4">
+                      {prescriptions.map((prescription) => (
+                        <div key={prescription.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-semibold">{prescription.medication_name}</h3>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {prescription.dosage} • {prescription.frequency} • {prescription.duration}
+                              </p>
+                              {prescription.instructions && (
+                                <p className="text-sm text-gray-600 mt-2">
+                                  <strong>Instructions:</strong> {prescription.instructions}
+                                </p>
+                              )}
+                            </div>
+                            <Badge className={`${
+                              prescription.status === 'Active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : prescription.status === 'Completed'
+                                ? 'bg-gray-100 text-gray-800'
+                                : 'bg-purple-100 text-purple-800'
+                            }`}>
+                              {prescription.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>Prescribed by: Dr. {prescription.prescribed_by}</span>
+                            <span>Date: {formatDate(prescription.prescribed_date)}</span>
+                          </div>
+                          {prescription.notes && (
+                            <p className="text-sm text-gray-600 mt-2">{prescription.notes}</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </CardContent>
@@ -436,40 +681,39 @@ const PatientDataAccess = () => {
             </TabsContent>
 
             {/* Medical Records Tab */}
-            <TabsContent value="records">
+            <TabsContent value="records" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Medical Records</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <FileText className="w-5 h-5 mr-2" />
+                    Medical Records
+                  </CardTitle>
                   <CardDescription>
-                    Your medical history and doctor notes
+                    Your medical history and records
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {medicalRecords.length === 0 ? (
-                    <div className="text-center py-8">
-                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No medical records found</p>
-                      <p className="text-sm text-gray-500 mt-2">Your medical records will appear here</p>
-                    </div>
+                    <p className="text-gray-500 text-center py-8">No medical records found</p>
                   ) : (
                     <div className="space-y-4">
                       {medicalRecords.map((record) => (
-                        <Card key={record.id} className="p-4">
-                          <div>
-                            <h3 className="font-semibold">{record.title}</h3>
-                            <p className="text-gray-600 mt-1">
-                              {formatDate(record.record_date)} • {record.record_type}
-                            </p>
-                            {record.description && (
-                              <p className="text-gray-600 mt-2">{record.description}</p>
-                            )}
-                            {record.created_by && (
-                              <p className="text-sm text-gray-500 mt-2">
-                                By: {record.created_by}
+                        <div key={record.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-semibold">{record.title}</h3>
+                              <p className="text-sm text-gray-600">
+                                {record.record_type} • {formatDate(record.record_date)}
                               </p>
-                            )}
+                            </div>
                           </div>
-                        </Card>
+                          {record.description && (
+                            <p className="text-sm text-gray-600 mt-2">{record.description}</p>
+                          )}
+                          {record.notes && (
+                            <p className="text-sm text-gray-500 mt-2">{record.notes}</p>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}

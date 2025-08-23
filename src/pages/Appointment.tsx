@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 // import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import { sendNewAppointmentNotification } from '@/lib/push-notifications';
 
 const Appointment = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
   const { settings, loading: settingsLoading } = useSettings();
   
@@ -40,6 +41,23 @@ const Appointment = () => {
   useEffect(() => {
     // Settings loaded successfully
   }, [settings]);
+
+  // Handle pre-filled patient data from URL parameters
+  useEffect(() => {
+    const patientParam = searchParams.get('patient');
+    if (patientParam) {
+      try {
+        const patientData = JSON.parse(decodeURIComponent(patientParam));
+        if (patientData.name) setName(patientData.name);
+        if (patientData.phone) setPhone(patientData.phone);
+        if (patientData.email) setEmail(patientData.email);
+        
+        console.log('Pre-filled patient data:', patientData);
+      } catch (error) {
+        console.error('Error parsing patient data from URL:', error);
+      }
+    }
+  }, [searchParams]);
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

@@ -103,6 +103,17 @@ export interface DisabledSlot {
   updated_at: string
 }
 
+export interface PatientPhone {
+  id: string
+  patient_id: string
+  phone: string
+  phone_type: 'primary' | 'secondary' | 'emergency' | 'family'
+  is_primary: boolean
+  is_verified: boolean
+  created_at: string
+  updated_at: string
+}
+
 // Database helper functions
 export const clinicsApi = {
   // Get clinic by slug
