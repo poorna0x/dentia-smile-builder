@@ -123,19 +123,19 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tooth Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
               <Label htmlFor="tooth_number">Tooth Number *</Label>
               <Select 
                 value={formData.tooth_number} 
                 onValueChange={(value) => handleInputChange('tooth_number', value)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select tooth" />
+                <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
+                  <SelectValue placeholder="Select tooth" className="text-base truncate" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableTeeth.map((tooth) => (
-                    <SelectItem key={tooth} value={tooth}>
+                    <SelectItem key={tooth} value={tooth} className="text-sm">
                       {tooth} - {toothChartUtils.getToothName(tooth)}
                     </SelectItem>
                   ))}
@@ -143,30 +143,30 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="tooth_position">Position</Label>
               <Input
                 id="tooth_position"
                 value={formData.tooth_position}
                 readOnly
-                className="bg-gray-50"
+                className="bg-gray-50 h-12 text-base"
               />
             </div>
           </div>
 
           {/* Treatment Type */}
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="treatment_type">Treatment Type *</Label>
             <Select 
               value={formData.treatment_type} 
               onValueChange={(value) => handleInputChange('treatment_type', value)}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select treatment type" />
+              <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
+                <SelectValue placeholder="Select treatment type" className="text-base truncate" />
               </SelectTrigger>
               <SelectContent>
                 {treatmentTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
+                  <SelectItem key={type} value={type} className="text-sm">
                     {type}
                   </SelectItem>
                 ))}
@@ -175,7 +175,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
           </div>
 
           {/* Treatment Description */}
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="treatment_description">Description</Label>
             <Textarea
               id="treatment_description"
@@ -183,30 +183,31 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
               onChange={(e) => handleInputChange('treatment_description', e.target.value)}
               placeholder="Describe the treatment details..."
               rows={3}
+              className="text-base"
             />
           </div>
 
           {/* Treatment Status and Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="treatment_status">Status *</Label>
               <Select 
                 value={formData.treatment_status} 
                 onValueChange={(value) => handleInputChange('treatment_status', value)}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
+                  <SelectValue className="text-base truncate" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Planned">Planned</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  <SelectItem value="Planned" className="text-sm">Planned</SelectItem>
+                  <SelectItem value="In Progress" className="text-sm">In Progress</SelectItem>
+                  <SelectItem value="Completed" className="text-sm">Completed</SelectItem>
+                  <SelectItem value="Cancelled" className="text-sm">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="treatment_date">Treatment Date</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -215,7 +216,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
                   type="date"
                   value={formData.treatment_date}
                   onChange={(e) => handleInputChange('treatment_date', e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-12 text-base"
                 />
               </div>
             </div>
@@ -224,7 +225,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
 
 
           {/* Notes */}
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="notes">Notes</Label>
             <div className="relative">
               <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -234,7 +235,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 placeholder="Additional notes..."
                 rows={2}
-                className="pl-10"
+                className="pl-10 text-base"
               />
             </div>
           </div>

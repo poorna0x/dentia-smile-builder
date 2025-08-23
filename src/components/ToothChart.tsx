@@ -854,8 +854,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <div>
                   <Label htmlFor="condition_type">Condition Type *</Label>
                   <Select value={conditionForm.condition_type} onValueChange={(value) => setConditionForm(prev => ({ ...prev, condition_type: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select condition type" />
+                    <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
+                      <SelectValue placeholder="Select condition type" className="text-base truncate" />
                     </SelectTrigger>
                     <SelectContent>
                       {/* Common conditions first */}
@@ -902,8 +902,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <div>
                   <Label htmlFor="severity">Severity *</Label>
                   <Select value={conditionForm.severity} onValueChange={(value: any) => setConditionForm(prev => ({ ...prev, severity: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
+                      <SelectValue className="text-base truncate" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Mild">Mild</SelectItem>
@@ -921,6 +921,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   placeholder="Describe the condition..."
                   value={conditionForm.condition_description}
                   onChange={(e) => setConditionForm(prev => ({ ...prev, condition_description: e.target.value }))}
+                  className="text-base"
                 />
               </div>
 
@@ -931,6 +932,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   placeholder="Additional notes..."
                   value={conditionForm.notes}
                   onChange={(e) => setConditionForm(prev => ({ ...prev, notes: e.target.value }))}
+                  className="text-base"
                 />
               </div>
             </div>
