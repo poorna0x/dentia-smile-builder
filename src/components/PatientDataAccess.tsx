@@ -229,33 +229,42 @@ const PatientDataAccess = () => {
   const loadPatientData = async (patientData: Patient) => {
     try {
       // Get appointments
-      const { data: appointmentsData } = await supabase
+      console.log('PatientDataAccess: Loading appointments for patient:', patientData.id);
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select('*')
         .eq('patient_id', patientData.id)
         .eq('clinic_id', clinic?.id)
         .order('date', { ascending: false });
 
+      console.log('PatientDataAccess: Appointments data:', appointmentsData);
+      console.log('PatientDataAccess: Appointments error:', appointmentsError);
       setAppointments(appointmentsData || []);
 
       // Get treatment plans
-      const { data: treatmentsData } = await supabase
+      console.log('PatientDataAccess: Loading treatment plans for patient:', patientData.id);
+      const { data: treatmentsData, error: treatmentsError } = await supabase
         .from('treatment_plans')
         .select('*')
         .eq('patient_id', patientData.id)
         .eq('clinic_id', clinic?.id)
         .order('created_at', { ascending: false });
 
+      console.log('PatientDataAccess: Treatment plans data:', treatmentsData);
+      console.log('PatientDataAccess: Treatment plans error:', treatmentsError);
       setTreatmentPlans(treatmentsData || []);
 
       // Get medical records
-      const { data: recordsData } = await supabase
+      console.log('PatientDataAccess: Loading medical records for patient:', patientData.id);
+      const { data: recordsData, error: recordsError } = await supabase
         .from('medical_records')
         .select('*')
         .eq('patient_id', patientData.id)
         .eq('clinic_id', clinic?.id)
         .order('created_at', { ascending: false });
 
+      console.log('PatientDataAccess: Medical records data:', recordsData);
+      console.log('PatientDataAccess: Medical records error:', recordsError);
       setMedicalRecords(recordsData || []);
 
       // Get prescriptions (complete history including all statuses)
@@ -485,26 +494,31 @@ const PatientDataAccess = () => {
 
           {/* Data Tabs */}
           <Tabs defaultValue="appointments" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 gap-1">
-              <TabsTrigger value="appointments" className="flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                Appointments
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1">
+              <TabsTrigger value="appointments" className="flex items-center text-xs md:text-sm">
+                <Calendar className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Appointments</span>
+                <span className="sm:hidden">Appts</span>
               </TabsTrigger>
-              <TabsTrigger value="treatments" className="flex items-center">
-                <Stethoscope className="w-4 h-4 mr-2" />
-                Treatments
+              <TabsTrigger value="treatments" className="flex items-center text-xs md:text-sm">
+                <Stethoscope className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Treatments</span>
+                <span className="sm:hidden">Treat</span>
               </TabsTrigger>
-              <TabsTrigger value="dental" className="flex items-center">
-                <Circle className="w-4 h-4 mr-2" />
-                Dental Chart
+              <TabsTrigger value="dental" className="flex items-center text-xs md:text-sm">
+                <Circle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Dental Chart</span>
+                <span className="sm:hidden">Dental</span>
               </TabsTrigger>
-              <TabsTrigger value="prescriptions" className="flex items-center">
-                <Pill className="w-4 h-4 mr-2" />
-                Prescriptions
+              <TabsTrigger value="prescriptions" className="flex items-center text-xs md:text-sm">
+                <Pill className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Prescriptions</span>
+                <span className="sm:hidden">Meds</span>
               </TabsTrigger>
-              <TabsTrigger value="records" className="flex items-center">
-                <FileText className="w-4 h-4 mr-2" />
-                Medical History
+              <TabsTrigger value="records" className="flex items-center text-xs md:text-sm">
+                <FileText className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Medical History</span>
+                <span className="sm:hidden">History</span>
               </TabsTrigger>
             </TabsList>
 
@@ -526,26 +540,26 @@ const PatientDataAccess = () => {
                   ) : (
                     <div className="space-y-4">
                       {appointments.map((appointment) => (
-                        <div key={appointment.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-semibold">{appointment.name}</h3>
-                              <p className="text-sm text-gray-600">
+                        <div key={appointment.id} className="border rounded-lg p-3 md:p-4">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-sm md:text-base">{appointment.name}</h3>
+                              <p className="text-xs md:text-sm text-gray-600">
                                 {formatDate(appointment.date)} at {appointment.time}
                               </p>
                             </div>
-                            <Badge className={getAppointmentStatusColor(appointment.status)}>
+                            <Badge className={`text-xs md:text-sm ${getAppointmentStatusColor(appointment.status)}`}>
                               {appointment.status}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-500">
                             <span className="flex items-center">
-                              <Phone className="w-4 h-4 mr-1" />
+                              <Phone className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                               {appointment.phone}
                             </span>
                             {appointment.email && (
                               <span className="flex items-center">
-                                <MessageSquare className="w-4 h-4 mr-1" />
+                                <MessageSquare className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                 {appointment.email}
                               </span>
                             )}
@@ -576,21 +590,21 @@ const PatientDataAccess = () => {
                   ) : (
                     <div className="space-y-4">
                       {treatmentPlans.map((treatment) => (
-                        <div key={treatment.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-semibold">{treatment.treatment_name}</h3>
+                        <div key={treatment.id} className="border rounded-lg p-3 md:p-4">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-sm md:text-base">{treatment.treatment_name}</h3>
                               {treatment.treatment_description && (
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-xs md:text-sm text-gray-600 mt-1">
                                   {treatment.treatment_description}
                                 </p>
                               )}
                             </div>
-                            <Badge className={getTreatmentStatusColor(treatment.status)}>
+                            <Badge className={`text-xs md:text-sm ${getTreatmentStatusColor(treatment.status)}`}>
                               {treatment.status}
                             </Badge>
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs md:text-sm text-gray-500">
                             <p>Created: {formatDate(treatment.created_at)}</p>
                             {treatment.notes && (
                               <p className="mt-2 text-gray-600">{treatment.notes}</p>
@@ -699,20 +713,20 @@ const PatientDataAccess = () => {
                   ) : (
                     <div className="space-y-4">
                       {medicalRecords.map((record) => (
-                        <div key={record.id} className="border rounded-lg p-4">
+                        <div key={record.id} className="border rounded-lg p-3 md:p-4">
                           <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-semibold">{record.title}</h3>
-                              <p className="text-sm text-gray-600">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-sm md:text-base">{record.title}</h3>
+                              <p className="text-xs md:text-sm text-gray-600">
                                 {record.record_type} • {formatDate(record.record_date)}
                               </p>
                             </div>
                           </div>
                           {record.description && (
-                            <p className="text-sm text-gray-600 mt-2">{record.description}</p>
+                            <p className="text-xs md:text-sm text-gray-600 mt-2">{record.description}</p>
                           )}
                           {record.notes && (
-                            <p className="text-sm text-gray-500 mt-2">{record.notes}</p>
+                            <p className="text-xs md:text-sm text-gray-500 mt-2">{record.notes}</p>
                           )}
                         </div>
                       ))}
@@ -739,21 +753,21 @@ const PatientDataAccess = () => {
                     <div className="space-y-4">
                       {prescriptions.map((prescription) => (
                         <div key={prescription.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-3">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-2">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-lg">{prescription.medication_name}</h3>
-                              <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                              <h3 className="font-semibold text-base md:text-lg">{prescription.medication_name}</h3>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs md:text-sm text-gray-600 mt-1">
                                 <span className="flex items-center">
                                   <Pill className="w-3 h-3 mr-1" />
                                   {prescription.dosage}
                                 </span>
-                                <span>•</span>
+                                <span className="hidden sm:inline">•</span>
                                 <span>{prescription.frequency}</span>
-                                <span>•</span>
+                                <span className="hidden sm:inline">•</span>
                                 <span>{prescription.duration}</span>
                               </div>
                             </div>
-                            <Badge className={`${
+                            <Badge className={`text-xs md:text-sm ${
                               prescription.status === 'Active' 
                                 ? 'bg-green-100 text-green-800 border-green-200' 
                                 : prescription.status === 'Completed'
@@ -768,15 +782,15 @@ const PatientDataAccess = () => {
                           
                           {/* Instructions */}
                           {prescription.instructions && (
-                            <div className="mb-3 p-3 bg-blue-50 rounded-lg">
-                              <p className="text-sm font-medium text-blue-800 mb-1">Instructions:</p>
-                              <p className="text-sm text-blue-700">{prescription.instructions}</p>
+                            <div className="mb-3 p-2 md:p-3 bg-blue-50 rounded-lg">
+                              <p className="text-xs md:text-sm font-medium text-blue-800 mb-1">Instructions:</p>
+                              <p className="text-xs md:text-sm text-blue-700">{prescription.instructions}</p>
                             </div>
                           )}
 
                           {/* Additional Details */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 text-xs md:text-sm">
+                            <div className="space-y-1">
                               <p className="text-gray-600">
                                 <span className="font-medium">Prescribed:</span> {formatDate(prescription.prescribed_date)}
                               </p>
@@ -786,7 +800,7 @@ const PatientDataAccess = () => {
                                 </p>
                               )}
                             </div>
-                            <div>
+                            <div className="space-y-1">
                               {prescription.refills_remaining > 0 && (
                                 <p className="text-gray-600">
                                   <span className="font-medium">Refills:</span> {prescription.refills_remaining} remaining
@@ -802,32 +816,32 @@ const PatientDataAccess = () => {
 
                           {/* Notes and Side Effects */}
                           {(prescription.patient_notes || prescription.pharmacy_notes || prescription.side_effects || prescription.interactions) && (
-                            <div className="mt-4 space-y-3">
+                            <div className="mt-4 space-y-2 md:space-y-3">
                               {prescription.patient_notes && (
-                                <div className="p-3 bg-yellow-50 rounded-lg">
-                                  <p className="text-sm font-medium text-yellow-800 mb-1">Patient Notes:</p>
-                                  <p className="text-sm text-yellow-700">{prescription.patient_notes}</p>
+                                <div className="p-2 md:p-3 bg-yellow-50 rounded-lg">
+                                  <p className="text-xs md:text-sm font-medium text-yellow-800 mb-1">Patient Notes:</p>
+                                  <p className="text-xs md:text-sm text-yellow-700">{prescription.patient_notes}</p>
                                 </div>
                               )}
                               
                               {prescription.pharmacy_notes && (
-                                <div className="p-3 bg-green-50 rounded-lg">
-                                  <p className="text-sm font-medium text-green-800 mb-1">Pharmacy Notes:</p>
-                                  <p className="text-sm text-green-700">{prescription.pharmacy_notes}</p>
+                                <div className="p-2 md:p-3 bg-green-50 rounded-lg">
+                                  <p className="text-xs md:text-sm font-medium text-green-800 mb-1">Pharmacy Notes:</p>
+                                  <p className="text-xs md:text-sm text-green-700">{prescription.pharmacy_notes}</p>
                                 </div>
                               )}
                               
                               {prescription.side_effects && (
-                                <div className="p-3 bg-orange-50 rounded-lg">
-                                  <p className="text-sm font-medium text-orange-800 mb-1">Side Effects:</p>
-                                  <p className="text-sm text-orange-700">{prescription.side_effects}</p>
+                                <div className="p-2 md:p-3 bg-orange-50 rounded-lg">
+                                  <p className="text-xs md:text-sm font-medium text-orange-800 mb-1">Side Effects:</p>
+                                  <p className="text-xs md:text-sm text-orange-700">{prescription.side_effects}</p>
                                 </div>
                               )}
                               
                               {prescription.interactions && (
-                                <div className="p-3 bg-red-50 rounded-lg">
-                                  <p className="text-sm font-medium text-red-800 mb-1">Drug Interactions:</p>
-                                  <p className="text-sm text-red-700">{prescription.interactions}</p>
+                                <div className="p-2 md:p-3 bg-red-50 rounded-lg">
+                                  <p className="text-xs md:text-sm font-medium text-red-800 mb-1">Drug Interactions:</p>
+                                  <p className="text-xs md:text-sm text-red-700">{prescription.interactions}</p>
                                 </div>
                               )}
                             </div>
