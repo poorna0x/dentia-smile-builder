@@ -2224,29 +2224,29 @@ export default function AdminPatientManagement() {
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => {
-                      setShowPatientForm(false);
-                      setIsEditMode(false);
-                      setEditingPatient(null);
-                      setPatientForm({
-                        first_name: '',
-                        last_name: '',
-                        email: '',
-                        phone: '',
-                        date_of_birth: '',
-                        gender: '',
-                        address: '',
-                        medical_history: { conditions: [], surgeries: [] },
-                        allergies: [],
-                        current_medications: [],
-                        notes: ''
-                      });
-                    }}>
-                      Cancel
-                    </Button>
-                    <Button onClick={isEditMode ? handleUpdatePatient : handleAddPatient}>
-                      {isEditMode ? 'Update Patient' : 'Add Patient'}
-                    </Button>
+                  <Button variant="outline" onClick={() => {
+                    setShowPatientForm(false);
+                    setIsEditMode(false);
+                    setEditingPatient(null);
+                    setPatientForm({
+                      first_name: '',
+                      last_name: '',
+                      email: '',
+                      phone: '',
+                      date_of_birth: '',
+                      gender: '',
+                      address: '',
+                      medical_history: { conditions: [], surgeries: [] },
+                      allergies: [],
+                      current_medications: [],
+                      notes: ''
+                    });
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button onClick={isEditMode ? handleUpdatePatient : handleAddPatient}>
+                    {isEditMode ? 'Update Patient' : 'Add Patient'}
+                  </Button>
                   </div>
                 </div>
               </DialogContent>
@@ -2298,7 +2298,7 @@ export default function AdminPatientManagement() {
                             <Edit className="w-4 h-4" />
                             <span className="text-sm font-medium">Edit</span>
                           </Button>
-                          <Button
+                                                    <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenDentalChart(patient)}
@@ -2434,7 +2434,7 @@ export default function AdminPatientManagement() {
                     {/* Mobile: Show buttons at bottom */}
                     <div className="sm:hidden mt-6 pt-4 border-t border-gray-100">
                       <div className="space-y-3">
-                        {/* Main action buttons - 2 columns */}
+                        {/* Main action buttons - 2 columns with last button spanning full width */}
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
@@ -2485,6 +2485,26 @@ export default function AdminPatientManagement() {
                           >
                             <Activity className="w-4 h-4" />
                             <span className="text-sm font-medium">Lab Work</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddMedicalRecord(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Add Medical Record"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm font-medium">Records</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAddPrescription(patient)}
+                            className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            title="Add Prescription"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm font-medium">Prescription</span>
                           </Button>
                         </div>
                         
@@ -2768,8 +2788,8 @@ export default function AdminPatientManagement() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Badge className={getTreatmentStatusColor(treatment.treatment_status)}>
-                                    {treatment.treatment_status}
-                                  </Badge>
+                                  {treatment.treatment_status}
+                                </Badge>
                                 </div>
                               </div>
                             </div>
@@ -3489,30 +3509,30 @@ export default function AdminPatientManagement() {
         >
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <div className="flex-1 min-w-0">
-                <DialogTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
-                </DialogTitle>
-                <DialogDescription className="mt-2">
-                  Manage lab work orders and results for the patient
-                </DialogDescription>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <DialogTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+                  </DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Manage lab work orders and results for the patient
+                  </DialogDescription>
+                </div>
             </DialogHeader>
 
             <div className="space-y-6">
               {/* New Order Button */}
               <div className="flex justify-end">
-                <Button 
-                  size="sm" 
-                  onClick={() => setShowNewLabWorkForm(true)}
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowNewLabWorkForm(true)}
                   className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
+                  >
+                    <Plus className="w-4 h-4" />
                   New Order
-                </Button>
-              </div>
-              
+                  </Button>
+                </div>
+
               {/* Lab Work Orders */}
               {labWorkOrders.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -3828,10 +3848,10 @@ export default function AdminPatientManagement() {
                 <Trash2 className="h-5 w-5" />
                 Delete Patient
               </DialogTitle>
-              <DialogDescription>
+                <DialogDescription>
                 Are you sure you want to delete <strong>{patientToDelete?.first_name} {patientToDelete?.last_name || ''}</strong>? This action cannot be undone and will permanently remove all patient data including:
-              </DialogDescription>
-            </DialogHeader>
+                </DialogDescription>
+              </DialogHeader>
             
             <div className="space-y-3">
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -3843,8 +3863,8 @@ export default function AdminPatientManagement() {
                   <li>• Prescriptions</li>
                   <li>• Appointments</li>
                 </ul>
-              </div>
-            </div>
+                  </div>
+                </div>
 
             <div className="flex gap-2 justify-end pt-4">
               <Button 
@@ -3856,15 +3876,15 @@ export default function AdminPatientManagement() {
               >
                 Cancel
               </Button>
-              <Button 
+                          <Button
                 variant="destructive" 
                 onClick={handleDeletePatient}
                 className="flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete Patient
-              </Button>
-            </div>
+                          </Button>
+                      </div>
           </DialogContent>
         </Dialog>
 
@@ -3892,9 +3912,9 @@ export default function AdminPatientManagement() {
                 </div>
               </div>
             )}
-
+            
             <div className="flex gap-2 justify-end pt-4">
-              <Button 
+              <Button
                 variant="outline" 
                 onClick={() => {
                   setShowDeleteTreatmentConfirmDialog(false);
@@ -3903,7 +3923,7 @@ export default function AdminPatientManagement() {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 variant="destructive" 
                 onClick={confirmDeleteTreatment}
                 className="flex items-center gap-2"
