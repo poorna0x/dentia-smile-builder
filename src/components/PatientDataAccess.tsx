@@ -60,6 +60,8 @@ const PatientDataAccess = () => {
   // Debug useEffect to monitor state changes
   useEffect(() => {
     console.log('PatientDataAccess: State changed:');
+    console.log('- clinic:', clinic ? 'exists' : 'null');
+    console.log('- clinic ID:', clinic?.id);
     console.log('- showData:', showData);
     console.log('- patient:', patient ? 'exists' : 'null');
     console.log('- appointments length:', appointments.length);
@@ -68,7 +70,7 @@ const PatientDataAccess = () => {
     console.log('- prescriptions length:', prescriptions.length);
     console.log('- dentalTreatments length:', dentalTreatments.length);
     console.log('- dentalConditions length:', dentalConditions.length);
-  }, [showData, patient, appointments, treatmentPlans, medicalRecords, prescriptions, dentalTreatments, dentalConditions]);
+  }, [clinic, showData, patient, appointments, treatmentPlans, medicalRecords, prescriptions, dentalTreatments, dentalConditions]);
 
   // Handle phone number input
   const handlePhoneChange = (value: string) => {
