@@ -258,7 +258,7 @@ const PatientDataAccess = () => {
 
       setMedicalRecords(recordsData || []);
 
-      // Get prescriptions (including expired ones)
+      // Get prescriptions (complete history including all statuses)
       console.log('PatientDataAccess: Fetching prescriptions for patient:', patientData.id);
       console.log('PatientDataAccess: Clinic ID:', clinic?.id);
       
@@ -267,7 +267,7 @@ const PatientDataAccess = () => {
         .select('*')
         .eq('patient_id', patientData.id)
         .eq('clinic_id', clinic?.id)
-        .in('status', ['Active', 'Completed'])
+        .in('status', ['Active', 'Completed', 'Discontinued', 'On Hold'])
         .order('prescribed_date', { ascending: false });
 
       console.log('PatientDataAccess: Prescriptions data:', prescriptionsData);
@@ -485,7 +485,7 @@ const PatientDataAccess = () => {
 
           {/* Data Tabs */}
           <Tabs defaultValue="appointments" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-5 gap-1">
               <TabsTrigger value="appointments" className="flex items-center">
                 <Calendar className="w-4 h-4 mr-2" />
                 Appointments
@@ -504,7 +504,7 @@ const PatientDataAccess = () => {
               </TabsTrigger>
               <TabsTrigger value="records" className="flex items-center">
                 <FileText className="w-4 h-4 mr-2" />
-                Records
+                Medical History
               </TabsTrigger>
             </TabsList>
 
@@ -681,7 +681,8 @@ const PatientDataAccess = () => {
             </TabsContent>
 
             {/* Medical Records Tab */}
-            <TabsContent value="records" className="space-y-4">
+            <TabsContent value="records" className="space-y-6">
+              {/* Medical Records Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -689,7 +690,7 @@ const PatientDataAccess = () => {
                     Medical Records
                   </CardTitle>
                   <CardDescription>
-                    Your medical history and records
+                    Your medical history and health records
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -712,6 +713,124 @@ const PatientDataAccess = () => {
                           )}
                           {record.notes && (
                             <p className="text-sm text-gray-500 mt-2">{record.notes}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Prescription History Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Pill className="w-5 h-5 mr-2" />
+                    Prescription History
+                  </CardTitle>
+                  <CardDescription>
+                    Complete history of all your medications and prescriptions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {prescriptions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No prescription history found</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {prescriptions.map((prescription) => (
+                        <div key={prescription.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">{prescription.medication_name}</h3>
+                              <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                                <span className="flex items-center">
+                                  <Pill className="w-3 h-3 mr-1" />
+                                  {prescription.dosage}
+                                </span>
+                                <span>•</span>
+                                <span>{prescription.frequency}</span>
+                                <span>•</span>
+                                <span>{prescription.duration}</span>
+                              </div>
+                            </div>
+                            <Badge className={`${
+                              prescription.status === 'Active' 
+                                ? 'bg-green-100 text-green-800 border-green-200' 
+                                : prescription.status === 'Completed'
+                                ? 'bg-gray-100 text-gray-800 border-gray-200'
+                                : prescription.status === 'Discontinued'
+                                ? 'bg-red-100 text-red-800 border-red-200'
+                                : 'bg-purple-100 text-purple-800 border-purple-200'
+                            }`}>
+                              {prescription.status}
+                            </Badge>
+                          </div>
+                          
+                          {/* Instructions */}
+                          {prescription.instructions && (
+                            <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+                              <p className="text-sm font-medium text-blue-800 mb-1">Instructions:</p>
+                              <p className="text-sm text-blue-700">{prescription.instructions}</p>
+                            </div>
+                          )}
+
+                          {/* Additional Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-600">
+                                <span className="font-medium">Prescribed:</span> {formatDate(prescription.prescribed_date)}
+                              </p>
+                              {prescription.prescribed_by && (
+                                <p className="text-gray-600">
+                                  <span className="font-medium">By:</span> {prescription.prescribed_by}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              {prescription.refills_remaining > 0 && (
+                                <p className="text-gray-600">
+                                  <span className="font-medium">Refills:</span> {prescription.refills_remaining} remaining
+                                </p>
+                              )}
+                              {prescription.refill_quantity && (
+                                <p className="text-gray-600">
+                                  <span className="font-medium">Refill Quantity:</span> {prescription.refill_quantity}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Notes and Side Effects */}
+                          {(prescription.patient_notes || prescription.pharmacy_notes || prescription.side_effects || prescription.interactions) && (
+                            <div className="mt-4 space-y-3">
+                              {prescription.patient_notes && (
+                                <div className="p-3 bg-yellow-50 rounded-lg">
+                                  <p className="text-sm font-medium text-yellow-800 mb-1">Patient Notes:</p>
+                                  <p className="text-sm text-yellow-700">{prescription.patient_notes}</p>
+                                </div>
+                              )}
+                              
+                              {prescription.pharmacy_notes && (
+                                <div className="p-3 bg-green-50 rounded-lg">
+                                  <p className="text-sm font-medium text-green-800 mb-1">Pharmacy Notes:</p>
+                                  <p className="text-sm text-green-700">{prescription.pharmacy_notes}</p>
+                                </div>
+                              )}
+                              
+                              {prescription.side_effects && (
+                                <div className="p-3 bg-orange-50 rounded-lg">
+                                  <p className="text-sm font-medium text-orange-800 mb-1">Side Effects:</p>
+                                  <p className="text-sm text-orange-700">{prescription.side_effects}</p>
+                                </div>
+                              )}
+                              
+                              {prescription.interactions && (
+                                <div className="p-3 bg-red-50 rounded-lg">
+                                  <p className="text-sm font-medium text-red-800 mb-1">Drug Interactions:</p>
+                                  <p className="text-sm text-red-700">{prescription.interactions}</p>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}
