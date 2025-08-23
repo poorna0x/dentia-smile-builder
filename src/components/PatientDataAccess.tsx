@@ -323,6 +323,18 @@ const PatientDataAccess = () => {
 
       // Get dental treatments
       console.log('PatientDataAccess: Loading dental treatments for patient:', patientData.id);
+      console.log('PatientDataAccess: Clinic ID for dental:', clinic?.id);
+      
+      // First test if the table exists and has any data
+      const { data: allDentalTreatments, error: allDentalTreatmentsError } = await supabase
+        .from('dental_treatments')
+        .select('*')
+        .eq('clinic_id', clinic?.id)
+        .limit(5);
+      
+      console.log('PatientDataAccess: All dental treatments in clinic:', allDentalTreatments);
+      console.log('PatientDataAccess: All dental treatments error:', allDentalTreatmentsError);
+      
       const { data: dentalTreatmentsData, error: dentalTreatmentsError } = await supabase
         .from('dental_treatments')
         .select('*')
@@ -336,6 +348,17 @@ const PatientDataAccess = () => {
 
       // Get dental conditions
       console.log('PatientDataAccess: Loading dental conditions for patient:', patientData.id);
+      
+      // First test if the table exists and has any data
+      const { data: allDentalConditions, error: allDentalConditionsError } = await supabase
+        .from('tooth_conditions')
+        .select('*')
+        .eq('clinic_id', clinic?.id)
+        .limit(5);
+      
+      console.log('PatientDataAccess: All dental conditions in clinic:', allDentalConditions);
+      console.log('PatientDataAccess: All dental conditions error:', allDentalConditionsError);
+      
       const { data: dentalConditionsData, error: dentalConditionsError } = await supabase
         .from('tooth_conditions')
         .select('*')
@@ -725,13 +748,13 @@ const PatientDataAccess = () => {
                               )}
                             </div>
                             <Badge className={`text-xs md:text-sm ${
-                              treatment.status === 'Active' 
+                              treatment.treatment_status === 'Active' || treatment.treatment_status === 'In Progress'
                                 ? 'bg-blue-100 text-blue-800 border-blue-200' 
-                                : treatment.status === 'Completed'
+                                : treatment.treatment_status === 'Completed'
                                 ? 'bg-green-100 text-green-800 border-green-200'
                                 : 'bg-gray-100 text-gray-800 border-gray-200'
                             }`}>
-                              {treatment.status}
+                              {treatment.treatment_status}
                             </Badge>
                           </div>
                           <div className="text-xs md:text-sm text-gray-500">

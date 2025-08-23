@@ -1,209 +1,132 @@
 -- Test Dental Data
--- Run this in Supabase SQL Editor to add sample dental data
+-- Run this in Supabase SQL Editor
 
--- Get patient and clinic IDs
-WITH patient_data AS (
-    SELECT 
-        p.id as patient_id,
-        c.id as clinic_id
-    FROM patients p
-    CROSS JOIN clinics c
-    WHERE p.phone = '6361631253'
-    LIMIT 1
-)
+-- 1. Check if dental tables exist
+SELECT 
+    table_name,
+    table_type
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+AND table_name IN ('dental_treatments', 'tooth_conditions', 'dental_notes')
+ORDER BY table_name;
 
--- Insert sample dental treatments
-INSERT INTO dental_treatments (
-    clinic_id,
+-- 2. Check table structure
+SELECT 
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'dental_treatments'
+ORDER BY ordinal_position;
+
+-- 3. Check if there's any data in dental_treatments
+SELECT COUNT(*) as dental_treatments_count FROM dental_treatments;
+
+-- 4. Check if there's any data in tooth_conditions
+SELECT COUNT(*) as tooth_conditions_count FROM tooth_conditions;
+
+-- 5. Check if there's any data in dental_notes
+SELECT COUNT(*) as dental_notes_count FROM dental_notes;
+
+-- 6. Check RLS policies
+SELECT 
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd,
+    qual
+FROM pg_policies 
+WHERE tablename IN ('dental_treatments', 'tooth_conditions', 'dental_notes');
+
+-- 7. Test insert some sample data
+DO $$
+DECLARE
+    v_clinic_id UUID := 'c1ca557d-ca85-4905-beb7-c3985692d463';
+    v_patient_id UUID;
+BEGIN
+    -- Get a patient ID
+    SELECT id INTO v_patient_id 
+    FROM patients 
+    WHERE clinic_id = v_clinic_id 
+    LIMIT 1;
+    
+    IF v_patient_id IS NOT NULL THEN
+        -- Insert sample dental treatment
+        INSERT INTO dental_treatments (
+            clinic_id,
+            patient_id,
+            tooth_number,
+            tooth_position,
+            treatment_type,
+            treatment_description,
+            treatment_status,
+            treatment_date,
+            notes,
+            created_by
+        ) VALUES (
+            v_clinic_id,
+            v_patient_id,
+            '11',
+            'Upper Right',
+            'Cleaning',
+            'Regular dental cleaning',
+            'Completed',
+            CURRENT_DATE,
+            'Patient had good oral hygiene',
+            'Dr. Test'
+        ) ON CONFLICT DO NOTHING;
+        
+        -- Insert sample tooth condition
+        INSERT INTO tooth_conditions (
+            clinic_id,
+            patient_id,
+            tooth_number,
+            tooth_position,
+            condition_type,
+            condition_description,
+            severity,
+            notes
+        ) VALUES (
+            v_clinic_id,
+            v_patient_id,
+            '11',
+            'Upper Right',
+            'Healthy',
+            'Tooth is in good condition',
+            'Mild',
+            'No issues detected'
+        ) ON CONFLICT DO NOTHING;
+        
+        RAISE NOTICE 'Sample dental data inserted for patient: %', v_patient_id;
+    ELSE
+        RAISE NOTICE 'No patients found';
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+END $$;
+
+-- 8. Show the inserted data
+SELECT 
+    'dental_treatments' as table_name,
+    id,
     patient_id,
     tooth_number,
-    tooth_position,
     treatment_type,
-    treatment_description,
     treatment_status,
-    treatment_date,
-    cost,
-    notes,
-    created_by
-)
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '11',
-    'Upper Right',
-    'Cleaning',
-    'Regular dental cleaning and checkup',
-    'Completed',
-    '2024-01-15'::DATE,
-    50.00,
-    'Patient had good oral hygiene',
-    'Dr. Smith'
-FROM patient_data pd
-
+    created_at
+FROM dental_treatments 
+WHERE clinic_id = 'c1ca557d-ca85-4905-beb7-c3985692d463'
 UNION ALL
-
 SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '16',
-    'Upper Left',
-    'Filling',
-    'Composite filling for cavity',
-    'Completed',
-    '2024-01-20'::DATE,
-    150.00,
-    'Cavity was moderate, filled successfully',
-    'Dr. Smith'
-FROM patient_data pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '31',
-    'Lower Left',
-    'Root Canal',
-    'Root canal treatment for severe decay',
-    'In Progress',
-    '2024-02-01'::DATE,
-    800.00,
-    'Patient experiencing pain, treatment in progress',
-    'Dr. Johnson'
-FROM patient_data pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '26',
-    'Lower Right',
-    'Crown',
-    'Porcelain crown placement',
-    'Planned',
-    '2024-02-15'::DATE,
-    1200.00,
-    'Crown preparation completed, final placement scheduled',
-    'Dr. Johnson'
-FROM patient_data pd;
-
--- Insert sample tooth conditions
-WITH patient_data_conditions AS (
-    SELECT 
-        p.id as patient_id,
-        c.id as clinic_id
-    FROM patients p
-    CROSS JOIN clinics c
-    WHERE p.phone = '6361631253'
-    LIMIT 1
-)
-INSERT INTO tooth_conditions (
-    clinic_id,
+    'tooth_conditions' as table_name,
+    id,
     patient_id,
     tooth_number,
-    tooth_position,
-    condition_type,
-    condition_description,
-    severity,
-    notes
-)
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '11',
-    'Upper Right',
-    'Healthy',
-    'No issues detected',
-    'Mild',
-    'Regular checkup - healthy'
-FROM patient_data_conditions pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '16',
-    'Upper Left',
-    'Filled',
-    'Composite filling in place',
-    'Mild',
-    'Filling is holding well'
-FROM patient_data_conditions pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '31',
-    'Lower Left',
-    'Infected',
-    'Severe decay requiring root canal',
-    'Severe',
-    'Patient experiencing pain, treatment ongoing'
-FROM patient_data_conditions pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '26',
-    'Lower Right',
-    'Crown',
-    'Crown preparation completed',
-    'Moderate',
-    'Ready for final crown placement'
-FROM patient_data_conditions pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '14',
-    'Upper Right',
-    'Cavity',
-    'Small cavity detected',
-    'Mild',
-    'Monitor for progression'
-FROM patient_data_conditions pd
-
-UNION ALL
-
-SELECT 
-    pd.clinic_id,
-    pd.patient_id,
-    '22',
-    'Upper Left',
-    'Sensitive',
-    'Tooth sensitivity to cold',
-    'Mild',
-    'Recommend sensitivity toothpaste'
-FROM patient_data_conditions pd;
-
--- Show the created data
-SELECT 'DENTAL TREATMENTS CREATED' as status;
-SELECT 
-    dt.tooth_number,
-    dt.treatment_type,
-    dt.treatment_status,
-    dt.treatment_date,
-    dt.cost
-FROM dental_treatments dt
-JOIN patients p ON dt.patient_id = p.id
-WHERE p.phone = '6361631253'
-ORDER BY dt.treatment_date DESC;
-
-SELECT 'TOOTH CONDITIONS CREATED' as status;
-SELECT 
-    tc.tooth_number,
-    tc.condition_type,
-    tc.severity,
-    tc.last_updated
-FROM tooth_conditions tc
-JOIN patients p ON tc.patient_id = p.id
-WHERE p.phone = '6361631253'
-ORDER BY tc.tooth_number;
+    condition_type as treatment_type,
+    severity as treatment_status,
+    created_at
+FROM tooth_conditions 
+WHERE clinic_id = 'c1ca557d-ca85-4905-beb7-c3985692d463';
