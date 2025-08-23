@@ -7,12 +7,12 @@ CREATE TABLE IF NOT EXISTS lab_work_orders (
     clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
     patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
     order_number VARCHAR(50) UNIQUE NOT NULL,
-    lab_type VARCHAR(100) NOT NULL, -- 'blood_test', 'xray', 'biopsy', 'culture', 'allergy', 'other'
+    lab_type VARCHAR(100) NOT NULL, -- 'crown', 'bridge', 'implant', 'denture', 'veneer', 'inlay_onlay', 'orthodontic', 'other'
     test_name VARCHAR(255) NOT NULL,
     description TEXT,
     ordered_date DATE NOT NULL DEFAULT CURRENT_DATE,
     expected_date DATE,
-    status VARCHAR(50) NOT NULL DEFAULT 'Ordered' CHECK (status IN ('Ordered', 'In Progress', 'Completed', 'Cancelled', 'Delayed')),
+    status VARCHAR(50) NOT NULL DEFAULT 'Ordered' CHECK (status IN ('Ordered', 'In Progress', 'Completed', 'Cancelled', 'Delayed', 'Ready for Pickup')),
     ordered_by VARCHAR(255),
     lab_facility VARCHAR(255),
     cost DECIMAL(10,2),

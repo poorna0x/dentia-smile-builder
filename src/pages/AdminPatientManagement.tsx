@@ -110,7 +110,7 @@ export default function AdminPatientManagement() {
   const [labWorkOrders, setLabWorkOrders] = useState<any[]>([]);
   const [showNewLabWorkForm, setShowNewLabWorkForm] = useState(false);
   const [labWorkForm, setLabWorkForm] = useState({
-    lab_type: 'blood_test',
+    lab_type: 'crown',
     test_name: '',
     description: '',
     expected_date: '',
@@ -1502,6 +1502,7 @@ export default function AdminPatientManagement() {
       case 'Ordered': return 'bg-blue-100 text-blue-800';
       case 'In Progress': return 'bg-orange-100 text-orange-800';
       case 'Completed': return 'bg-green-100 text-green-800';
+      case 'Ready for Pickup': return 'bg-purple-100 text-purple-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
       case 'Delayed': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -3140,11 +3141,13 @@ export default function AdminPatientManagement() {
                     <SelectValue placeholder="Select lab type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="blood_test">Blood Test</SelectItem>
-                    <SelectItem value="xray">X-Ray</SelectItem>
-                    <SelectItem value="biopsy">Biopsy</SelectItem>
-                    <SelectItem value="culture">Culture Test</SelectItem>
-                    <SelectItem value="allergy">Allergy Test</SelectItem>
+                    <SelectItem value="crown">Crown</SelectItem>
+                    <SelectItem value="bridge">Bridge</SelectItem>
+                    <SelectItem value="implant">Implant</SelectItem>
+                    <SelectItem value="denture">Denture</SelectItem>
+                    <SelectItem value="veneer">Veneer</SelectItem>
+                    <SelectItem value="inlay_onlay">Inlay/Onlay</SelectItem>
+                    <SelectItem value="orthodontic">Orthodontic Appliance</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -3157,7 +3160,7 @@ export default function AdminPatientManagement() {
                   id="test_name"
                   value={labWorkForm.test_name}
                   onChange={(e) => setLabWorkForm({...labWorkForm, test_name: e.target.value})}
-                  placeholder="e.g., Complete Blood Count, Panoramic X-Ray"
+                  placeholder="e.g., Porcelain Crown, Implant Crown, Bridge"
                 />
               </div>
 
@@ -3168,7 +3171,7 @@ export default function AdminPatientManagement() {
                   id="description"
                   value={labWorkForm.description}
                   onChange={(e) => setLabWorkForm({...labWorkForm, description: e.target.value})}
-                  placeholder="Detailed description of the lab work"
+                  placeholder="Detailed description of the dental lab work (materials, specifications, etc.)"
                   rows={3}
                 />
               </div>
@@ -3191,7 +3194,7 @@ export default function AdminPatientManagement() {
                   id="lab_facility"
                   value={labWorkForm.lab_facility}
                   onChange={(e) => setLabWorkForm({...labWorkForm, lab_facility: e.target.value})}
-                  placeholder="Name of the lab facility"
+                  placeholder="Name of the dental lab facility"
                 />
               </div>
 
