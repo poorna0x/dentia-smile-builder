@@ -1768,6 +1768,21 @@ export default function AdminPatientManagement() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null
+    const today = new Date()
+    const birthDate = new Date(dateOfBirth)
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    
+    return age
+  }
+
   // Handle edit treatment
   const handleEditTreatment = (treatment: any) => {
     setEditingTreatment(treatment);
@@ -2337,8 +2352,8 @@ export default function AdminPatientManagement() {
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <span className="font-medium">Date of Birth:</span>
-                        <p>{patient.date_of_birth ? formatDate(patient.date_of_birth) : 'Not specified'}</p>
+                        <span className="font-medium">Age:</span>
+                        <p>{patient.date_of_birth ? `${calculateAge(patient.date_of_birth)} years` : 'Not specified'}</p>
                       </div>
                       <div>
                         <span className="font-medium">Gender:</span>
@@ -2801,8 +2816,8 @@ export default function AdminPatientManagement() {
                     <p>{selectedPatientHistory?.email || 'Not provided'}</p>
                   </div>
                   <div>
-                    <span className="font-medium">Date of Birth:</span>
-                    <p>{selectedPatientHistory?.date_of_birth ? formatDate(selectedPatientHistory.date_of_birth) : 'Not specified'}</p>
+                    <span className="font-medium">Age:</span>
+                    <p>{selectedPatientHistory?.date_of_birth ? `${calculateAge(selectedPatientHistory.date_of_birth)} years` : 'Not specified'}</p>
                   </div>
                   <div>
                     <span className="font-medium">Allergies:</span>

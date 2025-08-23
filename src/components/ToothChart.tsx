@@ -15,7 +15,8 @@ import {
   Edit, 
   Calendar,
   DollarSign,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react'
 import { 
   DentalTreatment, 
@@ -57,6 +58,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [showAddConditionDialog, setShowAddConditionDialog] = useState(false)
   const [showEditTreatmentDialog, setShowEditTreatmentDialog] = useState(false)
   const [editingTreatment, setEditingTreatment] = useState<DentalTreatment | null>(null)
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
+  const [treatmentToDelete, setTreatmentToDelete] = useState<DentalTreatment | null>(null)
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -249,6 +252,28 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const handleEditTreatment = (treatment: DentalTreatment) => {
     setEditingTreatment(treatment)
     setShowEditTreatmentDialog(true)
+  }
+
+  const handleDeleteTreatment = (treatment: DentalTreatment) => {
+    setTreatmentToDelete(treatment)
+    setShowDeleteConfirmDialog(true)
+  }
+
+  const confirmDeleteTreatment = async () => {
+    if (!treatmentToDelete) return
+    
+    try {
+      await dentalTreatmentApi.delete(treatmentToDelete.id)
+      setShowDeleteConfirmDialog(false)
+      setTreatmentToDelete(null)
+      loadToothData() // Reload data
+      if (onTreatmentAdded) {
+        onTreatmentAdded()
+      }
+    } catch (error) {
+      console.error('Error deleting treatment:', error)
+      // You can add toast notification here
+    }
   }
 
   // Handle treatment updated
@@ -536,17 +561,28 @@ const ToothChart: React.FC<ToothChartProps> = ({
                                 <Badge className={`text-xs ${getTreatmentStatusColor(treatment.treatment_status)}`}>
                                   {treatment.treatment_status}
                                 </Badge>
-                                {(treatment.treatment_status === 'In Progress' || treatment.treatment_status === 'Planned') && (
+                                <div className="flex items-center gap-1">
+                                  {(treatment.treatment_status === 'In Progress' || treatment.treatment_status === 'Planned') && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEditTreatment(treatment)}
+                                      className="h-6 w-6 p-0 flex-shrink-0"
+                                      title="Edit Treatment"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleEditTreatment(treatment)}
-                                    className="h-6 w-6 p-0 flex-shrink-0"
-                                    title="Edit Treatment"
+                                    onClick={() => handleDeleteTreatment(treatment)}
+                                    className="h-6 w-6 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    title="Delete Treatment"
                                   >
-                                    <Edit className="w-3 h-3" />
+                                    <Trash2 className="w-3 h-3" />
                                   </Button>
-                                )}
+                                </div>
                               </div>
                             </div>
                           </CardContent>
@@ -927,6 +963,40 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 onCancel={() => setShowEditTreatmentDialog(false)}
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Treatment Confirmation Dialog */}
+        <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Treatment</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Are you sure you want to delete this treatment? This action cannot be undone.
+              </p>
+              
+              {treatmentToDelete && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="font-medium">{treatmentToDelete.treatment_type}</p>
+                  <p className="text-sm text-gray-600">Tooth {treatmentToDelete.tooth_number}</p>
+                  <p className="text-sm text-gray-500">
+                    {treatmentToDelete.treatment_date && new Date(treatmentToDelete.treatment_date).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteTreatment}>
+                Delete Treatment
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </CardContent>
