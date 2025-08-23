@@ -39,6 +39,7 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
   const [appointments, setAppointments] = useState<any[]>([]);
   const [dentalData, setDentalData] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [labWork, setLabWork] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -123,6 +124,15 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
         console.log('SimpleActiveTreatments: Prescriptions error:', prescriptionsError);
         
         setPrescriptions(prescriptionsData || []);
+
+        // Get lab work orders
+        const { data: labWorkData } = await supabase
+          .rpc('get_lab_work_orders', {
+            p_patient_id: patientData.id,
+            p_clinic_id: clinic?.id
+          });
+
+        setLabWork(labWorkData || []);
       }
     } catch (error) {
       console.error('Error loading active treatments:', error);
@@ -143,6 +153,17 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
         return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getLabWorkStatusColor = (status: string) => {
+    switch (status) {
+      case 'Ordered': return 'bg-blue-100 text-blue-800';
+      case 'In Progress': return 'bg-orange-100 text-orange-800';
+      case 'Completed': return 'bg-green-100 text-green-800';
+      case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'Delayed': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -180,7 +201,7 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
     );
   }
 
-  if (activeTreatments.length === 0 && appointments.length === 0 && dentalData.length === 0 && prescriptions.length === 0) {
+  if (activeTreatments.length === 0 && appointments.length === 0 && dentalData.length === 0 && prescriptions.length === 0 && labWork.length === 0) {
     return null; // Don't show anything if no data
   }
 
@@ -344,6 +365,74 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
             {dentalData.length > 3 && (
               <p className="text-xs text-green-600 text-center">
                 +{dentalData.length - 3} more dental records
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lab Work */}
+      {labWork.length > 0 && (
+        <Card className="border-purple-200 bg-purple-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2 text-purple-800">
+              <Activity className="w-4 h-4" />
+              Lab Work
+            </CardTitle>
+            <CardDescription className="text-purple-700">
+              Your lab work orders and results
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {labWork.slice(0, 3).map((order) => (
+              <div key={order.id} className="bg-white rounded-lg p-3 border border-purple-200">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="font-semibold text-sm">{order.test_name}</h3>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Order: {order.order_number} • {order.lab_type}
+                    </p>
+                    {order.description && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        <strong>Description:</strong> {order.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      <span>Ordered: {new Date(order.ordered_date).toLocaleDateString()}</span>
+                      {order.expected_date && (
+                        <span>Expected: {new Date(order.expected_date).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Badge className={`text-xs ${getLabWorkStatusColor(order.status)}`}>
+                    {order.status}
+                  </Badge>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handlePatientWhatsApp(`Hi, I have questions about my lab work: ${order.test_name}. Order: ${order.order_number}`)}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs h-8"
+                  >
+                    <WhatsAppIcon />
+                    <span className="ml-1">WhatsApp</span>
+                  </Button>
+                  <Button
+                    onClick={handleCall}
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-8"
+                  >
+                    <Phone className="w-3 h-3 mr-1" />
+                    Call
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {labWork.length > 3 && (
+              <p className="text-xs text-purple-600 text-center">
+                +{labWork.length - 3} more lab work orders
               </p>
             )}
           </CardContent>

@@ -106,6 +106,18 @@ export default function AdminPatientManagement() {
     created_by: '',
     notes: ''
   });
+  const [showLabWorkDialog, setShowLabWorkDialog] = useState(false);
+  const [labWorkOrders, setLabWorkOrders] = useState<any[]>([]);
+  const [showNewLabWorkForm, setShowNewLabWorkForm] = useState(false);
+  const [labWorkForm, setLabWorkForm] = useState({
+    lab_type: 'blood_test',
+    test_name: '',
+    description: '',
+    expected_date: '',
+    lab_facility: '',
+    cost: '',
+    notes: ''
+  });
   const [medicalHistoryDentalTreatments, setMedicalHistoryDentalTreatments] = useState<any[]>([]);
   const [medicalHistoryAppointments, setMedicalHistoryAppointments] = useState<any[]>([]);
   const [medicalHistoryPrescriptions, setMedicalHistoryPrescriptions] = useState<any[]>([]);
@@ -651,12 +663,29 @@ export default function AdminPatientManagement() {
 
 
 
-  // Lab work function (placeholder)
+  // Lab work function
   const handleLabWork = (patient: Patient) => {
-    toast({
-      title: "Lab Work",
-      description: "Lab work management feature coming soon!",
-    });
+    setSelectedPatientHistory(patient);
+    setShowLabWorkDialog(true);
+    loadLabWorkData(patient.id);
+  };
+
+  // Load lab work data for a patient
+  const loadLabWorkData = async (patientId: string) => {
+    if (!clinic?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('get_lab_work_orders', {
+          p_patient_id: patientId,
+          p_clinic_id: clinic.id
+        });
+      
+      if (error) throw error;
+      setLabWorkOrders(data || []);
+    } catch (error) {
+      console.error('Error loading lab work data:', error);
+    }
   };
 
 
@@ -1464,6 +1493,17 @@ export default function AdminPatientManagement() {
       case 'Scheduled': return 'bg-indigo-100 text-indigo-800';
       case 'In Progress': return 'bg-orange-100 text-orange-800';
       case 'Postponed': return 'bg-pink-100 text-pink-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getLabWorkStatusColor = (status: string) => {
+    switch (status) {
+      case 'Ordered': return 'bg-blue-100 text-blue-800';
+      case 'In Progress': return 'bg-orange-100 text-orange-800';
+      case 'Completed': return 'bg-green-100 text-green-800';
+      case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'Delayed': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -2959,6 +2999,245 @@ export default function AdminPatientManagement() {
                 onClick={handleSaveMedicalRecord}
               >
                 Save Medical Record
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Lab Work Dialog */}
+        <Dialog 
+          open={showLabWorkDialog} 
+          onOpenChange={setShowLabWorkDialog}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex justify-between items-center">
+                <DialogTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Lab Work - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+                </DialogTitle>
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowNewLabWorkForm(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Lab Order
+                </Button>
+              </div>
+              <DialogDescription>
+                Manage lab work orders and results for the patient
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Lab Work Orders */}
+              {labWorkOrders.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>No lab work orders found</p>
+                  <p className="text-sm">Create a new lab work order to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Lab Work Orders</h3>
+                  {labWorkOrders.map((order) => (
+                    <Card key={order.id} className="border-2 border-gray-200">
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg">{order.test_name}</CardTitle>
+                            <p className="text-sm text-gray-600">
+                              Order: {order.order_number} • Type: {order.lab_type}
+                            </p>
+                          </div>
+                          <Badge className={getLabWorkStatusColor(order.status)}>
+                            {order.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Ordered Date:</span>
+                            <p>{formatDate(order.ordered_date)}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Expected Date:</span>
+                            <p>{order.expected_date ? formatDate(order.expected_date) : 'Not specified'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Lab Facility:</span>
+                            <p>{order.lab_facility || 'Not specified'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Cost:</span>
+                            <p>{order.cost ? `$${order.cost}` : 'Not specified'}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <span className="font-medium">Description:</span>
+                            <p>{order.description || 'No description provided'}</p>
+                          </div>
+                          {order.notes && (
+                            <div className="md:col-span-2">
+                              <span className="font-medium">Notes:</span>
+                              <p>{order.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 mt-4 pt-4 border-t">
+                          <Button size="sm" variant="outline">
+                            <FileText className="w-4 h-4 mr-2" />
+                            View Results
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Edit className="w-4 h-4 mr-2" />
+                            Update Status
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setShowLabWorkDialog(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* New Lab Work Order Dialog */}
+        <Dialog 
+          open={showNewLabWorkForm} 
+          onOpenChange={setShowNewLabWorkForm}
+        >
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                New Lab Work Order - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+              </DialogTitle>
+              <DialogDescription>
+                Create a new lab work order for the patient
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Lab Type */}
+              <div>
+                <Label htmlFor="lab_type">Lab Type</Label>
+                <Select 
+                  value={labWorkForm.lab_type} 
+                  onValueChange={(value) => setLabWorkForm({...labWorkForm, lab_type: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select lab type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="blood_test">Blood Test</SelectItem>
+                    <SelectItem value="xray">X-Ray</SelectItem>
+                    <SelectItem value="biopsy">Biopsy</SelectItem>
+                    <SelectItem value="culture">Culture Test</SelectItem>
+                    <SelectItem value="allergy">Allergy Test</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Test Name */}
+              <div>
+                <Label htmlFor="test_name">Test Name</Label>
+                <Input
+                  id="test_name"
+                  value={labWorkForm.test_name}
+                  onChange={(e) => setLabWorkForm({...labWorkForm, test_name: e.target.value})}
+                  placeholder="e.g., Complete Blood Count, Panoramic X-Ray"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={labWorkForm.description}
+                  onChange={(e) => setLabWorkForm({...labWorkForm, description: e.target.value})}
+                  placeholder="Detailed description of the lab work"
+                  rows={3}
+                />
+              </div>
+
+              {/* Expected Date */}
+              <div>
+                <Label htmlFor="expected_date">Expected Date</Label>
+                <Input
+                  id="expected_date"
+                  type="date"
+                  value={labWorkForm.expected_date}
+                  onChange={(e) => setLabWorkForm({...labWorkForm, expected_date: e.target.value})}
+                />
+              </div>
+
+              {/* Lab Facility */}
+              <div>
+                <Label htmlFor="lab_facility">Lab Facility</Label>
+                <Input
+                  id="lab_facility"
+                  value={labWorkForm.lab_facility}
+                  onChange={(e) => setLabWorkForm({...labWorkForm, lab_facility: e.target.value})}
+                  placeholder="Name of the lab facility"
+                />
+              </div>
+
+              {/* Cost */}
+              <div>
+                <Label htmlFor="cost">Cost (Optional)</Label>
+                <Input
+                  id="cost"
+                  type="number"
+                  step="0.01"
+                  value={labWorkForm.cost}
+                  onChange={(e) => setLabWorkForm({...labWorkForm, cost: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={labWorkForm.notes}
+                  onChange={(e) => setLabWorkForm({...labWorkForm, notes: e.target.value})}
+                  placeholder="Additional notes or instructions"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowNewLabWorkForm(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  // TODO: Implement save lab work order
+                  toast({
+                    title: "Lab Work Order",
+                    description: "Lab work order creation coming soon!",
+                  });
+                }}
+              >
+                Create Lab Order
               </Button>
             </div>
           </DialogContent>
