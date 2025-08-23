@@ -2434,7 +2434,7 @@ export default function AdminPatientManagement() {
                     {/* Mobile: Show buttons at bottom */}
                     <div className="sm:hidden mt-6 pt-4 border-t border-gray-100">
                       <div className="space-y-3">
-                        {/* Main action buttons - 2 columns with last button spanning full width */}
+                        {/* Main action buttons - 2 columns */}
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
@@ -2496,25 +2496,25 @@ export default function AdminPatientManagement() {
                             <Plus className="w-4 h-4" />
                             <span className="text-sm font-medium">Records</span>
                           </Button>
+                        </div>
+                        
+                        {/* Last row with Prescription and Communication buttons */}
+                        <div className="grid grid-cols-4 gap-2">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleAddPrescription(patient)}
-                            className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                            className="col-span-2 h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
                             title="Add Prescription"
                           >
                             <Plus className="w-4 h-4" />
                             <span className="text-sm font-medium">Prescription</span>
                           </Button>
-                        </div>
-                        
-                        {/* Communication buttons - centered */}
-                        <div className="flex gap-2 justify-center">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleCallPatient(patient.phone)}
-                            className="h-10 w-10 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
+                            className="h-10 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
                             title="Call Patient"
                           >
                             <Phone className="w-4 h-4" />
@@ -2523,7 +2523,7 @@ export default function AdminPatientManagement() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleWhatsAppPatient(patient.phone)}
-                            className="h-10 w-10 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
+                            className="h-10 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
                             title="WhatsApp Patient"
                           >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

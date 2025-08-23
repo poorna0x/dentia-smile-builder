@@ -509,22 +509,22 @@ const ToothChart: React.FC<ToothChartProps> = ({
         {/* Tooth Details Dialog */}
         {selectedTooth && (
           <Dialog open={showTreatmentDialog} onOpenChange={setShowTreatmentDialog}>
-            <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[60vw] h-[80vh] sm:h-[75vh] rounded-2xl border-2">
-              <DialogHeader>
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[60vw] max-h-[90vh] rounded-2xl border-2 overflow-hidden">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle className="flex items-center gap-2">
                   <Circle className="h-5 w-5" />
                   Tooth {selectedTooth.number} - {selectedTooth.name}
                 </DialogTitle>
               </DialogHeader>
 
-              <Tabs defaultValue="treatments" className="w-full h-full flex flex-col">
-                <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
+              <Tabs defaultValue="treatments" className="w-full h-full flex flex-col min-h-0">
+                <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm flex-shrink-0">
                   <TabsTrigger value="treatments">Treatments</TabsTrigger>
                   <TabsTrigger value="condition">Condition</TabsTrigger>
                   <TabsTrigger value="details">Details</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="treatments" className="space-y-4 flex-1 min-h-0 overflow-y-auto min-h-[400px]">
+                <TabsContent value="treatments" className="space-y-4 flex-1 overflow-y-auto min-h-0 p-0">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 className="text-base sm:text-lg font-semibold">Treatment History</h3>
                     <Button size="sm" onClick={() => setShowAddTreatmentDialog(true)} className="w-full sm:w-auto">
@@ -592,7 +592,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   )}
                 </TabsContent>
 
-                <TabsContent value="condition" className="space-y-4 flex-1 min-h-0 overflow-y-auto min-h-[400px]">
+                <TabsContent value="condition" className="space-y-4 flex-1 overflow-y-auto min-h-0 p-0">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Current Condition</h3>
                     <Button size="sm" onClick={() => setShowAddConditionDialog(true)}>
@@ -642,7 +642,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   )}
                 </TabsContent>
 
-                <TabsContent value="details" className="space-y-4 flex-1 min-h-0 overflow-y-auto min-h-[400px]">
+                <TabsContent value="details" className="space-y-4 flex-1 overflow-y-auto min-h-0 p-0">
                   <h3 className="text-lg font-semibold">Tooth Information</h3>
                   <Card className="flex-1">
                     <CardContent className="p-6">
