@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -650,8 +650,9 @@ export default function AdminPatientManagement() {
 
   // Save prescription function
   const handleSavePrescription = async () => {
-    // Prevent double-click
-    if (isSavingPrescription) {
+    // Prevent double-click using both state and ref
+    if (isSavingPrescription || isSavingRef.current) {
+      console.log('Save already in progress, ignoring click');
       return;
     }
 
@@ -666,11 +667,13 @@ export default function AdminPatientManagement() {
         description: "Patient or clinic information missing",
         variant: "destructive",
       });
+      setIsSavingPrescription(false);
       return;
     }
 
     // Set loading state
     setIsSavingPrescription(true);
+    isSavingRef.current = true;
 
     // Validate all medications (dosage is optional)
     const errors = [];
@@ -693,6 +696,7 @@ export default function AdminPatientManagement() {
         description: `Please fill in: ${errors.join(', ')}`,
         variant: "destructive",
       });
+      setIsSavingPrescription(false);
       return;
     }
 
@@ -751,7 +755,9 @@ export default function AdminPatientManagement() {
       console.log('All medications saved successfully');
 
       // Close dialog first
+      console.log('Closing prescription dialog...');
       setShowPrescriptionDialog(false);
+      console.log('Dialog state set to false');
       
       // Clear form data
       setPrescriptionForm({
@@ -781,6 +787,7 @@ export default function AdminPatientManagement() {
           title: "Success",
           description: `${multipleMedications.length} prescription(s) added successfully`,
         });
+        console.log('Success toast shown, dialog should be closed');
       }, 100);
     } catch (error) {
       console.error('Error saving prescription:', error);
@@ -792,6 +799,7 @@ export default function AdminPatientManagement() {
     } finally {
       // Reset loading state
       setIsSavingPrescription(false);
+      isSavingRef.current = false;
     }
   };
 
@@ -858,6 +866,7 @@ export default function AdminPatientManagement() {
 
   // Loading state for prescription save
   const [isSavingPrescription, setIsSavingPrescription] = useState(false);
+  const isSavingRef = useRef(false);
 
   // Common dental medications for suggestions
   const commonDentalMedications = [
