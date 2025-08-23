@@ -156,17 +156,17 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ALTER TABLE treatment_payments ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for treatment_payments
-CREATE POLICY "Users can view treatment payments for their clinic" ON treatment_payments
+CREATE POLICY IF NOT EXISTS "Users can view treatment payments for their clinic" ON treatment_payments
     FOR SELECT USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY "Users can insert treatment payments for their clinic" ON treatment_payments
+CREATE POLICY IF NOT EXISTS "Users can insert treatment payments for their clinic" ON treatment_payments
     FOR INSERT WITH CHECK (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY "Users can update treatment payments for their clinic" ON treatment_payments
+CREATE POLICY IF NOT EXISTS "Users can update treatment payments for their clinic" ON treatment_payments
     FOR UPDATE USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));

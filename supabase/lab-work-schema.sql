@@ -365,42 +365,42 @@ ALTER TABLE lab_work_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lab_work_history ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for lab_work_orders
-CREATE POLICY "Users can view lab work orders for their clinic" ON lab_work_orders
+CREATE POLICY IF NOT EXISTS "Users can view lab work orders for their clinic" ON lab_work_orders
     FOR SELECT USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY "Users can insert lab work orders for their clinic" ON lab_work_orders
+CREATE POLICY IF NOT EXISTS "Users can insert lab work orders for their clinic" ON lab_work_orders
     FOR INSERT WITH CHECK (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY "Users can update lab work orders for their clinic" ON lab_work_orders
+CREATE POLICY IF NOT EXISTS "Users can update lab work orders for their clinic" ON lab_work_orders
     FOR UPDATE USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
-CREATE POLICY "Users can delete lab work orders for their clinic" ON lab_work_orders
+CREATE POLICY IF NOT EXISTS "Users can delete lab work orders for their clinic" ON lab_work_orders
     FOR DELETE USING (clinic_id IN (
         SELECT id FROM clinics WHERE id = clinic_id
     ));
 
 -- Create RLS policies for lab_work_results
-CREATE POLICY "Users can view lab work results for their clinic" ON lab_work_results
+CREATE POLICY IF NOT EXISTS "Users can view lab work results for their clinic" ON lab_work_results
     FOR SELECT USING (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
         )
     ));
 
-CREATE POLICY "Users can insert lab work results for their clinic" ON lab_work_results
+CREATE POLICY IF NOT EXISTS "Users can insert lab work results for their clinic" ON lab_work_results
     FOR INSERT WITH CHECK (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
         )
     ));
 
-CREATE POLICY "Users can update lab work results for their clinic" ON lab_work_results
+CREATE POLICY IF NOT EXISTS "Users can update lab work results for their clinic" ON lab_work_results
     FOR UPDATE USING (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
@@ -408,14 +408,14 @@ CREATE POLICY "Users can update lab work results for their clinic" ON lab_work_r
     ));
 
 -- Create RLS policies for lab_work_history
-CREATE POLICY "Users can view lab work history for their clinic" ON lab_work_history
+CREATE POLICY IF NOT EXISTS "Users can view lab work history for their clinic" ON lab_work_history
     FOR SELECT USING (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
         )
     ));
 
-CREATE POLICY "Users can insert lab work history for their clinic" ON lab_work_history
+CREATE POLICY IF NOT EXISTS "Users can insert lab work history for their clinic" ON lab_work_history
     FOR INSERT WITH CHECK (order_id IN (
         SELECT id FROM lab_work_orders WHERE clinic_id IN (
             SELECT id FROM clinics WHERE id = clinic_id
