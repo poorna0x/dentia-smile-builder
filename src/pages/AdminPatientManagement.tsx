@@ -2841,6 +2841,129 @@ export default function AdminPatientManagement() {
           </DialogContent>
         </Dialog>
 
+        {/* Medical Record Dialog */}
+        <Dialog 
+          open={showMedicalRecordDialog} 
+          onOpenChange={setShowMedicalRecordDialog}
+        >
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Add Medical Record - {selectedPatientHistory?.first_name} {selectedPatientHistory?.last_name || ''}
+              </DialogTitle>
+              <DialogDescription>
+                Add a new medical record for the patient
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Record Type */}
+              <div>
+                <Label htmlFor="record_type">Record Type</Label>
+                <Select 
+                  value={newMedicalRecordForm.record_type} 
+                  onValueChange={(value) => setNewMedicalRecordForm({...newMedicalRecordForm, record_type: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select record type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consultation">Consultation</SelectItem>
+                    <SelectItem value="treatment">Treatment</SelectItem>
+                    <SelectItem value="xray">X-Ray</SelectItem>
+                    <SelectItem value="prescription">Prescription</SelectItem>
+                    <SelectItem value="lab_work">Lab Work</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Title */}
+              <div>
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={newMedicalRecordForm.title}
+                  onChange={(e) => setNewMedicalRecordForm({...newMedicalRecordForm, title: e.target.value})}
+                  placeholder="Brief description of the record"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newMedicalRecordForm.description}
+                  onChange={(e) => setNewMedicalRecordForm({...newMedicalRecordForm, description: e.target.value})}
+                  placeholder="Detailed description of the medical record"
+                  rows={4}
+                />
+              </div>
+
+              {/* Record Date */}
+              <div>
+                <Label htmlFor="record_date">Record Date</Label>
+                <Input
+                  id="record_date"
+                  type="date"
+                  value={newMedicalRecordForm.record_date}
+                  onChange={(e) => setNewMedicalRecordForm({...newMedicalRecordForm, record_date: e.target.value})}
+                />
+              </div>
+
+              {/* Created By */}
+              <div>
+                <Label htmlFor="created_by">Created By</Label>
+                <Input
+                  id="created_by"
+                  value={newMedicalRecordForm.created_by}
+                  onChange={(e) => setNewMedicalRecordForm({...newMedicalRecordForm, created_by: e.target.value})}
+                  placeholder="Doctor/staff name"
+                />
+              </div>
+
+              {/* File URL */}
+              <div>
+                <Label htmlFor="file_url">File URL (Optional)</Label>
+                <Input
+                  id="file_url"
+                  value={newMedicalRecordForm.file_url}
+                  onChange={(e) => setNewMedicalRecordForm({...newMedicalRecordForm, file_url: e.target.value})}
+                  placeholder="Link to X-ray, document, or other file"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="notes">Additional Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={newMedicalRecordForm.notes}
+                  onChange={(e) => setNewMedicalRecordForm({...newMedicalRecordForm, notes: e.target.value})}
+                  placeholder="Additional notes or observations"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowMedicalRecordDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveMedicalRecord}
+              >
+                Save Medical Record
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </>
   );
