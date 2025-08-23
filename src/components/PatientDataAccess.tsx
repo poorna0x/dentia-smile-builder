@@ -35,7 +35,8 @@ import {
   MessageSquare,
   Clock,
   MapPin,
-  Circle
+  Circle,
+  AlertCircle
 } from 'lucide-react';
 import SimpleActiveTreatments from './SimpleActiveTreatments';
 import { toast } from 'sonner';
@@ -49,6 +50,8 @@ const PatientDataAccess = () => {
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [dentalTreatments, setDentalTreatments] = useState<any[]>([]);
+  const [dentalConditions, setDentalConditions] = useState<any[]>([]);
   const [showData, setShowData] = useState(false);
   const [showDentalChart, setShowDentalChart] = useState(false);
   const [multiplePatients, setMultiplePatients] = useState<any[]>([]);
@@ -63,7 +66,9 @@ const PatientDataAccess = () => {
     console.log('- treatmentPlans length:', treatmentPlans.length);
     console.log('- medicalRecords length:', medicalRecords.length);
     console.log('- prescriptions length:', prescriptions.length);
-  }, [showData, patient, appointments, treatmentPlans, medicalRecords, prescriptions]);
+    console.log('- dentalTreatments length:', dentalTreatments.length);
+    console.log('- dentalConditions length:', dentalConditions.length);
+  }, [showData, patient, appointments, treatmentPlans, medicalRecords, prescriptions, dentalTreatments, dentalConditions]);
 
   // Handle phone number input
   const handlePhoneChange = (value: string) => {
@@ -315,6 +320,33 @@ const PatientDataAccess = () => {
       console.log('PatientDataAccess: Prescriptions error:', prescriptionsError);
       
       setPrescriptions(prescriptionsData || []);
+
+      // Get dental treatments
+      console.log('PatientDataAccess: Loading dental treatments for patient:', patientData.id);
+      const { data: dentalTreatmentsData, error: dentalTreatmentsError } = await supabase
+        .from('dental_treatments')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .eq('clinic_id', clinic?.id)
+        .order('created_at', { ascending: false });
+
+      console.log('PatientDataAccess: Dental treatments data:', dentalTreatmentsData);
+      console.log('PatientDataAccess: Dental treatments error:', dentalTreatmentsError);
+      setDentalTreatments(dentalTreatmentsData || []);
+
+      // Get dental conditions
+      console.log('PatientDataAccess: Loading dental conditions for patient:', patientData.id);
+      const { data: dentalConditionsData, error: dentalConditionsError } = await supabase
+        .from('tooth_conditions')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .eq('clinic_id', clinic?.id)
+        .order('created_at', { ascending: false });
+
+      console.log('PatientDataAccess: Dental conditions data:', dentalConditionsData);
+      console.log('PatientDataAccess: Dental conditions error:', dentalConditionsError);
+      setDentalConditions(dentalConditionsData || []);
+      
       setShowData(true);
       
       // Debug state after setting
@@ -324,6 +356,8 @@ const PatientDataAccess = () => {
       console.log('- treatments count:', treatmentsData?.length || 0);
       console.log('- medical records count:', recordsData?.length || 0);
       console.log('- prescriptions count:', prescriptionsData?.length || 0);
+      console.log('- dental treatments count:', dentalTreatmentsData?.length || 0);
+      console.log('- dental conditions count:', dentalConditionsData?.length || 0);
     } catch (error) {
       console.error('PatientDataAccess: Error loading patient data:', error);
       toast.error('Error loading patient data');
@@ -337,6 +371,8 @@ const PatientDataAccess = () => {
     setTreatmentPlans([]);
     setMedicalRecords([]);
     setPrescriptions([]);
+    setDentalTreatments([]);
+    setDentalConditions([]);
     setShowData(false);
     setPhone('');
     setMultiplePatients([]);
@@ -659,21 +695,100 @@ const PatientDataAccess = () => {
             </TabsContent>
 
             {/* Dental Chart Tab */}
-            <TabsContent value="dental" className="space-y-4">
+            <TabsContent value="dental" className="space-y-6">
+              {/* Dental Treatments Section */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Circle className="w-5 h-5 mr-2" />
-                    Dental Chart
+                    <Stethoscope className="w-5 h-5 mr-2" />
+                    Dental Treatments
                   </CardTitle>
                   <CardDescription>
-                    Your dental health overview and treatment history
+                    Your dental treatment history and procedures
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500 text-center py-8">
-                    Dental chart functionality will be available soon
-                  </p>
+                  {dentalTreatments.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No dental treatments found</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {dentalTreatments.map((treatment) => (
+                        <div key={treatment.id} className="border rounded-lg p-3 md:p-4">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-sm md:text-base">{treatment.treatment_name}</h3>
+                              <p className="text-xs md:text-sm text-gray-600 mt-1">
+                                Tooth: {treatment.tooth_number} • {treatment.treatment_type}
+                              </p>
+                              {treatment.notes && (
+                                <p className="text-xs md:text-sm text-gray-600 mt-2">{treatment.notes}</p>
+                              )}
+                            </div>
+                            <Badge className={`text-xs md:text-sm ${
+                              treatment.status === 'Active' 
+                                ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                                : treatment.status === 'Completed'
+                                ? 'bg-green-100 text-green-800 border-green-200'
+                                : 'bg-gray-100 text-gray-800 border-gray-200'
+                            }`}>
+                              {treatment.status}
+                            </Badge>
+                          </div>
+                          <div className="text-xs md:text-sm text-gray-500">
+                            <p>Date: {formatDate(treatment.created_at)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Dental Conditions Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <AlertCircle className="w-5 h-5 mr-2" />
+                    Dental Conditions
+                  </CardTitle>
+                  <CardDescription>
+                    Your dental conditions and health status
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {dentalConditions.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No dental conditions found</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {dentalConditions.map((condition) => (
+                        <div key={condition.id} className="border rounded-lg p-3 md:p-4">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-sm md:text-base">{condition.condition_name}</h3>
+                              <p className="text-xs md:text-sm text-gray-600 mt-1">
+                                Tooth: {condition.tooth_number} • {condition.condition_type}
+                              </p>
+                              {condition.notes && (
+                                <p className="text-xs md:text-sm text-gray-600 mt-2">{condition.notes}</p>
+                              )}
+                            </div>
+                            <Badge className={`text-xs md:text-sm ${
+                              condition.severity === 'High' 
+                                ? 'bg-red-100 text-red-800 border-red-200' 
+                                : condition.severity === 'Medium'
+                                ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                : 'bg-green-100 text-green-800 border-green-200'
+                            }`}>
+                              {condition.severity}
+                            </Badge>
+                          </div>
+                          <div className="text-xs md:text-sm text-gray-500">
+                            <p>Date: {formatDate(condition.created_at)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
