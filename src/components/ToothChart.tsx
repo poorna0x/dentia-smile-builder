@@ -181,6 +181,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
   // Handle tooth click
   const handleToothClick = (tooth: ToothData) => {
     setSelectedTooth(tooth)
+    setSelectedPaymentTreatment(null) // Reset payment treatment selection
     setShowTreatmentDialog(true)
   }
 
@@ -513,7 +514,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
         {/* Tooth Details Dialog */}
         {selectedTooth && (
-          <Dialog open={showTreatmentDialog} onOpenChange={setShowTreatmentDialog}>
+          <Dialog open={showTreatmentDialog} onOpenChange={(open) => {
+            setShowTreatmentDialog(open)
+            if (!open) {
+              setSelectedPaymentTreatment(null) // Reset when dialog closes
+            }
+          }}>
             <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] xl:w-[60vw] max-h-[90vh] rounded-2xl border-2 overflow-hidden">
               <DialogHeader className="flex-shrink-0">
                 <DialogTitle className="flex items-center gap-2">
@@ -662,10 +668,16 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       }}
                     />
                   ) : (
-                    <PaymentTreatmentSelector
-                      treatments={selectedTooth.treatments}
-                      onSelectTreatment={setSelectedPaymentTreatment}
-                    />
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Payment Management</h3>
+                        <span className="text-sm text-gray-500">{selectedTooth.treatments.length} treatments available</span>
+                      </div>
+                      <PaymentTreatmentSelector
+                        treatments={selectedTooth.treatments}
+                        onSelectTreatment={setSelectedPaymentTreatment}
+                      />
+                    </div>
                   )}
                 </TabsContent>
 
