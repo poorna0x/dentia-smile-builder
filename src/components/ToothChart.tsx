@@ -536,7 +536,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="treatments" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
+                <TabsContent value="treatments" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   <div className="pt-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                       <h3 className="text-base sm:text-lg font-semibold">Treatment History</h3>
@@ -606,7 +606,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   </div>
                 </TabsContent>
 
-                <TabsContent value="condition" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
+                <TabsContent value="condition" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   <div className="pt-4">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold">Current Condition</h3>
@@ -658,7 +658,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   </div>
                 </TabsContent>
 
-                <TabsContent value="payments" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
+                <TabsContent value="payments" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   {selectedPaymentTreatment ? (
                     <EnhancedPaymentManagement
                       treatment={selectedPaymentTreatment}
@@ -684,7 +684,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   )}
                 </TabsContent>
 
-                <TabsContent value="details" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
+                <TabsContent value="details" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   <div className="pt-4">
                     <h3 className="text-lg font-semibold">Tooth Information</h3>
                   <Card className="flex-1">

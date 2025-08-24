@@ -97,7 +97,6 @@
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
 
     --sidebar-primary: 240 5.9% 10%;
@@ -273,4 +272,14 @@
   .body-md {
     @apply text-sm md:text-base leading-relaxed;
   }
+}
+
+/* Transparent scrollbar */
+.scrollbar-transparent {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.scrollbar-transparent::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }

@@ -323,27 +323,27 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
             <ArrowLeft className="h-3 w-3" />
           </Button>
           <div>
-            <h2 className="text-xl font-semibold">{treatment.treatment_type}</h2>
-            <p className="text-sm text-gray-600">Tooth {treatment.tooth_number} • {treatment.treatment_status}</p>
+            <h2 className="text-lg sm:text-xl font-semibold">{treatment.treatment_type}</h2>
+            <p className="text-xs sm:text-sm text-gray-600">Tooth {treatment.tooth_number} • {treatment.treatment_status}</p>
           </div>
         </div>
         <Button 
           onClick={() => setShowAddPaymentDialog(true)}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          {paymentSummary ? 'Add More Payment' : 'Set Cost & Payment'}
+          <Plus className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">{paymentSummary ? 'Add More Payment' : 'Set Cost & Payment'}</span>
         </Button>
       </div>
 
       <Tabs defaultValue="summary" className="w-full h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-2 gap-1 mb-2 bg-transparent">
+        <TabsList className="grid w-full grid-cols-3 gap-1 mb-4 bg-transparent">
           <TabsTrigger value="summary" className="text-xs sm:text-sm">Payment Summary</TabsTrigger>
           <TabsTrigger value="history" className="text-xs sm:text-sm">Payment History</TabsTrigger>
-          <TabsTrigger value="details" className="text-xs sm:text-sm col-span-2">Treatment Details</TabsTrigger>
+          <TabsTrigger value="details" className="text-xs sm:text-sm">Treatment Details</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="summary" className="space-y-4 overflow-y-auto" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
+        <TabsContent value="summary" className="space-y-4 overflow-y-auto scrollbar-transparent" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
           {paymentSummary ? (
             <Card>
               <CardHeader>
@@ -425,7 +425,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4 overflow-y-auto" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
+        <TabsContent value="history" className="space-y-4 overflow-y-auto scrollbar-transparent" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
           {transactions.length > 0 ? (
             <Card>
               <CardHeader>
@@ -480,7 +480,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="details" className="space-y-4 overflow-y-auto" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
+        <TabsContent value="details" className="space-y-4 overflow-y-auto scrollbar-transparent" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
           <Card>
             <CardHeader>
               <CardTitle>Treatment Details</CardTitle>
