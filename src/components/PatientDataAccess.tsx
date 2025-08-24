@@ -1106,20 +1106,20 @@ const PatientDataAccess = () => {
                   <span className="text-sm">Dental Chart</span>
                 </Button>
 
-                {/* Treatment Plans Button */}
+                {/* Medical History Button */}
                 <Button 
                   onClick={() => {
                     if (treatmentPlans.length > 0) {
-                      toast.info(`You have ${treatmentPlans.length} treatment plan(s)`);
+                      toast.info(`You have ${treatmentPlans.length} medical record(s)`);
                     } else {
-                      toast.info('No treatment plans found');
+                      toast.info('No medical history found');
                     }
                   }}
                   variant="outline"
                   className="h-auto p-4 flex flex-col items-center gap-2"
                 >
                   <Stethoscope className="w-6 h-6" />
-                  <span className="text-sm">Treatment Plans</span>
+                  <span className="text-sm">Medical History</span>
                   {treatmentPlans.length > 0 && (
                     <Badge className="text-xs">{treatmentPlans.length}</Badge>
                   )}
