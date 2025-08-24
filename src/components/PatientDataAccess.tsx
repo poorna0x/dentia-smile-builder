@@ -101,7 +101,7 @@ const MathCaptcha = ({ onVerify }: { onVerify: (success: boolean) => void }) => 
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
             placeholder="Enter your answer"
-            className="max-w-xs mx-auto"
+            className="max-w-xs mx-auto border-2 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
           />
           {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
@@ -1206,7 +1206,7 @@ const PatientDataAccess = () => {
                 onChange={(e) => handlePhoneChange(e.target.value)}
                 placeholder="Enter 10-digit phone number"
                 maxLength={10}
-                className="text-center text-lg"
+                className="text-center text-lg max-w-xs mx-auto border-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
             </div>
             <Button 
