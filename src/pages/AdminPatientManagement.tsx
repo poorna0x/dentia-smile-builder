@@ -17,6 +17,19 @@ import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill } from 'lucide-react';
+interface LabWorkOrder {
+  id: string
+  test_name: string
+  lab_type: string
+  order_number: string
+  status: string
+  ordered_date: string
+  expected_date?: string
+  cost?: number
+  description?: string
+  lab_facility?: string
+  notes?: string
+}
 
 interface Patient {
   id: string;
@@ -111,8 +124,9 @@ export default function AdminPatientManagement() {
     notes: ''
   });
   const [showLabWorkDialog, setShowLabWorkDialog] = useState(false);
-  const [labWorkOrders, setLabWorkOrders] = useState<any[]>([]);
+  const [labWorkOrders, setLabWorkOrders] = useState<LabWorkOrder[]>([]);
   const [showNewLabWorkForm, setShowNewLabWorkForm] = useState(false);
+
   const [labWorkForm, setLabWorkForm] = useState({
     lab_type: 'crown',
     test_name: '',
@@ -3113,7 +3127,7 @@ export default function AdminPatientManagement() {
 
               {/* Actions */}
               <div className="flex gap-2 justify-center sm:justify-end pt-4">
-                <Button variant="outline" onClick={() => setShowMedicalHistory(false)} className="w-full sm:w-auto">
+                <Button variant="outline" onClick={() => setShowMedicalHistory(false)} className="w-full sm:w-auto px-6 py-3 text-base">
                   Close
                 </Button>
               </div>
