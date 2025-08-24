@@ -523,17 +523,17 @@ const ToothChart: React.FC<ToothChartProps> = ({
               </DialogHeader>
 
               <Tabs defaultValue="treatments" className="w-full h-full flex flex-col min-h-0">
-                <TabsList className="grid w-full grid-cols-4 text-xs sm:text-sm flex-shrink-0">
-                  <TabsTrigger value="treatments">Treatments</TabsTrigger>
-                  <TabsTrigger value="condition">Condition</TabsTrigger>
-                  <TabsTrigger value="payments">Payments</TabsTrigger>
-                  <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 text-xs sm:text-sm flex-shrink-0 border border-gray-200 rounded-lg p-1">
+                  <TabsTrigger value="treatments" className="text-xs sm:text-sm">Treatments</TabsTrigger>
+                  <TabsTrigger value="condition" className="text-xs sm:text-sm">Condition</TabsTrigger>
+                  <TabsTrigger value="payments" className="text-xs sm:text-sm col-span-2 sm:col-span-1">Payments</TabsTrigger>
+                  <TabsTrigger value="details" className="text-xs sm:text-sm col-span-2 sm:col-span-1">Details</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="treatments" className="space-y-4 flex-1 overflow-y-auto min-h-0 p-0">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <h3 className="text-base sm:text-lg font-semibold">Treatment History</h3>
-                    <Button size="sm" onClick={() => setShowAddTreatmentDialog(true)} className="w-full sm:w-auto">
+                    <Button size="sm" onClick={() => setShowAddTreatmentDialog(true)} className="w-full sm:w-auto min-w-[140px]">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Treatment
                     </Button>
@@ -569,21 +569,21 @@ const ToothChart: React.FC<ToothChartProps> = ({
                                 </Badge>
                                 <div className="flex items-center gap-1">
                                   {(treatment.treatment_status === 'In Progress' || treatment.treatment_status === 'Planned') && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleEditTreatment(treatment)}
-                                      className="h-6 w-6 p-0 flex-shrink-0"
-                                      title="Edit Treatment"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </Button>
+                                                                      <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditTreatment(treatment)}
+                                    className="h-8 w-8 p-0 flex-shrink-0"
+                                    title="Edit Treatment"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
                                   )}
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleDeleteTreatment(treatment)}
-                                    className="h-6 w-6 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="h-8 w-8 p-0 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                     title="Delete Treatment"
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -601,7 +601,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <TabsContent value="condition" className="space-y-4 flex-1 overflow-y-auto min-h-0 p-0">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Current Condition</h3>
-                    <Button size="sm" onClick={() => setShowAddConditionDialog(true)}>
+                    <Button size="sm" onClick={() => setShowAddConditionDialog(true)} className="min-w-[140px]">
                       <Edit className="h-4 w-4 mr-2" />
                       Update Condition
                     </Button>
