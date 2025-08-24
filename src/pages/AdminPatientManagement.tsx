@@ -19,16 +19,16 @@ import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill } from 'lucide-react';
 interface LabWorkOrder {
   id: string
-  test_name: string
-  lab_type: string
-  order_number: string
+  work_type: string
+  lab_name: string
   status: string
-  ordered_date: string
-  expected_date?: string
+  order_date: string
+  expected_completion_date?: string
   cost?: number
   description?: string
-  lab_facility?: string
   notes?: string
+  created_at: string
+  updated_at: string
 }
 
 interface Patient {
@@ -823,7 +823,7 @@ export default function AdminPatientManagement() {
     try {
       await labWorkApi.create({
         patient_id: selectedPatientHistory.id,
-        lab_name: labWorkForm.lab_facility || 'Dental Lab Pro',
+        lab_name: labWorkForm.lab_facility || '',
         work_type: labWorkForm.lab_type,
         description: labWorkForm.description || undefined,
         expected_completion_date: labWorkForm.expected_date || undefined,
@@ -3557,14 +3557,19 @@ export default function AdminPatientManagement() {
               ) : (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Lab Work Orders</h3>
-                  {labWorkOrders.map((order) => (
+                  {labWorkOrders
+                    .sort((a, b) => {
+                      console.log('Sorting by created_at:', a.created_at, b.created_at, new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                    }) // Last ordered first
+                    .map((order) => (
                     <Card key={order.id} className="border-2 border-gray-200">
                       <CardHeader className="pb-3">
                         <div className="flex justify-between items-start">
                           <div>
-                            <CardTitle className="text-lg">{order.test_name}</CardTitle>
+                            <CardTitle className="text-lg">{order.work_type.charAt(0).toUpperCase() + order.work_type.slice(1)}</CardTitle>
                             <p className="text-sm text-gray-600">
-                              Order: {order.order_number} • Type: {order.lab_type}
+                              Lab Type: {order.work_type.charAt(0).toUpperCase() + order.work_type.slice(1)}
                             </p>
                           </div>
                           <Badge className={getLabWorkStatusColor(order.status)}>
@@ -3576,16 +3581,18 @@ export default function AdminPatientManagement() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="font-medium">Ordered Date:</span>
-                            <p>{formatDate(order.ordered_date)}</p>
+                            <p>{formatDate(order.order_date)}</p>
                           </div>
                           <div>
                             <span className="font-medium">Expected Date:</span>
-                            <p>{order.expected_date ? formatDate(order.expected_date) : 'Not specified'}</p>
+                            <p>{order.expected_completion_date ? formatDate(order.expected_completion_date) : 'Not specified'}</p>
                           </div>
-                          <div>
-                            <span className="font-medium">Lab Facility:</span>
-                            <p>{order.lab_facility || 'Not specified'}</p>
-                          </div>
+                          {order.lab_name && order.lab_name.trim() !== '' && (
+                            <div>
+                              <span className="font-medium">Lab Facility:</span>
+                              <p>{order.lab_name}</p>
+                            </div>
+                          )}
                           <div>
                             <span className="font-medium">Cost:</span>
                             <p>{order.cost ? `₹${order.cost}` : 'Not specified'}</p>
