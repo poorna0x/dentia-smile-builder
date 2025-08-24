@@ -5,13 +5,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Calendar, DollarSign, FileText, Circle } from 'lucide-react'
+import { Calendar, DollarSign, FileText, Circle, CreditCard } from 'lucide-react'
 import { 
   DentalTreatment, 
   toothChartUtils,
   dentalTreatmentApi
 } from '@/lib/dental-treatments'
+import PaymentManagementSimple from './PaymentManagementSimple'
 
 interface DentalTreatmentFormProps {
   patientId: string
@@ -37,13 +39,15 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
     tooth_position: '',
     treatment_type: '',
     treatment_description: '',
-    treatment_status: 'Planned' as const,
+    treatment_status: 'Planned' as 'Planned' | 'In Progress' | 'Completed' | 'Cancelled',
     treatment_date: '',
     notes: ''
   })
   const [loading, setLoading] = useState(false)
   const [availableTeeth] = useState(toothChartUtils.getAllTeeth())
   const [treatmentTypes] = useState(toothChartUtils.getTreatmentTypes())
+  const [createdTreatmentId, setCreatedTreatmentId] = useState<string | null>(null)
+  const [showPaymentManagement, setShowPaymentManagement] = useState(false)
 
   // Update tooth position when tooth number changes
   useEffect(() => {
@@ -53,6 +57,8 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
     }
   }, [formData.tooth_number])
 
+
+
   // Initialize form with initial data
   useEffect(() => {
     if (initialData) {
@@ -61,7 +67,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         tooth_position: initialData.tooth_position || '',
         treatment_type: initialData.treatment_type || '',
         treatment_description: initialData.treatment_description || '',
-        treatment_status: initialData.treatment_status || 'Planned',
+        treatment_status: (initialData.treatment_status as 'Planned' | 'In Progress' | 'Completed' | 'Cancelled') || 'Planned',
         treatment_date: initialData.treatment_date || '',
 
         notes: initialData.notes || ''
@@ -93,13 +99,14 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         // Update existing treatment
         await dentalTreatmentApi.update(initialData.id, treatmentData)
         toast.success('Treatment updated successfully')
+        onSuccess?.()
       } else {
         // Create new treatment
-        await dentalTreatmentApi.create(treatmentData)
+        const newTreatment = await dentalTreatmentApi.create(treatmentData)
         toast.success('Treatment added successfully')
+        setCreatedTreatmentId(newTreatment.id)
+        setShowPaymentManagement(true)
       }
-
-      onSuccess?.()
     } catch (error) {
       console.error('Error saving treatment:', error)
       toast.error('Failed to save treatment. Please try again.')
@@ -113,15 +120,17 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Circle className="h-5 w-5" />
-          {initialData?.id ? 'Edit Treatment' : 'Add New Treatment'}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-6">
+      {!showPaymentManagement ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Circle className="h-5 w-5" />
+              {initialData?.id ? 'Edit Treatment' : 'Add New Treatment'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tooth Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -260,6 +269,42 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         </form>
       </CardContent>
     </Card>
+      ) : (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Payment Management
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPaymentManagement(false)
+                    onSuccess?.()
+                  }}
+                >
+                  Done
+                </Button>
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          
+          {createdTreatmentId && (
+            <PaymentManagementSimple
+              treatmentId={createdTreatmentId}
+              clinicId={clinicId}
+              patientId={patientId}
+              treatmentType={formData.treatment_type}
+              onPaymentUpdate={() => {
+                // Refresh data if needed
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

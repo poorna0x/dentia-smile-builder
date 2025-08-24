@@ -1,11 +1,10 @@
 import { supabase } from './supabase'
 
 // =====================================================
-// 🦷 PAYMENT SYSTEM TYPES
+// 🦷 SIMPLIFIED PAYMENT SYSTEM TYPES
 // =====================================================
 
 export type PaymentStatus = 'Pending' | 'Partial' | 'Completed' | 'Overdue'
-
 
 export interface TreatmentPayment {
   id: string
@@ -37,15 +36,6 @@ export interface PaymentSummary {
   transaction_count: number
 }
 
-export interface OverduePayment {
-  treatment_id: string
-  patient_name: string
-  treatment_type: string
-  total_amount: number
-  remaining_amount: number
-  days_overdue: number
-}
-
 export interface PaymentFormData {
   total_amount: number
   payment_type: 'full' | 'partial'
@@ -55,10 +45,10 @@ export interface PaymentFormData {
 }
 
 // =====================================================
-// 🦷 PAYMENT API FUNCTIONS
+// 🦷 SIMPLIFIED PAYMENT API FUNCTIONS
 // =====================================================
 
-export const paymentApi = {
+export const simplePaymentApi = {
   // Create a new treatment payment record
   createTreatmentPayment: async (payment: Omit<TreatmentPayment, 'id' | 'created_at' | 'updated_at' | 'remaining_amount'>): Promise<TreatmentPayment> => {
     console.log('API: Creating treatment payment:', payment)
@@ -78,20 +68,47 @@ export const paymentApi = {
     return data
   },
 
-  // Get payment summary for a treatment
+  // Get payment summary for a treatment (simplified - no database function)
   getPaymentSummary: async (treatmentId: string): Promise<PaymentSummary | null> => {
     console.log('API: Getting payment summary for treatment:', treatmentId)
     
-    const { data, error } = await supabase
-      .rpc('get_treatment_payment_summary', { treatment_uuid: treatmentId })
+    // Get the treatment payment record
+    const { data: paymentData, error: paymentError } = await supabase
+      .from('treatment_payments')
+      .select('*')
+      .eq('treatment_id', treatmentId)
+      .single()
 
-    if (error) {
-      console.error('API: Error getting payment summary:', error)
-      throw new Error(`Failed to get payment summary: ${error.message}`)
+    if (paymentError) {
+      if (paymentError.code === 'PGRST116') {
+        // No payment record found
+        return null
+      }
+      console.error('API: Error getting treatment payment:', paymentError)
+      throw new Error(`Failed to get treatment payment: ${paymentError.message}`)
     }
 
-    console.log('API: Payment summary retrieved:', data)
-    return data?.[0] || null
+    // Get transaction count
+    const { count: transactionCount, error: countError } = await supabase
+      .from('payment_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('treatment_payment_id', paymentData.id)
+
+    if (countError) {
+      console.error('API: Error getting transaction count:', countError)
+      throw new Error(`Failed to get transaction count: ${countError.message}`)
+    }
+
+    const summary: PaymentSummary = {
+      total_amount: paymentData.total_amount,
+      paid_amount: paymentData.paid_amount,
+      remaining_amount: paymentData.remaining_amount,
+      payment_status: paymentData.payment_status,
+      transaction_count: transactionCount || 0
+    }
+
+    console.log('API: Payment summary retrieved:', summary)
+    return summary
   },
 
   // Get treatment payment record
@@ -104,7 +121,10 @@ export const paymentApi = {
       .eq('treatment_id', treatmentId)
       .single()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null
+      }
       console.error('API: Error getting treatment payment:', error)
       throw new Error(`Failed to get treatment payment: ${error.message}`)
     }
@@ -128,13 +148,51 @@ export const paymentApi = {
       throw new Error(`Failed to add payment transaction: ${error.message}`)
     }
 
+    // Update the treatment payment record
+    await simplePaymentApi.updateTreatmentPaymentAmount(transaction.treatment_payment_id)
+
     console.log('API: Payment transaction added successfully:', data)
     return data
   },
 
+  // Update treatment payment amounts
+  updateTreatmentPaymentAmount: async (treatmentPaymentId: string): Promise<void> => {
+    console.log('API: Updating treatment payment amounts for:', treatmentPaymentId)
+    
+    // Get total paid amount from transactions
+    const { data: transactions, error: sumError } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .eq('treatment_payment_id', treatmentPaymentId)
+
+    if (sumError) {
+      console.error('API: Error getting transaction amounts:', sumError)
+      throw new Error(`Failed to get transaction amounts: ${sumError.message}`)
+    }
+
+    const totalPaid = transactions.reduce((sum, t) => sum + t.amount, 0)
+
+    // Update the treatment payment record
+    const { error: updateError } = await supabase
+      .from('treatment_payments')
+      .update({ 
+        paid_amount: totalPaid,
+        payment_status: totalPaid === 0 ? 'Pending' : 
+                       totalPaid < 0 ? 'Partial' : 'Completed'
+      })
+      .eq('id', treatmentPaymentId)
+
+    if (updateError) {
+      console.error('API: Error updating treatment payment:', updateError)
+      throw new Error(`Failed to update treatment payment: ${updateError.message}`)
+    }
+
+    console.log('API: Treatment payment amounts updated successfully')
+  },
+
   // Get payment transactions for a treatment payment
   getPaymentTransactions: async (treatmentPaymentId: string): Promise<PaymentTransaction[]> => {
-    console.log('API: Getting payment transactions for payment:', treatmentPaymentId)
+    console.log('API: Getting payment transactions for:', treatmentPaymentId)
     
     const { data, error } = await supabase
       .from('payment_transactions')
@@ -151,12 +209,20 @@ export const paymentApi = {
     return data || []
   },
 
-  // Get overdue payments for a clinic
-  getOverduePayments: async (clinicId: string): Promise<OverduePayment[]> => {
+  // Get overdue payments (simplified)
+  getOverduePayments: async (clinicId: string): Promise<any[]> => {
     console.log('API: Getting overdue payments for clinic:', clinicId)
     
     const { data, error } = await supabase
-      .rpc('get_overdue_payments', { clinic_uuid: clinicId })
+      .from('treatment_payments')
+      .select(`
+        *,
+        dental_treatments!inner(treatment_type),
+        patients!inner(name)
+      `)
+      .eq('clinic_id', clinicId)
+      .eq('payment_status', 'Partial')
+      .lt('remaining_amount', 0)
 
     if (error) {
       console.error('API: Error getting overdue payments:', error)
@@ -165,90 +231,5 @@ export const paymentApi = {
 
     console.log('API: Overdue payments retrieved:', data)
     return data || []
-  },
-
-  // Update treatment payment
-  updateTreatmentPayment: async (id: string, updates: Partial<TreatmentPayment>): Promise<TreatmentPayment> => {
-    console.log('API: Updating treatment payment:', id, updates)
-    
-    const { data, error } = await supabase
-      .from('treatment_payments')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('API: Error updating treatment payment:', error)
-      throw new Error(`Failed to update treatment payment: ${error.message}`)
-    }
-
-    console.log('API: Treatment payment updated successfully:', data)
-    return data
-  }
-}
-
-// =====================================================
-// 🦷 PAYMENT UTILITY FUNCTIONS
-// =====================================================
-
-export const paymentUtils = {
-  // Format amount to INR currency
-  formatAmount: (amount: number): string => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  },
-
-  // Get payment status color for UI
-  getPaymentStatusColor: (status: PaymentStatus): string => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'Partial':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'Pending':
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-      case 'Overdue':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  },
-
-  // Get payment method icon
-  getPaymentMethodIcon: (method: PaymentMethod): string => {
-    switch (method) {
-      case 'Cash':
-        return '💵'
-      case 'Card':
-        return '💳'
-      case 'UPI':
-        return '📱'
-      case 'Bank Transfer':
-        return '🏦'
-      case 'Cheque':
-        return '📄'
-      case 'Insurance':
-        return '🛡️'
-      case 'Other':
-        return '📋'
-      default:
-        return '💰'
-    }
-  },
-
-  // Validate payment amount
-  validatePaymentAmount: (amount: number, remainingAmount: number): boolean => {
-    return amount > 0 && amount <= remainingAmount
-  },
-
-  // Calculate payment percentage
-  calculatePaymentPercentage: (paid: number, total: number): number => {
-    if (total === 0) return 0
-    return Math.round((paid / total) * 100)
   }
 }

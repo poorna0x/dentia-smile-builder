@@ -16,7 +16,8 @@ import {
   Calendar,
   DollarSign,
   FileText,
-  Trash2
+  Trash2,
+  CreditCard
 } from 'lucide-react'
 import { 
   DentalTreatment, 
@@ -26,6 +27,9 @@ import {
   toothConditionApi
 } from '@/lib/dental-treatments'
 import DentalTreatmentForm from './DentalTreatmentForm'
+import PaymentManagementSimple from './PaymentManagementSimple'
+import PaymentTreatmentSelector from './PaymentTreatmentSelector'
+import EnhancedPaymentManagement from './EnhancedPaymentManagement'
 
 interface ToothChartProps {
   patientId: string
@@ -60,6 +64,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [editingTreatment, setEditingTreatment] = useState<DentalTreatment | null>(null)
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
   const [treatmentToDelete, setTreatmentToDelete] = useState<DentalTreatment | null>(null)
+  const [selectedPaymentTreatment, setSelectedPaymentTreatment] = useState<DentalTreatment | null>(null)
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -518,9 +523,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
               </DialogHeader>
 
               <Tabs defaultValue="treatments" className="w-full h-full flex flex-col min-h-0">
-                <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm flex-shrink-0">
+                <TabsList className="grid w-full grid-cols-4 text-xs sm:text-sm flex-shrink-0">
                   <TabsTrigger value="treatments">Treatments</TabsTrigger>
                   <TabsTrigger value="condition">Condition</TabsTrigger>
+                  <TabsTrigger value="payments">Payments</TabsTrigger>
                   <TabsTrigger value="details">Details</TabsTrigger>
                 </TabsList>
 
@@ -639,6 +645,25 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       <p className="text-lg font-medium">No condition recorded</p>
                       <p className="text-sm">for this tooth</p>
                     </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="payments" className="space-y-4 flex-1 overflow-y-auto min-h-0 p-0">
+                  {selectedPaymentTreatment ? (
+                    <EnhancedPaymentManagement
+                      treatment={selectedPaymentTreatment}
+                      clinicId={clinicId}
+                      patientId={patientId}
+                      onBack={() => setSelectedPaymentTreatment(null)}
+                      onPaymentUpdate={() => {
+                        // Refresh data if needed
+                      }}
+                    />
+                  ) : (
+                    <PaymentTreatmentSelector
+                      treatments={selectedTooth.treatments}
+                      onSelectTreatment={setSelectedPaymentTreatment}
+                    />
                   )}
                 </TabsContent>
 
