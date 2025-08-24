@@ -52,11 +52,21 @@ const Appointment = () => {
         if (patientData.phone) setPhone(patientData.phone);
         if (patientData.email) setEmail(patientData.email);
         
+        // Store patient ID for appointment creation
+        if (patientData.id) {
+          localStorage.setItem('appointmentPatientId', patientData.id);
+        }
+        
         console.log('Pre-filled patient data:', patientData);
       } catch (error) {
         console.error('Error parsing patient data from URL:', error);
       }
     }
+    
+    // Cleanup function to clear patient ID when component unmounts
+    return () => {
+      localStorage.removeItem('appointmentPatientId');
+    };
   }, [searchParams]);
   
   const [name, setName] = useState('');
@@ -577,22 +587,30 @@ const Appointment = () => {
         
         // No duplicate found, proceeding with booking
         
-        // Try to find existing patient by phone number
-        let patientId = null;
-        try {
-          const existingPatient = await supabase
-            .from('patients')
-            .select('id')
-            .eq('phone', formattedPhone)
-            .eq('clinic_id', clinic.id)
-            .single();
-          
-          if (existingPatient.data) {
-            patientId = existingPatient.data.id;
-            console.log('Found existing patient, linking appointment:', patientId);
+        // Check if we have a specific patient ID from URL parameters
+        let patientId = localStorage.getItem('appointmentPatientId');
+        
+        if (!patientId) {
+          // Try to find existing patient by phone number (fallback)
+          try {
+            const existingPatient = await supabase
+              .from('patients')
+              .select('id')
+              .eq('phone', formattedPhone)
+              .eq('clinic_id', clinic.id)
+              .single();
+            
+            if (existingPatient.data) {
+              patientId = existingPatient.data.id;
+              console.log('Found existing patient by phone, linking appointment:', patientId);
+            }
+          } catch (error) {
+            console.log('No existing patient found for phone:', formattedPhone);
           }
-        } catch (error) {
-          console.log('No existing patient found for phone:', formattedPhone);
+        } else {
+          console.log('Using patient ID from URL parameters:', patientId);
+          // Clear the stored patient ID after use
+          localStorage.removeItem('appointmentPatientId');
         }
 
         const newAppointment = await appointmentsApi.create({
