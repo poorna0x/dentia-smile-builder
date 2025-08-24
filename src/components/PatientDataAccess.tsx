@@ -323,17 +323,20 @@ const DetailedDentalChart = ({
   }, [patient.id]);
 
   const loadDentalData = async () => {
-    if (!clinic?.id || !patient.id) return;
+    if (!patient.id) return;
     
     try {
       setLoading(true);
-      console.log('Loading dental data for patient:', patient.id, 'clinic:', clinic.id);
+      
+      // Use patient's clinic ID if clinic context is not available
+      const effectiveClinicId = clinic?.id || patient.clinic_id;
+      console.log('Loading dental data for patient:', patient.id, 'clinic:', effectiveClinicId);
       
       // Get dental treatments
       const { data: treatmentsData, error: treatmentsError } = await supabase
         .from('dental_treatments')
         .select('*')
-        .eq('clinic_id', clinic.id)
+        .eq('clinic_id', effectiveClinicId)
         .eq('patient_id', patient.id)
         .order('created_at', { ascending: false });
 
@@ -344,7 +347,7 @@ const DetailedDentalChart = ({
       const { data: conditionsData, error: conditionsError } = await supabase
         .from('tooth_conditions')
         .select('*')
-        .eq('clinic_id', clinic.id)
+        .eq('clinic_id', effectiveClinicId)
         .eq('patient_id', patient.id)
         .order('created_at', { ascending: false });
 
@@ -717,13 +720,17 @@ const PatientDataAccess = () => {
       console.log('Patient error:', patientError);
       
       setPatient(fullPatientData);
+      
+      // Use patient's clinic ID if clinic context is not available
+      const effectiveClinicId = clinic?.id || fullPatientData?.clinic_id;
+      console.log('Effective clinic ID for queries:', effectiveClinicId);
 
       // Load appointments (only upcoming)
       console.log('Loading appointments for patient:', patientId);
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select('*')
-        .eq('clinic_id', clinic?.id)
+        .eq('clinic_id', effectiveClinicId)
         .eq('patient_id', patientId)
         .in('status', ['Confirmed', 'Scheduled'])
         .gte('date', new Date().toISOString().split('T')[0])
@@ -734,11 +741,11 @@ const PatientDataAccess = () => {
       setAppointments(appointmentsData || []);
 
       // Load lab work - Direct query instead of RPC function
-      console.log('Loading lab work for patient:', patientId, 'clinic:', clinic?.id);
+      console.log('Loading lab work for patient:', patientId, 'clinic:', effectiveClinicId);
       const { data: labWorkData, error: labWorkError } = await supabase
         .from('lab_work')
         .select('*')
-        .eq('clinic_id', clinic?.id)
+        .eq('clinic_id', effectiveClinicId)
         .eq('patient_id', patientId)
         .order('order_date', { ascending: false });
 
@@ -751,7 +758,7 @@ const PatientDataAccess = () => {
       const { data: prescriptionsData, error: prescriptionsError } = await supabase
         .from('prescriptions')
         .select('*')
-        .eq('clinic_id', clinic?.id)
+        .eq('clinic_id', effectiveClinicId)
         .eq('patient_id', patientId)
         .in('status', ['Active', 'Completed'])
         .order('prescribed_date', { ascending: false });
