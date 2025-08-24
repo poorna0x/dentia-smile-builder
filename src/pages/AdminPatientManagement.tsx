@@ -16,7 +16,7 @@ import { labWorkApi } from '@/lib/lab-work';
 import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
-import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock } from 'lucide-react';
 interface LabWorkOrder {
   id: string
   work_type: string
@@ -111,6 +111,7 @@ export default function AdminPatientManagement() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
+  const [lastSearchedPatient, setLastSearchedPatient] = useState<Patient | null>(null);
   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
   const [selectedPatientHistory, setSelectedPatientHistory] = useState<Patient | null>(null);
   const [showMedicalRecordDialog, setShowMedicalRecordDialog] = useState(false);
@@ -1262,6 +1263,8 @@ export default function AdminPatientManagement() {
     console.log('Component: Clinic context changed:', clinic);
     if (clinic?.id) {
       console.log('Component: Ready to search patients for clinic:', clinic.id);
+      // Load last searched patient
+      loadLastSearchedPatient();
     } else {
       console.log('Component: No clinic ID available');
     }
@@ -1360,6 +1363,46 @@ export default function AdminPatientManagement() {
     }
   };
 
+  // Save last searched patient to localStorage
+  const saveLastSearchedPatient = (patient: Patient) => {
+    localStorage.setItem('lastSearchedPatient', JSON.stringify(patient));
+    setLastSearchedPatient(patient);
+  };
+
+  // Load last searched patient from localStorage
+  const loadLastSearchedPatient = () => {
+    const saved = localStorage.getItem('lastSearchedPatient');
+    if (saved) {
+      try {
+        const patient = JSON.parse(saved);
+        setLastSearchedPatient(patient);
+      } catch (error) {
+        console.error('Failed to load last searched patient:', error);
+      }
+    }
+  };
+
+  // Handle recent button click
+  const handleRecentClick = () => {
+    if (lastSearchedPatient) {
+      setFilteredPatients([lastSearchedPatient]);
+      setDisplayedPatients([lastSearchedPatient]);
+      setShowAllData(false);
+      setCurrentPage(1);
+      setSearchTerm(`${lastSearchedPatient.first_name} ${lastSearchedPatient.last_name || ''}`.trim());
+      
+      toast({
+        title: "Recent Patient Loaded",
+        description: `Showing ${lastSearchedPatient.first_name} ${lastSearchedPatient.last_name || ''}`,
+      });
+    } else {
+      toast({
+        title: "No Recent Patient",
+        description: "No recent patient search found",
+      });
+    }
+  };
+
   const handleSelectSearchResult = (patient: Patient) => {
     setFilteredPatients([patient]);
     setDisplayedPatients([patient]);
@@ -1367,6 +1410,9 @@ export default function AdminPatientManagement() {
     setCurrentPage(1);
     setShowSearchResults(false);
     setSearchResults([]);
+    
+    // Save as last searched patient
+    saveLastSearchedPatient(patient);
     
     toast({
       title: "Patient Selected",
@@ -2016,6 +2062,18 @@ export default function AdminPatientManagement() {
                   className="flex items-center gap-2 w-full sm:w-auto"
                 >
                   Clear
+                </Button>
+                
+                {/* Recent Button */}
+                <Button 
+                  onClick={handleRecentClick}
+                  variant="outline"
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                  disabled={!lastSearchedPatient}
+                  title={lastSearchedPatient ? `Show ${lastSearchedPatient.first_name} ${lastSearchedPatient.last_name || ''}` : 'No recent patient'}
+                >
+                  <Clock className="w-4 h-4" />
+                  Recent
                 </Button>
                 <Button 
                   onClick={handleInProgressFilter}
