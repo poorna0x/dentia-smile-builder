@@ -529,21 +529,22 @@ const ToothChart: React.FC<ToothChartProps> = ({
               </DialogHeader>
 
               <Tabs defaultValue="treatments" className="w-full h-full flex flex-col min-h-0" style={{ height: 'calc(100% - 60px)' }}>
-                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 text-xs sm:text-sm flex-shrink-0 border border-gray-200 rounded-lg p-1">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1 text-xs sm:text-sm flex-shrink-0 mb-6 bg-transparent">
                   <TabsTrigger value="treatments" className="text-xs sm:text-sm">Treatments</TabsTrigger>
                   <TabsTrigger value="condition" className="text-xs sm:text-sm">Condition</TabsTrigger>
-                  <TabsTrigger value="payments" className="text-xs sm:text-sm col-span-2 sm:col-span-1">Payments</TabsTrigger>
-                  <TabsTrigger value="details" className="text-xs sm:text-sm col-span-2 sm:col-span-1">Details</TabsTrigger>
+                  <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
+                  <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="treatments" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <h3 className="text-base sm:text-lg font-semibold">Treatment History</h3>
-                    <Button size="sm" onClick={() => setShowAddTreatmentDialog(true)} className="w-full sm:w-auto min-w-[140px]">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Treatment
-                    </Button>
-                  </div>
+                  <div className="pt-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                      <h3 className="text-base sm:text-lg font-semibold">Treatment History</h3>
+                      <Button size="sm" onClick={() => setShowAddTreatmentDialog(true)} className="w-full sm:w-auto min-w-[140px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Treatment
+                      </Button>
+                    </div>
 
                   {selectedTooth.treatments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-gray-500 min-h-[300px]">
@@ -602,16 +603,18 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       ))}
                     </div>
                   )}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="condition" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Current Condition</h3>
-                    <Button size="sm" onClick={() => setShowAddConditionDialog(true)} className="min-w-[140px]">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Update Condition
-                    </Button>
-                  </div>
+                  <div className="pt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold">Current Condition</h3>
+                      <Button size="sm" onClick={() => setShowAddConditionDialog(true)} className="min-w-[140px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Update Condition
+                      </Button>
+                    </div>
 
                   {selectedTooth.condition ? (
                     <Card>
@@ -652,6 +655,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       <p className="text-sm">for this tooth</p>
                     </div>
                   )}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="payments" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
@@ -669,9 +673,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
                     />
                   ) : (
                     <div>
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="text-center mb-4">
                         <h3 className="text-lg font-semibold">Payment Management</h3>
-                        <span className="text-sm text-gray-500">{selectedTooth.treatments.length} treatments available</span>
                       </div>
                       <PaymentTreatmentSelector
                         treatments={selectedTooth.treatments}
@@ -682,7 +685,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 </TabsContent>
 
                 <TabsContent value="details" className="space-y-4 overflow-y-auto p-0" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
-                  <h3 className="text-lg font-semibold">Tooth Information</h3>
+                  <div className="pt-4">
+                    <h3 className="text-lg font-semibold">Tooth Information</h3>
                   <Card className="flex-1">
                     <CardContent className="p-6">
                       <div className="space-y-4">
@@ -736,6 +740,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       </div>
                     </CardContent>
                   </Card>
+                  </div>
                 </TabsContent>
               </Tabs>
             </DialogContent>
