@@ -587,30 +587,18 @@ const Appointment = () => {
         
         // No duplicate found, proceeding with booking
         
-        // Check if we have a specific patient ID from URL parameters
+        // Check if we have a specific patient ID from URL parameters (only for known patients)
         let patientId = localStorage.getItem('appointmentPatientId');
         
-        if (!patientId) {
-          // Try to find existing patient by phone number (fallback)
-          try {
-            const existingPatient = await supabase
-              .from('patients')
-              .select('id')
-              .eq('phone', formattedPhone)
-              .eq('clinic_id', clinic.id)
-              .single();
-            
-            if (existingPatient.data) {
-              patientId = existingPatient.data.id;
-              console.log('Found existing patient by phone, linking appointment:', patientId);
-            }
-          } catch (error) {
-            console.log('No existing patient found for phone:', formattedPhone);
-          }
-        } else {
+        if (patientId) {
           console.log('Using patient ID from URL parameters:', patientId);
           // Clear the stored patient ID after use
           localStorage.removeItem('appointmentPatientId');
+        } else {
+          // Don't pre-link patients by phone - let the database trigger handle it
+          // This ensures proper name matching and new patient creation
+          patientId = null;
+          console.log('No pre-existing patient ID, letting database trigger handle patient linking');
         }
 
         const newAppointment = await appointmentsApi.create({
