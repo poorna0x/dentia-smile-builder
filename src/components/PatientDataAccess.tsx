@@ -955,18 +955,58 @@ const PatientDataAccess = () => {
     try {
       console.log('Searching for patient with phone:', phone, 'clinic ID:', clinic.id);
       
-      // Get all patients by phone number
-      const { data, error } = await supabase
-        .rpc('get_patient_by_phone', {
-          p_phone: phone,
-          p_clinic_id: clinic.id
-        });
+      // Try RPC function first
+      let data = null;
+      let error = null;
+      
+      try {
+        const rpcResult = await supabase
+          .rpc('get_patient_by_phone', {
+            p_phone: phone,
+            p_clinic_id: clinic.id
+          });
+        
+        data = rpcResult.data;
+        error = rpcResult.error;
+        
+        console.log('RPC Patient search result:', data);
+        console.log('RPC Patient search error:', error);
+      } catch (rpcError) {
+        console.error('RPC function failed, trying direct query:', rpcError);
+        error = rpcError;
+      }
 
-      console.log('Patient search result:', data);
-      console.log('Patient search error:', error);
+      // If RPC failed, try direct query as fallback
+      if (error) {
+        console.log('Trying direct query as fallback...');
+        
+        const directResult = await supabase
+          .from('patients')
+          .select(`
+            id as patient_id,
+            first_name,
+            last_name,
+            email,
+            clinic_id
+          `)
+          .eq('clinic_id', clinic.id)
+          .eq('phone', phone);
+        
+        data = directResult.data;
+        error = directResult.error;
+        
+        console.log('Direct query result:', data);
+        console.log('Direct query error:', error);
+      }
 
       if (error) {
-        toast.error('Error searching for patient');
+        console.error('Detailed search error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        toast.error(`Error searching for patient: ${error.message}`);
         return;
       }
 

@@ -1,16 +1,18 @@
 -- =====================================================
--- 🔧 FIX GET_PATIENT_BY_PHONE FUNCTION
+-- 🔧 FIX GET_PATIENT_BY_PHONE DATA TYPE MISMATCH
 -- =====================================================
 -- 
--- This fixes the data type mismatch error
+-- This fixes the data type mismatch error:
+-- "Returned type character varying(100) does not match expected type text"
 -- Run this in Supabase SQL Editor
 -- =====================================================
 
--- Drop and recreate the function with correct data types
+-- Drop all existing versions of the function
 DROP FUNCTION IF EXISTS get_patient_by_phone(VARCHAR(20), UUID);
 DROP FUNCTION IF EXISTS get_patient_by_phone(TEXT, UUID);
 DROP FUNCTION IF EXISTS get_patient_by_phone(VARCHAR, UUID);
 
+-- Create the function with TEXT parameter to match the call
 CREATE OR REPLACE FUNCTION get_patient_by_phone(p_phone TEXT, p_clinic_id UUID)
 RETURNS TABLE(
     patient_id UUID,
@@ -46,6 +48,6 @@ $$ LANGUAGE plpgsql;
 -- =====================================================
 -- 
 -- After running this fix, test with:
--- SELECT * FROM get_patient_by_phone('8105876772', 'c1ca557d-ca85-4905-beb7-c3985692d463');
+-- SELECT * FROM get_patient_by_phone('6361631253', 'c1ca557d-ca85-4905-beb7-c3985692d463');
 -- 
 -- =====================================================
