@@ -14,7 +14,6 @@ import { simplePaymentApi, PaymentSummary, PaymentTransaction, PaymentFormData }
 import { DentalTreatment } from '@/lib/dental-treatments'
 import { toast } from 'sonner'
 import { 
-  DollarSign, 
   ArrowLeft, 
   Plus, 
   Edit, 
@@ -28,17 +27,21 @@ import {
 
 interface EnhancedPaymentManagementProps {
   treatment: DentalTreatment
+  treatments: DentalTreatment[]
   clinicId: string
   patientId: string
   onBack: () => void
+  onTreatmentChange: (treatment: DentalTreatment) => void
   onPaymentUpdate?: () => void
 }
 
 const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
   treatment,
+  treatments,
   clinicId,
   patientId,
   onBack,
+  onTreatmentChange,
   onPaymentUpdate
 }) => {
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null)
@@ -53,6 +56,11 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     payment_type: 'full',
     payment_date: new Date().toISOString().split('T')[0],
     notes: ''
+  })
+
+  const [miscCost, setMiscCost] = useState({
+    amount: 0,
+    description: ''
   })
 
   const [editCostData, setEditCostData] = useState({
@@ -81,6 +89,12 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         payment_type: 'partial',
         payment_date: new Date().toISOString().split('T')[0],
         notes: ''
+      })
+
+      // Reset misc cost
+      setMiscCost({
+        amount: 0,
+        description: ''
       })
     } catch (error) {
       console.error('Error loading payment data:', error)
@@ -121,6 +135,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
       // Calculate payment amount
       let paymentAmount = 0
+      let miscPaymentAmount = 0
+
       if (!paymentSummary) {
         // First time payment
         if (formData.payment_type === 'full') {
@@ -128,14 +144,16 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         } else {
           paymentAmount = formData.partial_amount || 0
         }
+        miscPaymentAmount = miscCost.amount || 0
       } else {
         // Subsequent payments - always use partial amount
         paymentAmount = formData.partial_amount || 0
+        miscPaymentAmount = miscCost.amount || 0
       }
 
-      // Validate payment amount
-      if (paymentAmount <= 0) {
-        toast.error('Payment amount must be greater than 0')
+      // Validate that at least one payment is being made
+      if (paymentAmount <= 0 && miscPaymentAmount <= 0) {
+        toast.error('Please enter either a payment amount or miscellaneous cost')
         return
       }
 
@@ -144,16 +162,30 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         paymentType: formData.payment_type,
         totalAmount: formData.total_amount,
         partialAmount: formData.partial_amount,
-        calculatedPaymentAmount: paymentAmount
+        calculatedPaymentAmount: paymentAmount,
+        miscAmount: miscPaymentAmount,
+        miscDescription: miscCost.description
       })
 
-      // Add payment transaction
-      await simplePaymentApi.addPaymentTransaction({
-        treatment_payment_id: treatmentPayment.id,
-        amount: paymentAmount,
-        payment_date: formData.payment_date,
-        notes: formData.notes || undefined
-      })
+      // Add main payment transaction if there's a payment amount
+      if (paymentAmount > 0) {
+        await simplePaymentApi.addPaymentTransaction({
+          treatment_payment_id: treatmentPayment.id,
+          amount: paymentAmount,
+          payment_date: formData.payment_date,
+          notes: formData.notes || undefined
+        })
+      }
+
+      // Add miscellaneous cost transaction if there's a misc amount
+      if (miscPaymentAmount > 0) {
+        await simplePaymentApi.addPaymentTransaction({
+          treatment_payment_id: treatmentPayment.id,
+          amount: miscPaymentAmount,
+          payment_date: formData.payment_date,
+          notes: `Miscellaneous: ${miscCost.description} (₹${miscPaymentAmount})`
+        })
+      }
 
       // Reload data to get updated summary
       await loadPaymentData()
@@ -164,6 +196,12 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         payment_type: 'partial', // Default to partial for subsequent payments
         payment_date: new Date().toISOString().split('T')[0],
         notes: ''
+      })
+
+      // Reset misc cost
+      setMiscCost({
+        amount: 0,
+        description: ''
       })
       
       setShowAddPaymentDialog(false)
@@ -219,10 +257,10 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
       
       if (treatmentPayment) {
-        // Update the total amount
-        await simplePaymentApi.updateTreatmentPaymentAmount(treatmentPayment.id)
+        // Update the total amount using the API
+        await simplePaymentApi.updateTreatmentPaymentTotal(treatmentPayment.id, editCostData.total_amount)
         
-        // Reload data
+        // Reload data to get updated summary
         await loadPaymentData()
         setShowEditCostDialog(false)
         toast.success('Cost updated successfully')
@@ -276,9 +314,13 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Treatments
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onBack}
+            className="text-xs"
+          >
+            <ArrowLeft className="h-3 w-3" />
           </Button>
           <div>
             <h2 className="text-xl font-semibold">{treatment.treatment_type}</h2>
@@ -301,12 +343,12 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           <TabsTrigger value="details">Treatment Details</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="summary" className="space-y-4">
+        <TabsContent value="summary" className="space-y-4 max-h-[60vh] overflow-y-auto">
           {paymentSummary ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <span className="text-lg font-bold">₹</span>
                   Payment Summary
                 </CardTitle>
               </CardHeader>
@@ -323,19 +365,9 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                          </Badge>
                        </div>
                      </div>
-                     <div className="flex items-center gap-3">
-                       <div className="text-right">
-                         <p className="text-sm text-gray-600">Total Transactions</p>
-                         <p className="text-lg font-bold">{paymentSummary.transaction_count}</p>
-                       </div>
-                       <Button
-                         size="sm"
-                         variant="outline"
-                         onClick={handleEditCost}
-                       >
-                         <Edit className="h-3 w-3 mr-1" />
-                         Edit Cost
-                       </Button>
+                     <div className="text-right">
+                       <p className="text-sm text-gray-600">Total Transactions</p>
+                       <p className="text-lg font-bold">{paymentSummary.transaction_count}</p>
                      </div>
                    </div>
 
@@ -355,21 +387,33 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Payment Progress</span>
-                      <span>{Math.round((paymentSummary.paid_amount / paymentSummary.total_amount) * 100)}%</span>
-                    </div>
-                    <Progress value={(paymentSummary.paid_amount / paymentSummary.total_amount) * 100} className="h-3" />
-                  </div>
+                                     {/* Progress Bar */}
+                   <div className="space-y-2">
+                     <div className="flex items-center justify-between text-sm">
+                       <span>Payment Progress</span>
+                       <span>{Math.round((paymentSummary.paid_amount / paymentSummary.total_amount) * 100)}%</span>
+                     </div>
+                     <Progress value={(paymentSummary.paid_amount / paymentSummary.total_amount) * 100} className="h-3" />
+                   </div>
+
+                   {/* Edit Cost Button */}
+                   <div className="flex justify-end pt-2">
+                     <Button
+                       size="sm"
+                       variant="outline"
+                       onClick={handleEditCost}
+                     >
+                       <Edit className="h-3 w-3 mr-1" />
+                       Edit Cost
+                     </Button>
+                   </div>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <Card>
               <CardContent className="p-8 text-center">
-                <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <span className="text-4xl text-gray-300 mx-auto mb-4 block">₹</span>
                 <h3 className="text-lg font-medium mb-2">No Payment Record</h3>
                 <p className="text-gray-500 mb-4">Start tracking payments for this treatment</p>
                 <Button onClick={() => setShowAddPaymentDialog(true)}>
@@ -381,7 +425,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
+        <TabsContent value="history" className="space-y-4 max-h-[60vh] overflow-y-auto">
           {transactions.length > 0 ? (
             <Card>
               <CardHeader>
@@ -436,7 +480,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="details" className="space-y-4">
+        <TabsContent value="details" className="space-y-4 max-h-[60vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle>Treatment Details</CardTitle>
@@ -555,19 +599,43 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 <Input
                   id="partial_amount"
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   max={paymentSummary ? paymentSummary.remaining_amount : formData.total_amount}
                   value={formData.partial_amount || ''}
                   onChange={(e) => handleInputChange('partial_amount', parseFloat(e.target.value) || 0)}
                   placeholder={paymentSummary ? `Enter amount (max: ₹${paymentSummary.remaining_amount.toLocaleString('en-IN')})` : "Enter partial amount in ₹"}
-                  required
                 />
-                {formData.partial_amount === 0 && (
-                  <p className="text-sm text-red-600 mt-1">Please enter a payment amount greater than 0</p>
-                )}
+                <p className="text-xs text-gray-500 mt-1">Leave empty if only adding miscellaneous cost</p>
               </div>
             )}
+
+            {/* Miscellaneous Cost */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="misc_amount">Miscellaneous Cost (₹)</Label>
+                <span className="text-xs text-gray-500">Optional</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  id="misc_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={miscCost.amount || ''}
+                  onChange={(e) => setMiscCost(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                  placeholder="Amount"
+                />
+                <Input
+                  id="misc_description"
+                  type="text"
+                  value={miscCost.description}
+                  onChange={(e) => setMiscCost(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Description (e.g., X-ray, Medicine)"
+                />
+              </div>
+              <p className="text-xs text-gray-500">Can be added independently of main treatment payment</p>
+            </div>
 
             {/* Payment Date */}
             <div>

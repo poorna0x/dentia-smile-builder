@@ -652,9 +652,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   {selectedPaymentTreatment ? (
                     <EnhancedPaymentManagement
                       treatment={selectedPaymentTreatment}
+                      treatments={selectedTooth.treatments}
                       clinicId={clinicId}
                       patientId={patientId}
                       onBack={() => setSelectedPaymentTreatment(null)}
+                      onTreatmentChange={(newTreatment) => setSelectedPaymentTreatment(newTreatment)}
                       onPaymentUpdate={() => {
                         // Refresh data if needed
                       }}

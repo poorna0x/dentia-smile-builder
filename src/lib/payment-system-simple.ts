@@ -231,5 +231,25 @@ export const simplePaymentApi = {
 
     console.log('API: Overdue payments retrieved:', data)
     return data || []
+  },
+
+  // Update treatment payment total amount
+  updateTreatmentPaymentTotal: async (treatmentPaymentId: string, newTotalAmount: number): Promise<void> => {
+    console.log('API: Updating treatment payment total:', treatmentPaymentId, newTotalAmount)
+    
+    const { error } = await supabase
+      .from('treatment_payments')
+      .update({ 
+        total_amount: newTotalAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', treatmentPaymentId)
+
+    if (error) {
+      console.error('API: Error updating treatment payment total:', error)
+      throw new Error(`Failed to update treatment payment total: ${error.message}`)
+    }
+
+    console.log('API: Treatment payment total updated successfully')
   }
 }
