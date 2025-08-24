@@ -409,7 +409,7 @@ const DetailedDentalChart = ({
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Circle className="w-5 h-5" />
@@ -444,22 +444,22 @@ const DetailedDentalChart = ({
 
                   {/* Upper Teeth Section */}
                   <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-center text-gray-800">Upper Teeth (Top Jaw)</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-center text-gray-800">Upper Teeth (Top Jaw)</h3>
                     
                     {/* Side Labels */}
-                    <div className="flex justify-between items-center px-4">
-                      <span className="text-sm font-medium text-blue-600">Your Left Side</span>
-                      <span className="text-sm font-medium text-blue-600">Your Right Side</span>
+                    <div className="flex justify-between items-center px-2 sm:px-4">
+                      <span className="text-xs sm:text-sm font-medium text-blue-600">Your Left Side</span>
+                      <span className="text-xs sm:text-sm font-medium text-blue-600">Your Right Side</span>
                     </div>
                     
                     {/* Upper Teeth (1-16) */}
                     <div className="flex justify-center">
-                      <div className="grid grid-cols-16 gap-1">
+                      <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
                         {teeth.slice(0, 16).map((tooth) => (
                           <button
                             key={tooth.number}
                             onClick={() => setSelectedTooth(tooth.number)}
-                            className={`w-10 h-10 rounded-full border-2 text-xs font-bold transition-all hover:scale-110 ${getToothColor(tooth.number)} ${
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 text-xs font-bold transition-all hover:scale-110 ${getToothColor(tooth.number)} ${
                               selectedTooth === tooth.number ? 'ring-2 ring-blue-500' : ''
                             }`}
                             title={`Tooth ${tooth.number}: ${tooth.name}`}
@@ -473,22 +473,22 @@ const DetailedDentalChart = ({
                   
                   {/* Lower Teeth Section */}
                   <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-center text-gray-800">Lower Teeth (Bottom Jaw)</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-center text-gray-800">Lower Teeth (Bottom Jaw)</h3>
                     
                     {/* Side Labels */}
-                    <div className="flex justify-between items-center px-4">
-                      <span className="text-sm font-medium text-blue-600">Your Left Side</span>
-                      <span className="text-sm font-medium text-blue-600">Your Right Side</span>
+                    <div className="flex justify-between items-center px-2 sm:px-4">
+                      <span className="text-xs sm:text-sm font-medium text-blue-600">Your Left Side</span>
+                      <span className="text-xs sm:text-sm font-medium text-blue-600">Your Right Side</span>
                     </div>
                     
                     {/* Lower Teeth (17-32) */}
                     <div className="flex justify-center">
-                      <div className="grid grid-cols-16 gap-1">
+                      <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
                         {teeth.slice(16, 32).map((tooth) => (
                           <button
                             key={tooth.number}
                             onClick={() => setSelectedTooth(tooth.number)}
-                            className={`w-10 h-10 rounded-full border-2 text-xs font-bold transition-all hover:scale-110 ${getToothColor(tooth.number)} ${
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 text-xs font-bold transition-all hover:scale-110 ${getToothColor(tooth.number)} ${
                               selectedTooth === tooth.number ? 'ring-2 ring-blue-500' : ''
                             }`}
                             title={`Tooth ${tooth.number}: ${tooth.name}`}
@@ -503,7 +503,7 @@ const DetailedDentalChart = ({
                   {/* Legend */}
                   <div className="border-t pt-4">
                     <h4 className="text-sm font-semibold mb-2 text-center">Legend</h4>
-                    <div className="flex justify-center gap-6 text-xs">
+                    <div className="grid grid-cols-2 sm:flex sm:justify-center sm:gap-6 text-xs gap-2">
                       <div className="flex items-center gap-1">
                         <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
                         <span>No Data</span>
