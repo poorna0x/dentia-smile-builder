@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -80,6 +81,7 @@ interface MedicalRecord {
 export default function AdminPatientManagement() {
   const { clinic } = useClinic();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // State for patients
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -1921,8 +1923,20 @@ export default function AdminPatientManagement() {
     <>
       <div className="container mx-auto px-4 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Patient Management</h1>
-          <p className="text-gray-600">Manage patients, treatments, and medical records</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Patient Management</h1>
+              <p className="text-gray-600">Manage patients, treatments, and medical records</p>
+            </div>
+            <Button 
+              onClick={() => navigate('/admin')}
+              variant="outline" 
+              className="flex items-center gap-2 text-sm border-2 border-blue-400 text-blue-700 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-500 shadow-sm transition-all duration-200"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Back to Admin</span>
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-4 sm:space-y-6">
