@@ -37,8 +37,7 @@ import {
   Settings,
   Clock,
   CheckCircle,
-  AlertCircle,
-  Circle
+  AlertCircle
 } from 'lucide-react';
 
 // WhatsApp Icon Component
@@ -1633,15 +1632,6 @@ Jeshna Dental Clinic Team`;
               >
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Patient Management</span>
-              </Button>
-              
-              <Button 
-                onClick={() => navigate('/admin/dental')}
-                variant="outline" 
-                className="flex items-center gap-2 text-sm border-2 border-purple-400 text-purple-700 hover:bg-purple-100 hover:text-purple-800 hover:border-purple-500 shadow-sm transition-all duration-200"
-              >
-                <Circle className="h-4 w-4" />
-                <span className="hidden sm:inline">Dental Management</span>
               </Button>
               
               <Button 
