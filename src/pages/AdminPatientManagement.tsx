@@ -2887,11 +2887,11 @@ export default function AdminPatientManagement() {
 
               {/* Tabs for different sections */}
               <Tabs defaultValue="dental" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="dental">Dental Treatments</TabsTrigger>
-                  <TabsTrigger value="appointments">Appointments</TabsTrigger>
-                  <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
-                  <TabsTrigger value="notes">Notes & Records</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1 mb-6 bg-transparent">
+                  <TabsTrigger value="dental" className="text-xs sm:text-sm">Dental Treatments</TabsTrigger>
+                  <TabsTrigger value="appointments" className="text-xs sm:text-sm">Appointments</TabsTrigger>
+                  <TabsTrigger value="prescriptions" className="text-xs sm:text-sm">Prescriptions</TabsTrigger>
+                  <TabsTrigger value="notes" className="text-xs sm:text-sm">Notes & Records</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="dental" className="space-y-4">
@@ -3112,8 +3112,8 @@ export default function AdminPatientManagement() {
               </Tabs>
 
               {/* Actions */}
-              <div className="flex gap-2 justify-end pt-4">
-                <Button variant="outline" onClick={() => setShowMedicalHistory(false)}>
+              <div className="flex gap-2 justify-center sm:justify-end pt-4">
+                <Button variant="outline" onClick={() => setShowMedicalHistory(false)} className="w-full sm:w-auto">
                   Close
                 </Button>
               </div>
