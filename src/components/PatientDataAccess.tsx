@@ -101,7 +101,7 @@ const MathCaptcha = ({ onVerify }: { onVerify: (success: boolean) => void }) => 
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
             placeholder="Enter your answer"
-            className="max-w-xs mx-auto border-2 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+            className="max-w-xs mx-auto border-2 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
           />
           {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
@@ -1186,53 +1186,59 @@ const PatientDataAccess = () => {
 
       {/* Phone Number Input */}
       {!patient && !showCaptcha && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="w-5 h-5" />
-              Enter Your Phone Number
-            </CardTitle>
-            <CardDescription>
-              We'll send you a verification code to access your records
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                placeholder="Enter 10-digit phone number"
-                maxLength={10}
-                className="text-center text-lg max-w-xs mx-auto border-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
-            <Button 
-              onClick={handleSearch} 
-              disabled={phone.length !== 10 || isLoading}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Search Records
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                Enter Your Phone Number
+              </CardTitle>
+              <CardDescription>
+                We'll send you a verification code to access your records
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  placeholder="Enter 10-digit phone number"
+                  maxLength={10}
+                  className="text-center text-lg border-2 border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+              <Button 
+                onClick={handleSearch} 
+                disabled={phone.length !== 10 || isLoading}
+                className="w-full"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Search Records
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Math Captcha */}
       {showCaptcha && (
-        <MathCaptcha onVerify={handleCaptchaVerify} />
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <MathCaptcha onVerify={handleCaptchaVerify} />
+          </div>
+        </div>
       )}
 
       {/* Multiple Patient Selection */}
