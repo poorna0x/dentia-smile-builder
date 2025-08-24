@@ -419,7 +419,7 @@ export default function AdminPatientManagement() {
       console.log('Component: Sending patient data:', cleanPatientData);
       console.log('Component: Clinic ID being used:', clinic.id);
       
-      await patientApi.create(cleanPatientData, clinic.id);
+      const newPatient = await patientApi.create(cleanPatientData, clinic.id);
       toast({
         title: "Success",
         description: "Patient added successfully"
@@ -438,7 +438,13 @@ export default function AdminPatientManagement() {
         current_medications: [],
         notes: ''
       });
-      loadPatients();
+      
+      // Add new patient to existing list instead of reloading entire database
+      if (newPatient) {
+        setPatients(prevPatients => [newPatient, ...prevPatients]);
+        setFilteredPatients(prevPatients => [newPatient, ...prevPatients]);
+        setTotalPatients(prev => prev + 1);
+      }
     } catch (error) {
       console.error('Error adding patient:', error);
       toast({
