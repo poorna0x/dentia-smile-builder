@@ -6,6 +6,11 @@
 
 /* Calendar day styling to maintain rounded corners */
 @layer components {
+  /* Dental Chart Grid */
+  .grid-cols-16 {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+  }
+  
   .rdp-day {
     border-radius: 0.375rem !important;
   }
