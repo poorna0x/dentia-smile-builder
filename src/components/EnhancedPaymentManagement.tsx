@@ -336,14 +336,14 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         </Button>
       </div>
 
-      <Tabs defaultValue="summary" className="w-full">
+      <Tabs defaultValue="summary" className="w-full h-full flex flex-col">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 gap-1 border border-gray-200 rounded-lg p-1">
           <TabsTrigger value="summary" className="text-xs sm:text-sm">Payment Summary</TabsTrigger>
           <TabsTrigger value="history" className="text-xs sm:text-sm">Payment History</TabsTrigger>
           <TabsTrigger value="details" className="text-xs sm:text-sm col-span-2 sm:col-span-1">Treatment Details</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="summary" className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <TabsContent value="summary" className="space-y-4 overflow-y-auto" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
           {paymentSummary ? (
             <Card>
               <CardHeader>
@@ -425,7 +425,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <TabsContent value="history" className="space-y-4 overflow-y-auto" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
           {transactions.length > 0 ? (
             <Card>
               <CardHeader>
@@ -480,7 +480,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="details" className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <TabsContent value="details" className="space-y-4 overflow-y-auto" style={{ height: '350px', minHeight: '350px', maxHeight: '350px' }}>
           <Card>
             <CardHeader>
               <CardTitle>Treatment Details</CardTitle>
