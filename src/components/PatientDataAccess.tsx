@@ -600,6 +600,271 @@ const DetailedDentalChart = ({
   );
 };
 
+// Medical History Component
+const MedicalHistory = ({ 
+  patient, 
+  dentalTreatments,
+  toothConditions,
+  prescriptions,
+  labWork,
+  appointments,
+  onClose 
+}: { 
+  patient: Patient, 
+  dentalTreatments: any[],
+  toothConditions: any[],
+  prescriptions: any[],
+  labWork: any[],
+  appointments: any[],
+  onClose: () => void 
+}) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const capitalizeFirst = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
+  const totalRecords = dentalTreatments.length + toothConditions.length + prescriptions.length + labWork.length + appointments.length;
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Stethoscope className="w-5 h-5" />
+            Medical History - {patient.first_name} {patient.last_name}
+          </DialogTitle>
+        </DialogHeader>
+        
+        {totalRecords === 0 ? (
+          <div className="text-center py-8">
+            <Stethoscope className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No medical history found</p>
+            <p className="text-sm text-gray-400 mt-2">No dental treatments, conditions, prescriptions, lab work, or appointments recorded</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Medical History Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{dentalTreatments.length}</div>
+                    <div className="text-sm text-blue-800">Treatments</div>
+                  </div>
+                  <div className="p-3 bg-red-50 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{toothConditions.length}</div>
+                    <div className="text-sm text-red-800">Conditions</div>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{prescriptions.length}</div>
+                    <div className="text-sm text-green-800">Prescriptions</div>
+                  </div>
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{labWork.length}</div>
+                    <div className="text-sm text-purple-800">Lab Work</div>
+                  </div>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">{appointments.length}</div>
+                    <div className="text-sm text-orange-800">Appointments</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Dental Treatments */}
+            {dentalTreatments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Dental Treatments</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {dentalTreatments.map((treatment) => (
+                    <div key={treatment.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{treatment.treatment_type}</h4>
+                          <p className="text-sm text-gray-600">Tooth: {treatment.tooth_number}</p>
+                          {treatment.treatment_description && (
+                            <p className="text-sm text-gray-600 mt-1">{treatment.treatment_description}</p>
+                          )}
+                          {treatment.notes && (
+                            <p className="text-sm text-gray-600 mt-1"><strong>Notes:</strong> {treatment.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <Badge className={`text-xs ${
+                            treatment.treatment_status === 'Completed' ? 'bg-green-100 text-green-800' :
+                            treatment.treatment_status === 'In Progress' ? 'bg-orange-100 text-orange-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {treatment.treatment_status}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">{formatDate(treatment.created_at)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tooth Conditions */}
+            {toothConditions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Tooth Conditions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {toothConditions.map((condition) => (
+                    <div key={condition.id} className="border-l-4 border-red-500 pl-4 py-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{condition.condition_type}</h4>
+                          <p className="text-sm text-gray-600">Tooth: {condition.tooth_number}</p>
+                          {condition.condition_description && (
+                            <p className="text-sm text-gray-600 mt-1">{condition.condition_description}</p>
+                          )}
+                          {condition.notes && (
+                            <p className="text-sm text-gray-600 mt-1"><strong>Notes:</strong> {condition.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <Badge className={`text-xs ${
+                            condition.severity === 'Severe' ? 'bg-red-100 text-red-800' :
+                            condition.severity === 'Moderate' ? 'bg-orange-100 text-orange-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {condition.severity}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">{formatDate(condition.created_at)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Prescriptions */}
+            {prescriptions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Prescriptions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {prescriptions.map((prescription) => (
+                    <div key={prescription.id} className="border-l-4 border-green-500 pl-4 py-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{prescription.medication_name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {prescription.dosage} - {prescription.frequency} - {prescription.duration}
+                          </p>
+                          {prescription.instructions && (
+                            <p className="text-sm text-gray-600 mt-1"><strong>Instructions:</strong> {prescription.instructions}</p>
+                          )}
+                          {prescription.instructions && (
+                            <p className="text-sm text-gray-600 mt-1"><strong>Instructions:</strong> {prescription.instructions}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <Badge className={`text-xs ${
+                            prescription.status === 'Active' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {prescription.status}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">{formatDate(prescription.prescribed_date)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Lab Work */}
+            {labWork.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Lab Work</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {labWork.map((order) => (
+                    <div key={order.id} className="border-l-4 border-purple-500 pl-4 py-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{capitalizeFirst(order.work_type)}</h4>
+                          {order.lab_name && (
+                            <p className="text-sm text-gray-600">Lab: {order.lab_name}</p>
+                          )}
+                          {order.description && (
+                            <p className="text-sm text-gray-600 mt-1">{order.description}</p>
+                          )}
+                          {order.notes && (
+                            <p className="text-sm text-gray-600 mt-1"><strong>Notes:</strong> {order.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <Badge className={`text-xs ${getLabWorkStatusColor(order.status)}`}>
+                            {order.status}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">{formatDate(order.order_date)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Appointments */}
+            {appointments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Appointments</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {appointments.map((appointment) => (
+                    <div key={appointment.id} className="border-l-4 border-orange-500 pl-4 py-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{appointment.service || 'Dental Appointment'}</h4>
+                          <p className="text-sm text-gray-600">
+                            {formatDate(appointment.date)} at {appointment.time}
+                          </p>
+                          {appointment.notes && (
+                            <p className="text-sm text-gray-600 mt-1"><strong>Notes:</strong> {appointment.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <Badge className={`text-xs ${getAppointmentStatusColor(appointment.status)}`}>
+                            {appointment.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const PatientDataAccess = () => {
   const { clinic } = useClinic();
   
@@ -618,12 +883,15 @@ const PatientDataAccess = () => {
   const [showPatientSelection, setShowPatientSelection] = useState(false);
   const [showDentalChart, setShowDentalChart] = useState(false);
   const [showPrescriptions, setShowPrescriptions] = useState(false);
+  const [showMedicalHistory, setShowMedicalHistory] = useState(false);
   
   // Data states
   const [appointments, setAppointments] = useState<any[]>([]);
   const [labWork, setLabWork] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
+  const [dentalTreatments, setDentalTreatments] = useState<any[]>([]);
+  const [toothConditions, setToothConditions] = useState<any[]>([]);
 
   // Handle phone number input
   const handlePhoneChange = (value: string) => {
@@ -767,11 +1035,37 @@ const PatientDataAccess = () => {
       console.log('Prescriptions error:', prescriptionsError);
       setPrescriptions(prescriptionsData || []);
 
+      // Load dental treatments
+      console.log('Loading dental treatments for patient:', patientId);
+      const { data: dentalTreatmentsData, error: dentalTreatmentsError } = await supabase
+        .from('dental_treatments')
+        .select('*')
+        .eq('clinic_id', effectiveClinicId)
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
+
+      console.log('Dental treatments data:', dentalTreatmentsData);
+      console.log('Dental treatments error:', dentalTreatmentsError);
+      setDentalTreatments(dentalTreatmentsData || []);
+
+      // Load tooth conditions
+      console.log('Loading tooth conditions for patient:', patientId);
+      const { data: toothConditionsData, error: toothConditionsError } = await supabase
+        .from('tooth_conditions')
+        .select('*')
+        .eq('clinic_id', effectiveClinicId)
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
+
+      console.log('Tooth conditions data:', toothConditionsData);
+      console.log('Tooth conditions error:', toothConditionsError);
+      setToothConditions(toothConditionsData || []);
+
       // Load treatment plans
       const { data: treatmentPlansData } = await supabase
         .from('treatment_plans')
         .select('*')
-        .eq('clinic_id', clinic?.id)
+        .eq('clinic_id', effectiveClinicId)
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false });
 
@@ -846,10 +1140,13 @@ const PatientDataAccess = () => {
     setShowPatientSelection(false);
     setShowDentalChart(false);
     setShowPrescriptions(false);
+    setShowMedicalHistory(false);
     setAppointments([]);
     setLabWork([]);
     setPrescriptions([]);
     setTreatmentPlans([]);
+    setDentalTreatments([]);
+    setToothConditions([]);
   };
 
   return (
@@ -937,6 +1234,19 @@ const PatientDataAccess = () => {
         <PrescriptionsDetail
           prescriptions={prescriptions}
           onClose={() => setShowPrescriptions(false)}
+        />
+      )}
+
+      {/* Medical History Detail */}
+      {showMedicalHistory && (
+        <MedicalHistory
+          patient={patient}
+          dentalTreatments={dentalTreatments}
+          toothConditions={toothConditions}
+          prescriptions={prescriptions}
+          labWork={labWork}
+          appointments={appointments}
+          onClose={() => setShowMedicalHistory(false)}
         />
       )}
 
@@ -1108,20 +1418,14 @@ const PatientDataAccess = () => {
 
                 {/* Medical History Button */}
                 <Button 
-                  onClick={() => {
-                    if (treatmentPlans.length > 0) {
-                      toast.info(`You have ${treatmentPlans.length} medical record(s)`);
-                    } else {
-                      toast.info('No medical history found');
-                    }
-                  }}
+                  onClick={() => setShowMedicalHistory(true)}
                   variant="outline"
                   className="h-auto p-4 flex flex-col items-center gap-2"
                 >
                   <Stethoscope className="w-6 h-6" />
                   <span className="text-sm">Medical History</span>
-                  {treatmentPlans.length > 0 && (
-                    <Badge className="text-xs">{treatmentPlans.length}</Badge>
+                  {(dentalTreatments.length + toothConditions.length + prescriptions.length + labWork.length + appointments.length) > 0 && (
+                    <Badge className="text-xs">{dentalTreatments.length + toothConditions.length + prescriptions.length + labWork.length + appointments.length}</Badge>
                   )}
                 </Button>
               </div>
