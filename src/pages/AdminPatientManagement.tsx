@@ -1013,41 +1013,12 @@ export default function AdminPatientManagement() {
           console.error('Direct insert failed:', insertError);
           throw insertError;
         }
-        
-        data = insertData;
-        error = null;
-
-        if (error) {
-          console.error('Database error:', error);
-          throw error;
-        }
       }
 
       console.log('All medications saved successfully');
 
-      // Close dialog first
-      console.log('Closing prescription dialog...');
-      console.log('Current dialog state:', showPrescriptionDialog);
-      
-      // Use state update function to ensure it closes
-      setShowPrescriptionDialog((prev) => {
-        console.log('Setting dialog state from', prev, 'to false');
-        return false;
-      });
-      
-      console.log('Dialog state set to false');
-      
-      // Force a re-render by updating state
-      setTimeout(() => {
-        console.log('Checking dialog state after timeout:', showPrescriptionDialog);
-        setShowPrescriptionDialog((prev) => {
-          if (prev) {
-            console.log('Dialog still open, forcing close...');
-            return false;
-          }
-          return prev;
-        });
-      }, 50);
+      // Close dialog immediately
+      setShowPrescriptionDialog(false);
       
       // Clear form data
       setPrescriptionForm({
@@ -1071,14 +1042,11 @@ export default function AdminPatientManagement() {
         }
       ]);
 
-      // Show success message after a small delay to ensure dialog closes
-      setTimeout(() => {
-        toast({
-          title: "Success",
-          description: `${multipleMedications.length} prescription(s) added successfully`,
-        });
-        console.log('Success toast shown, dialog should be closed');
-      }, 100);
+      // Show success message
+      toast({
+        title: "Success",
+        description: `${multipleMedications.length} prescription(s) added successfully`,
+      });
     } catch (error) {
       console.error('Error saving prescription:', error);
       toast({
