@@ -1,11 +1,22 @@
--- Fix Appointment-Patient Linking
--- This script adds the missing patient_id column to appointments table
+-- Fix Appointment-Patient Linking (Safe Version)
+-- This script safely adds missing components without conflicts
 -- Run this in Supabase SQL editor
 
--- Step 1: Add patient_id column to appointments table
-ALTER TABLE appointments ADD COLUMN IF NOT EXISTS patient_id UUID REFERENCES patients(id) ON DELETE SET NULL;
+-- Step 1: Add patient_id column to appointments table (if not exists)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'appointments' AND column_name = 'patient_id'
+    ) THEN
+        ALTER TABLE appointments ADD COLUMN patient_id UUID REFERENCES patients(id) ON DELETE SET NULL;
+        RAISE NOTICE 'Added patient_id column to appointments table';
+    ELSE
+        RAISE NOTICE 'patient_id column already exists in appointments table';
+    END IF;
+END $$;
 
--- Step 2: Create index for better performance
+-- Step 2: Create index for better performance (if not exists)
 CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id);
 
 -- Step 3: Create patient_phones table if it doesn't exist
@@ -23,24 +34,57 @@ CREATE TABLE IF NOT EXISTS patient_phones (
     UNIQUE(patient_id, phone)
 );
 
--- Step 4: Create indexes for patient_phones
+-- Step 4: Create indexes for patient_phones (if not exist)
 CREATE INDEX IF NOT EXISTS idx_patient_phones_patient_id ON patient_phones(patient_id);
 CREATE INDEX IF NOT EXISTS idx_patient_phones_phone ON patient_phones(phone);
 CREATE INDEX IF NOT EXISTS idx_patient_phones_primary ON patient_phones(is_primary);
 
--- Step 5: Create trigger for updated_at
-CREATE TRIGGER update_patient_phones_updated_at 
-    BEFORE UPDATE ON patient_phones 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Step 5: Create trigger for updated_at (only if it doesn't exist)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.triggers 
+        WHERE trigger_name = 'update_patient_phones_updated_at'
+    ) THEN
+        CREATE TRIGGER update_patient_phones_updated_at 
+            BEFORE UPDATE ON patient_phones 
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE 'Created update_patient_phones_updated_at trigger';
+    ELSE
+        RAISE NOTICE 'update_patient_phones_updated_at trigger already exists';
+    END IF;
+END $$;
 
--- Step 6: Enable RLS for patient_phones
-ALTER TABLE patient_phones ENABLE ROW LEVEL SECURITY;
+-- Step 6: Enable RLS for patient_phones (if not already enabled)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_tables 
+        WHERE tablename = 'patient_phones' AND rowsecurity = true
+    ) THEN
+        ALTER TABLE patient_phones ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE 'Enabled RLS for patient_phones table';
+    ELSE
+        RAISE NOTICE 'RLS already enabled for patient_phones table';
+    END IF;
+END $$;
 
--- Step 7: Create policies for patient_phones
-CREATE POLICY "Allow all operations on patient_phones" ON patient_phones
-    FOR ALL USING (true);
+-- Step 7: Create policies for patient_phones (if not exist)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'patient_phones' AND policyname = 'Allow all operations on patient_phones'
+    ) THEN
+        CREATE POLICY "Allow all operations on patient_phones" ON patient_phones
+            FOR ALL USING (true);
+        RAISE NOTICE 'Created policy for patient_phones table';
+    ELSE
+        RAISE NOTICE 'Policy for patient_phones table already exists';
+    END IF;
+END $$;
 
--- Step 8: Migrate existing patient phones to patient_phones table
+-- Step 8: Migrate existing patient phones to patient_phones table (safe insert)
 INSERT INTO patient_phones (patient_id, phone, phone_type, is_primary, is_verified)
 SELECT 
     id as patient_id,
@@ -52,7 +96,7 @@ FROM patients
 WHERE phone IS NOT NULL AND phone != ''
 ON CONFLICT (patient_id, phone) DO NOTHING;
 
--- Step 9: Create the find_or_create_patient function
+-- Step 9: Create the find_or_create_patient function (replace if exists)
 CREATE OR REPLACE FUNCTION find_or_create_patient(
     p_full_name VARCHAR(255),
     p_phone VARCHAR(20),
@@ -186,7 +230,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 10: Create the auto_link_appointment_with_patient function
+-- Step 10: Create the auto_link_appointment_with_patient function (replace if exists)
 CREATE OR REPLACE FUNCTION auto_link_appointment_with_patient()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -210,7 +254,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 11: Create trigger for new appointments
+-- Step 11: Create trigger for new appointments (drop and recreate to ensure it's correct)
 DROP TRIGGER IF EXISTS auto_link_appointment_trigger ON appointments;
 CREATE TRIGGER auto_link_appointment_trigger
     BEFORE INSERT ON appointments
@@ -219,3 +263,20 @@ CREATE TRIGGER auto_link_appointment_trigger
 
 -- Step 12: Verify the setup
 SELECT '✅ Appointment-Patient Linking Setup Complete' as status;
+
+-- Step 13: Show verification queries
+SELECT 'Verification queries:' as info;
+SELECT '1. Check if patient_id column exists:' as query;
+SELECT column_name, data_type, is_nullable 
+FROM information_schema.columns 
+WHERE table_name = 'appointments' AND column_name = 'patient_id';
+
+SELECT '2. Check if trigger exists:' as query;
+SELECT trigger_name, event_manipulation, action_statement
+FROM information_schema.triggers 
+WHERE trigger_name = 'auto_link_appointment_trigger';
+
+SELECT '3. Check if function exists:' as query;
+SELECT routine_name, routine_type, data_type
+FROM information_schema.routines 
+WHERE routine_name = 'find_or_create_patient';

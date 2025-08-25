@@ -17,7 +17,7 @@ import { labWorkApi } from '@/lib/lab-work';
 import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
-import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock, Check } from 'lucide-react';
 import LogoutButton from '@/components/LogoutButton';
 interface LabWorkOrder {
   id: string
@@ -108,6 +108,8 @@ export default function AdminPatientManagement() {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
+  const [appointmentToComplete, setAppointmentToComplete] = useState<{id: string, patientName: string} | null>(null);
   const [existingPatients, setExistingPatients] = useState<Patient[]>([]);
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
   const [nameSimilarity, setNameSimilarity] = useState(0);
@@ -665,6 +667,43 @@ export default function AdminPatientManagement() {
     const cleanPhone = formatPhoneNumber(phone);
     const whatsappNumber = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
     window.open(`https://wa.me/${whatsappNumber}`, '_blank');
+  };
+
+  // Handle completing an appointment
+  const handleCompleteAppointment = (appointmentId: string, patientName: string) => {
+    setAppointmentToComplete({ id: appointmentId, patientName });
+    setShowCompleteConfirmDialog(true);
+  };
+
+  const confirmCompleteAppointment = async () => {
+    if (!appointmentToComplete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'Completed' })
+        .eq('id', appointmentToComplete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appointment Completed",
+        description: `Appointment for ${appointmentToComplete.patientName} has been marked as completed`,
+      });
+
+      // Refresh the appointments list
+      loadPatientsWithAppointmentsToday();
+    } catch (error) {
+      console.error('Error completing appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete appointment",
+        variant: "destructive"
+      });
+    } finally {
+      setShowCompleteConfirmDialog(false);
+      setAppointmentToComplete(null);
+    }
   };
 
   // Medical history function
@@ -1302,13 +1341,14 @@ export default function AdminPatientManagement() {
       // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
       
-      // Get appointments for today
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('patient_id, name, phone, email, date, time, status')
-        .eq('clinic_id', clinic.id)
-        .eq('date', today)
-        .order('time', { ascending: true });
+              // Get appointments for today (excluding completed ones)
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('id, patient_id, name, phone, email, date, time, status')
+          .eq('clinic_id', clinic.id)
+          .eq('date', today)
+          .neq('status', 'Completed')
+          .order('time', { ascending: true });
 
       if (appointmentsError) throw appointmentsError;
 
@@ -2451,7 +2491,7 @@ export default function AdminPatientManagement() {
                       {/* Desktop: Show buttons in header */}
                       <div className="hidden sm:flex flex-col gap-2">
                         {/* Main action buttons - consistent styling */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-0.5">
                           <Button
                             size="sm"
                             variant="outline"
@@ -2482,6 +2522,21 @@ export default function AdminPatientManagement() {
                             <Calendar className="w-4 h-4" />
                             <span className="text-sm font-medium">Appointment</span>
                           </Button>
+                          {patient.today_appointments && patient.today_appointments.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const firstAppointment = patient.today_appointments[0];
+                                handleCompleteAppointment(firstAppointment.id, patient.first_name);
+                              }}
+                              className="h-9 w-9 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
+                              title="Complete Today's Appointment"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                          )}
+
                           <Button
                             size="sm"
                             variant="outline"
@@ -2630,6 +2685,7 @@ export default function AdminPatientManagement() {
                             <Calendar className="w-4 h-4" />
                             <span className="text-sm font-medium">Appointment</span>
                           </Button>
+
                           <Button
                             size="sm"
                             variant="outline"
@@ -2663,37 +2719,63 @@ export default function AdminPatientManagement() {
                         </div>
                         
                         {/* Last row with Prescription and Communication buttons */}
-                        <div className="grid grid-cols-4 gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAddPrescription(patient)}
-                            className="col-span-2 h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
-                            title="Add Prescription"
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span className="text-sm font-medium">Prescription</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCallPatient(patient.phone)}
-                            className="h-10 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
-                            title="Call Patient"
-                          >
-                            <Phone className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleWhatsAppPatient(patient.phone)}
-                            className="h-10 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
-                            title="WhatsApp Patient"
-                          >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
-                            </svg>
-                          </Button>
+                        <div className="space-y-2">
+                          {/* First row: Prescription and Complete */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAddPrescription(patient)}
+                              className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                              title="Add Prescription"
+                            >
+                              <Plus className="w-4 h-4" />
+                              <span className="text-sm font-medium">Prescription</span>
+                            </Button>
+                            {patient.today_appointments && patient.today_appointments.length > 0 ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const firstAppointment = patient.today_appointments[0];
+                                  handleCompleteAppointment(firstAppointment.id, patient.first_name);
+                                }}
+                                className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                                title="Complete Today's Appointment"
+                              >
+                                <Check className="w-4 h-4" />
+                                <span className="text-sm font-medium">Complete</span>
+                              </Button>
+                            ) : (
+                              <div className="h-10"></div> // Empty space to maintain layout
+                            )}
+                          </div>
+                          
+                          {/* Second row: Call and WhatsApp */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCallPatient(patient.phone)}
+                              className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                              title="Call Patient"
+                            >
+                              <Phone className="w-4 h-4" />
+                              <span className="text-sm font-medium">Call</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleWhatsAppPatient(patient.phone)}
+                              className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
+                              title="WhatsApp Patient"
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                              </svg>
+                              <span className="text-sm font-medium">WhatsApp</span>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4101,6 +4183,49 @@ export default function AdminPatientManagement() {
               >
                 <Trash2 className="w-4 h-4" />
                 Delete Treatment
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Complete Appointment Confirmation Dialog */}
+        <Dialog open={showCompleteConfirmDialog} onOpenChange={setShowCompleteConfirmDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-green-600">
+                <Check className="h-5 w-5" />
+                Complete Appointment
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to mark the appointment for <strong>{appointmentToComplete?.patientName}</strong> as completed?
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-700">
+                  This will mark the appointment as completed and remove it from today's appointments view. The appointment record will be preserved in the patient's medical history.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 justify-end pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCompleteConfirmDialog(false);
+                  setAppointmentToComplete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default" 
+                onClick={confirmCompleteAppointment}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
+                <Check className="w-4 h-4" />
+                Complete Appointment
               </Button>
             </div>
           </DialogContent>

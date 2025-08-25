@@ -866,6 +866,16 @@ Jeshna Dental Clinic Team`;
     }
 
     try {
+      console.log('🔍 Creating appointment for same client with data:', {
+        clinic_id: clinic.id,
+        name: selectedAppointment.name,
+        phone: selectedAppointment.phone,
+        email: selectedAppointment.email,
+        date: format(newAppointmentForClient.selectedDate, 'yyyy-MM-dd'),
+        time: newAppointmentForClient.time,
+        status: 'Confirmed'
+      });
+
       // Create new appointment with same client data but new date/time
       const newAppointment = {
         clinic_id: clinic.id,
@@ -878,8 +888,9 @@ Jeshna Dental Clinic Team`;
         patient_id: null  // Automatic patient linking: Database trigger will find existing patient by phone/name or create new one
       };
 
-      // Add to database using the appointments API
-      await appointmentsApi.create(newAppointment);
+      console.log('🚀 Calling appointmentsApi.create for same client with:', newAppointment);
+      const result = await appointmentsApi.create(newAppointment);
+      console.log('✅ Appointment for same client created successfully:', result);
       
       // Clear cache to ensure fresh data
       QueryOptimizer.clearCache('appointments');
@@ -892,7 +903,11 @@ Jeshna Dental Clinic Team`;
       setShowNewAppointmentForClient(false);
       setShowEditDialog(false);
     } catch (error) {
-      console.error('Error creating new appointment:', error);
+      console.error('❌ Error creating new appointment for same client:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
       toast.error('Failed to create new appointment');
     }
   };
@@ -981,6 +996,16 @@ Jeshna Dental Clinic Team`;
     }
 
     try {
+      console.log('🔍 Creating appointment with data:', {
+        clinic_id: clinic.id,
+        name: formatName(generalNewAppointment.name),
+        phone: formatPhoneNumber(generalNewAppointment.phone),
+        email: generalNewAppointment.email.trim(),
+        date: format(generalNewAppointment.selectedDate, 'yyyy-MM-dd'),
+        time: generalNewAppointment.time,
+        status: 'Confirmed'
+      });
+
       const newAppointment = {
         clinic_id: clinic.id,
         name: formatName(generalNewAppointment.name),
@@ -992,7 +1017,9 @@ Jeshna Dental Clinic Team`;
         patient_id: null  // Automatic patient linking: Database trigger will find existing patient by phone/name or create new one
       };
 
-      await appointmentsApi.create(newAppointment);
+      console.log('🚀 Calling appointmentsApi.create with:', newAppointment);
+      const result = await appointmentsApi.create(newAppointment);
+      console.log('✅ Appointment created successfully:', result);
       
       // Clear cache to ensure fresh data
       QueryOptimizer.clearCache('appointments');
@@ -1023,7 +1050,11 @@ Jeshna Dental Clinic Team`;
         isCalendarOpen: false
       });
     } catch (error) {
-      console.error('Error creating new appointment:', error);
+      console.error('❌ Error creating new appointment:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
       toast.error('Failed to create new appointment');
     }
   };
