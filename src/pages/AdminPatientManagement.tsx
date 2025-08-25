@@ -694,31 +694,44 @@ export default function AdminPatientManagement() {
 
       // Send review request via WhatsApp if enabled
       try {
+        console.log('🔍 Starting review request process...');
+        
         // Get patient phone number from the appointment
         const { data: appointmentData } = await supabase
           .from('appointments')
-          .select('patient_phone')
+          .select('phone')
           .eq('id', appointmentToComplete.id)
           .single();
 
-        if (appointmentData?.patient_phone) {
+        console.log('📱 Appointment data:', appointmentData);
+        console.log('📱 Patient phone:', appointmentData?.phone);
+
+        if (appointmentData?.phone) {
           const reviewLink = `${window.location.origin}/review?patient=${appointmentToComplete.patientName}`;
+          console.log('🔗 Review link:', reviewLink);
           
+          console.log('📱 Sending review request...');
           const reviewSent = await sendWhatsAppReviewRequest(
-            appointmentData.patient_phone,
+            appointmentData.phone,
             appointmentToComplete.patientName,
             reviewLink
           );
+
+          console.log('📱 Review request result:', reviewSent);
 
           if (reviewSent) {
             toast({
               title: "Review Request Sent",
               description: `Review request sent to ${appointmentToComplete.patientName} via WhatsApp`,
             });
+          } else {
+            console.log('⚠️ Review request failed or disabled');
           }
+        } else {
+          console.log('❌ No patient phone number found in appointment data');
         }
       } catch (reviewError) {
-        console.error('Error sending review request:', reviewError);
+        console.error('❌ Error sending review request:', reviewError);
         // Don't fail the completion if review request fails
       }
 
