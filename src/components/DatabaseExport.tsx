@@ -13,10 +13,12 @@ import {
   Activity,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Archive
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import JSZip from 'jszip';
 
 interface TableInfo {
   name: string;
@@ -190,14 +192,89 @@ const DatabaseExport: React.FC = () => {
   const exportAllTables = async () => {
     setIsExportingAll(true);
     
-    for (const table of tables) {
-      await exportTable(table.name);
-      // Small delay between exports to avoid overwhelming the system
-      await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const zip = new JSZip();
+      const exportPromises = tables.map(async (table) => {
+        try {
+          setExportStatus(prev => ({
+            ...prev,
+            [table.name]: { status: 'exporting', progress: 0 }
+          }));
+
+          // Fetch all data from the table
+          const { data, error } = await supabase
+            .from(table.name)
+            .select('*');
+
+          if (error) throw error;
+
+          setExportStatus(prev => ({
+            ...prev,
+            [table.name]: { status: 'exporting', progress: 50 }
+          }));
+
+          // Convert to CSV
+          const csvContent = convertToCSV(data || []);
+          
+          setExportStatus(prev => ({
+            ...prev,
+            [table.name]: { status: 'exporting', progress: 90 }
+          }));
+
+          // Add to ZIP
+          const filename = `${table.name}_${new Date().toISOString().split('T')[0]}.csv`;
+          zip.file(filename, csvContent);
+
+          setExportStatus(prev => ({
+            ...prev,
+            [table.name]: { status: 'completed' }
+          }));
+
+          return { success: true, table: table.name };
+        } catch (error) {
+          console.error(`Error exporting ${table.name}:`, error);
+          setExportStatus(prev => ({
+            ...prev,
+            [table.name]: { 
+              status: 'error', 
+              error: error instanceof Error ? error.message : 'Export failed' 
+            }
+          }));
+          return { success: false, table: table.name, error };
+        }
+      });
+
+      // Wait for all exports to complete
+      const results = await Promise.all(exportPromises);
+      
+      // Generate and download ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipFilename = `database_export_${new Date().toISOString().split('T')[0]}.zip`;
+      
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(zipBlob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', zipFilename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.filter(r => !r.success).length;
+      
+      if (errorCount === 0) {
+        toast.success(`All ${successCount} tables exported successfully in ZIP file!`);
+      } else {
+        toast.success(`${successCount} tables exported successfully, ${errorCount} failed. Check individual exports for details.`);
+      }
+      
+    } catch (error) {
+      console.error('Error in bulk export:', error);
+      toast.error('Bulk export failed');
+    } finally {
+      setIsExportingAll(false);
     }
-    
-    setIsExportingAll(false);
-    toast.success('All tables exported successfully!');
   };
 
   const getStatusIcon = (status: string) => {
@@ -243,7 +320,7 @@ const DatabaseExport: React.FC = () => {
           <div>
             <h3 className="font-semibold text-blue-800">Export All Tables</h3>
             <p className="text-sm text-blue-600">
-              Download all database tables as individual CSV files
+              Download all database tables as a single ZIP file containing CSV files
             </p>
           </div>
           <Button
@@ -254,12 +331,12 @@ const DatabaseExport: React.FC = () => {
             {isExportingAll ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting All...
+                Creating ZIP...
               </>
             ) : (
               <>
-                <Download className="h-4 w-4 mr-2" />
-                Export All
+                <Archive className="h-4 w-4 mr-2" />
+                Export All as ZIP
               </>
             )}
           </Button>
@@ -327,11 +404,13 @@ const DatabaseExport: React.FC = () => {
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-semibold text-gray-900 mb-2">Export Information</h4>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Files are downloaded in CSV format with UTF-8 encoding</li>
+            <li>• Individual exports: Files are downloaded in CSV format with UTF-8 encoding</li>
+            <li>• Bulk export: All tables are packaged in a single ZIP file</li>
             <li>• Filenames include the current date (YYYY-MM-DD)</li>
             <li>• Special characters are properly escaped</li>
             <li>• Large tables may take a few seconds to export</li>
             <li>• All data is exported from the current database state</li>
+            <li>• ZIP file contains individual CSV files for each table</li>
           </ul>
         </div>
       </CardContent>
