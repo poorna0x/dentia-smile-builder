@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { featureToggleEvents } from '@/lib/feature-toggle-events';
+import DatabaseExport from '@/components/DatabaseExport';
 
 interface SuperAdminState {
   isAuthenticated: boolean;
@@ -599,6 +600,9 @@ const SuperAdmin: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Database Export */}
+        <DatabaseExport />
       </div>
     </div>
   );
