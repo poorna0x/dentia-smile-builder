@@ -87,6 +87,11 @@ interface SchedulingSettings {
 }
 
 const Admin = () => {
+  // 🎯 AUTOMATIC PATIENT LINKING: Both appointment booking dialogs now use automatic patient linking
+  // - Database trigger automatically finds existing patients by phone/name or creates new ones
+  // - No manual search needed - works exactly like the public booking page
+  // - Both "General New Appointment" and "New Appointment for Same Client" work seamlessly
+  
   const navigate = useNavigate();
   
   // Ensure page starts at top
@@ -877,7 +882,8 @@ Jeshna Dental Clinic Team`;
         email: selectedAppointment.email,
         date: format(newAppointmentForClient.selectedDate, 'yyyy-MM-dd'),
         time: newAppointmentForClient.time,
-        status: 'Confirmed' as const
+        status: 'Confirmed' as const,
+        patient_id: null  // Automatic patient linking: Database trigger will find existing patient by phone/name or create new one
       };
 
       // Add to database using the appointments API
@@ -990,7 +996,8 @@ Jeshna Dental Clinic Team`;
         email: generalNewAppointment.email.trim(),
         date: format(generalNewAppointment.selectedDate, 'yyyy-MM-dd'),
         time: generalNewAppointment.time,
-        status: 'Confirmed' as const
+        status: 'Confirmed' as const,
+        patient_id: null  // Automatic patient linking: Database trigger will find existing patient by phone/name or create new one
       };
 
       await appointmentsApi.create(newAppointment);
