@@ -2,7 +2,7 @@
 import { format } from 'date-fns';
 import { Resend } from 'resend';
 import { EMAIL_LOGO_CONFIG } from './email-logo';
-import { sendWhatsAppAppointmentConfirmation } from './whatsapp';
+import { sendWhatsAppAppointmentConfirmation, sendWhatsAppDentistNotification } from './whatsapp';
 
 // Initialize Resend
 const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
@@ -401,6 +401,30 @@ export const sendAppointmentConfirmation = async (
       } catch (whatsappError) {
         console.error('❌ Error sending WhatsApp confirmation:', whatsappError);
         // Don't fail the entire function if WhatsApp fails
+      }
+    }
+
+    // Send notification to dentist if clinic ID is available
+    if (appointmentData.clinicId) {
+      try {
+        console.log('🦷 Attempting to send dentist notification...');
+        const dentistResult = await sendWhatsAppDentistNotification(
+          appointmentData.clinicId,
+          {
+            name: appointmentData.name,
+            date: appointmentData.date,
+            time: appointmentData.time,
+            phone: appointmentData.phone,
+            email: appointmentData.email
+          }
+        );
+        if (dentistResult) {
+          console.log('✅ Dentist notification sent successfully');
+        } else {
+          console.log('⚠️ Dentist notification not sent (likely disabled or failed)');
+        }
+      } catch (dentistError) {
+        console.error('❌ Error sending dentist notification:', dentistError);
       }
     }
     

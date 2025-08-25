@@ -13,6 +13,7 @@ export interface NotificationSettings {
   send_reminders: boolean;
   send_reviews: boolean;
   reminder_hours: number;
+  send_to_dentist: boolean;
   review_requests_enabled: boolean;
   review_message_template: string;
 }
@@ -154,6 +155,64 @@ export const sendWhatsAppAppointmentReminder = async (
     });
   } catch (error) {
     console.error('❌ Error in sendWhatsAppAppointmentReminder:', error);
+    return false;
+  }
+};
+
+// Send notification to dentist about new appointment
+export const sendWhatsAppDentistNotification = async (
+  clinicId: string,
+  appointmentData: {
+    name: string;
+    date: string;
+    time: string;
+    phone: string;
+    email: string;
+  }
+): Promise<boolean> => {
+  try {
+    // Check if dentist notifications are enabled
+    const settings = await getNotificationSettings();
+    if (!settings?.whatsapp_enabled || !settings?.send_to_dentist) {
+      console.log('📱 Dentist notifications disabled');
+      return false;
+    }
+
+    // Get clinic and dentist phone number
+    const { data: clinic, error } = await supabase
+      .from('clinics')
+      .select('name, dentist_phone')
+      .eq('id', clinicId)
+      .single();
+
+    if (error || !clinic?.dentist_phone) {
+      console.log('❌ No dentist phone found for clinic:', clinicId);
+      return false;
+    }
+
+    // Format phone number
+    const formattedPhone = formatPhoneNumber(clinic.dentist_phone);
+    console.log('📱 Dentist notification - Original phone:', clinic.dentist_phone, 'Formatted phone:', formattedPhone);
+
+    const message = `🦷 New Appointment Alert!
+
+Patient: ${appointmentData.name}
+Date: ${appointmentData.date}
+Time: ${appointmentData.time}
+Phone: ${appointmentData.phone}
+Email: ${appointmentData.email}
+
+Clinic: ${clinic.name}
+
+Please check your appointment schedule.`;
+
+    return await sendWhatsAppMessage({
+      to: formattedPhone,
+      message,
+      type: 'dentist_notification'
+    });
+  } catch (error) {
+    console.error('❌ Error in sendWhatsAppDentistNotification:', error);
     return false;
   }
 };

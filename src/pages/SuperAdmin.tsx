@@ -50,6 +50,7 @@ interface SuperAdminState {
     send_reminders: boolean;
     send_reviews: boolean;
     reminder_hours: number;
+    send_to_dentist: boolean;
     review_requests_enabled: boolean;
     review_message_template: string;
   };
@@ -82,6 +83,7 @@ const SuperAdmin: React.FC = () => {
     send_reminders: false,
     send_reviews: false,
     reminder_hours: 24,
+    send_to_dentist: true,
     review_requests_enabled: false,
     review_message_template: 'Thank you for choosing our clinic! We hope your visit was great. Please share your experience: {review_link}',
   },
@@ -263,7 +265,7 @@ const SuperAdmin: React.FC = () => {
       let settingType = '';
       let settingsUpdate = {};
       
-      if (key === 'whatsapp_enabled' || key === 'whatsapp_phone_number') {
+      if (key === 'whatsapp_enabled' || key === 'whatsapp_phone_number' || key === 'send_confirmation' || key === 'send_reminders' || key === 'send_reviews' || key === 'reminder_hours' || key === 'send_to_dentist') {
         settingType = 'whatsapp_notifications';
         // Get current settings and update the specific field
         const { data: currentSettings } = await supabase
@@ -275,7 +277,13 @@ const SuperAdmin: React.FC = () => {
         const currentSettingsObj = currentSettings?.settings || {};
         settingsUpdate = {
           ...currentSettingsObj,
-          [key === 'whatsapp_enabled' ? 'enabled' : 'phone_number']: value
+          [key === 'whatsapp_enabled' ? 'enabled' : 
+           key === 'whatsapp_phone_number' ? 'phone_number' :
+           key === 'send_confirmation' ? 'send_confirmation' :
+           key === 'send_reminders' ? 'send_reminders' :
+           key === 'send_reviews' ? 'send_reviews' :
+           key === 'reminder_hours' ? 'reminder_hours' :
+           key === 'send_to_dentist' ? 'send_to_dentist' : key]: value
         };
       } else if (key === 'review_requests_enabled' || key === 'review_message_template') {
         settingType = 'review_requests';
@@ -867,6 +875,19 @@ const SuperAdmin: React.FC = () => {
                           </p>
                         </div>
                       )}
+
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div>
+                          <h5 className="font-medium">Dentist Notifications</h5>
+                          <p className="text-sm text-gray-600">
+                            Send notifications to dentist when new appointments are booked
+                          </p>
+                        </div>
+                        <Switch
+                          checked={state.notificationSettings.send_to_dentist}
+                          onCheckedChange={(enabled) => updateNotificationSetting('send_to_dentist', enabled)}
+                        />
+                      </div>
 
                       <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
                         <div>
