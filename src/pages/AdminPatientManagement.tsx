@@ -2621,7 +2621,8 @@ export default function AdminPatientManagement() {
                     </div>
                     
                     {/* Upcoming Appointments */}
-                    {patientsWithAppointments[patient.id] && patientsWithAppointments[patient.id].length > 0 && (
+                    {patientsWithAppointments[patient.id] && 
+                     patientsWithAppointments[patient.id].filter((appointment: any) => appointment.status === 'Confirmed').length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <div className="flex items-center gap-2 mb-3">
                           <Calendar className="w-4 h-4 text-gray-700" />
