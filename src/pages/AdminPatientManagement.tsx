@@ -98,6 +98,8 @@ export default function AdminPatientManagement() {
   const [showAllData, setShowAllData] = useState(false);
   const [totalPatients, setTotalPatients] = useState(0);
   
+
+  
   // State for forms
   const [showPatientForm, setShowPatientForm] = useState(false);
   const [showTreatmentForm, setShowTreatmentForm] = useState(false);
@@ -1235,11 +1237,13 @@ export default function AdminPatientManagement() {
     }
   }, [filteredPatients, currentPage, showAllData, startIndex, endIndex]);
 
-  // Load patients on component mount - but don't auto-load data
+  // Load patients on component mount - auto-load patients with appointments today
   useEffect(() => {
     console.log('Component: Clinic context changed:', clinic);
     if (clinic?.id) {
-      console.log('Component: Ready to search patients for clinic:', clinic.id);
+      console.log('Component: Ready to load patients with appointments today for clinic:', clinic.id);
+      // Load patients with appointments today by default
+      loadPatientsWithAppointmentsToday();
       // Load last searched patient
       loadLastSearchedPatient();
     } else {
@@ -1283,6 +1287,80 @@ export default function AdminPatientManagement() {
       toast({
         title: "Error",
         description: "Failed to load patients",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPatientsWithAppointmentsToday = async () => {
+    if (!clinic?.id) return;
+    
+    setLoading(true);
+    try {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Get appointments for today
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('patient_id, name, phone, email, date, time, status')
+        .eq('clinic_id', clinic.id)
+        .eq('date', today)
+        .order('time', { ascending: true });
+
+      if (appointmentsError) throw appointmentsError;
+
+      if (appointmentsData && appointmentsData.length > 0) {
+        // Get unique patient IDs from today's appointments
+        const patientIds = [...new Set(appointmentsData.map(apt => apt.patient_id))];
+        
+        // Get patient details for those who have appointments today
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('clinic_id', clinic.id)
+          .in('id', patientIds)
+          .eq('is_active', true);
+
+        if (patientsError) throw patientsError;
+
+        // Merge appointment info with patient data
+        const patientsWithAppointments = patientsData?.map(patient => {
+          const patientAppointments = appointmentsData.filter(apt => apt.patient_id === patient.id);
+          return {
+            ...patient,
+            today_appointments: patientAppointments
+          };
+        }) || [];
+
+        setPatients(patientsWithAppointments);
+        setFilteredPatients(patientsWithAppointments);
+        setTotalPatients(patientsWithAppointments.length);
+        setDataLoaded(true);
+        
+        toast({
+          title: "Today's Appointments",
+          description: `Loaded ${patientsWithAppointments.length} patients with appointments today`,
+        });
+      } else {
+        // No appointments today, show empty state
+        setPatients([]);
+        setFilteredPatients([]);
+        setTotalPatients(0);
+        setDataLoaded(true);
+        
+        toast({
+          title: "No Appointments Today",
+          description: "No patients have appointments scheduled for today",
+        });
+      }
+    } catch (error) {
+      console.error('Error loading patients with appointments today:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load today's appointments",
         variant: "destructive"
       });
     } finally {
@@ -1944,7 +2022,7 @@ export default function AdminPatientManagement() {
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
                 <div className="relative w-full sm:w-80 search-container" autoComplete="off">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -2000,6 +2078,28 @@ export default function AdminPatientManagement() {
                                   {patient.date_of_birth ? `Age: ${new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear()} years` : 'Age: Not specified'}
                                   {patient.allergies?.length > 0 && ` • Allergies: ${patient.allergies.join(', ')}`}
                                 </div>
+                                {patient.today_appointments && patient.today_appointments.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    {patient.today_appointments.map((apt: any, index: number) => (
+                                      <div key={index} className="flex items-center gap-2 text-xs">
+                                        <Badge 
+                                          variant="outline" 
+                                          className={`text-xs ${
+                                            apt.status === 'Confirmed' ? 'border-green-200 text-green-700 bg-green-50' :
+                                            apt.status === 'Completed' ? 'border-blue-200 text-blue-700 bg-blue-50' :
+                                            apt.status === 'Cancelled' ? 'border-red-200 text-red-700 bg-red-50' :
+                                            'border-yellow-200 text-yellow-700 bg-yellow-50'
+                                          }`}
+                                        >
+                                          {apt.status}
+                                        </Badge>
+                                        <span className="text-gray-600">
+                                          ⏰ {apt.time} • 📅 {new Date(apt.date).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div className="ml-3 flex gap-1">
                                 <Button
