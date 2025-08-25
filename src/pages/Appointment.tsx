@@ -97,6 +97,10 @@ const Appointment = () => {
   // Realtime functionality
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected'>('disconnected');
 
+  // Add debounce mechanism to prevent duplicate refreshes
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
 
   // Get next available booking date (skip holidays)
   const getNextAvailableDate = (): Date => {
@@ -165,10 +169,32 @@ const Appointment = () => {
 
 
   // Check for booked slots and disabled slots when date changes
-  const checkBookedSlots = useCallback(async () => {
+  const checkBookedSlots = useCallback(async (forceRefresh = false) => {
     if (!clinic?.id) return;
     
-    setIsLoadingSlots(true);
+    // Debounce mechanism: prevent multiple rapid refreshes
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTime;
+    const minRefreshInterval = 1000; // 1 second minimum between refreshes
+    
+    if (!forceRefresh && timeSinceLastRefresh < minRefreshInterval) {
+      console.log('Skipping refresh - too soon since last refresh');
+      return;
+    }
+    
+    // Prevent concurrent refreshes
+    if (isRefreshing) {
+      console.log('Skipping refresh - already refreshing');
+      return;
+    }
+    
+    setIsRefreshing(true);
+    // Only show loading for initial load when no slots exist
+    if (bookedSlots.length === 0 && forceRefresh) {
+      setIsLoadingSlots(true);
+    }
+    setLastRefreshTime(now);
+    
     try {
       const appointmentDate = format(date, 'yyyy-MM-dd');
       
@@ -180,8 +206,25 @@ const Appointment = () => {
         .filter(apt => apt.status !== 'Cancelled')
         .map(apt => apt.time);
       
-      // Updated booked slots
-      setBookedSlots(booked);
+      // Seamless update: only update if there are actual changes
+      setBookedSlots(prevBooked => {
+        const prevSet = new Set(prevBooked);
+        const newSet = new Set(booked);
+        
+        // Check if there are any differences
+        if (prevBooked.length !== booked.length) return booked;
+        
+        for (const slot of booked) {
+          if (!prevSet.has(slot)) return booked;
+        }
+        
+        for (const slot of prevBooked) {
+          if (!newSet.has(slot)) return booked;
+        }
+        
+        // No changes, return previous state to prevent unnecessary re-render
+        return prevBooked;
+      });
       
       // Load disabled slots for this date
       await loadDisabledSlots(date);
@@ -190,12 +233,13 @@ const Appointment = () => {
       setBookedSlots([]);
     } finally {
       setIsLoadingSlots(false);
+      setIsRefreshing(false);
     }
-  }, [clinic?.id, date]);
+  }, [clinic?.id, date, lastRefreshTime, isRefreshing, bookedSlots.length]);
 
   // Initial load when date or clinic changes
   useEffect(() => {
-    checkBookedSlots();
+    checkBookedSlots(true); // Force refresh for initial load
   }, [date, clinic?.id]);
 
   // Lightweight real-time simulation for slot availability
@@ -213,19 +257,40 @@ const Appointment = () => {
         
         const { subscribeToAppointments, subscribeToDisabledSlots } = useLightweightRealtime(clinic.id);
 
-        // Subscribe to appointments with smart polling
+        // Subscribe to appointments with seamless updates
         const unsubscribeAppointments = await subscribeToAppointments((update) => {
           // Appointment lightweight update
           if (update.type === 'UPDATED') {
             // Check if any changes affect the current date
             const currentDate = format(date, 'yyyy-MM-dd');
-            const hasRelevantChanges = update.data.some((appointment: any) => 
+            const relevantAppointments = update.data.filter((appointment: any) => 
               appointment.date === currentDate
             );
             
-            if (hasRelevantChanges) {
-              // Refreshing booked slots due to appointment changes
-              checkBookedSlots();
+            if (relevantAppointments.length > 0) {
+              // Seamless update: directly update booked slots without full refresh
+              const newBookedSlots = relevantAppointments
+                .filter((apt: any) => apt.status !== 'Cancelled')
+                .map((apt: any) => apt.time);
+              
+              setBookedSlots(prevBooked => {
+                const prevSet = new Set(prevBooked);
+                const newSet = new Set(newBookedSlots);
+                
+                // Only update if there are actual changes
+                if (prevBooked.length !== newBookedSlots.length) return newBookedSlots;
+                
+                for (const slot of newBookedSlots) {
+                  if (!prevSet.has(slot)) return newBookedSlots;
+                }
+                
+                for (const slot of prevBooked) {
+                  if (!newSet.has(slot)) return newBookedSlots;
+                }
+                
+                // No changes, return previous state to prevent unnecessary re-render
+                return prevBooked;
+              });
             }
           }
           setRealtimeStatus('connected');
@@ -256,6 +321,8 @@ const Appointment = () => {
           // Cleaning up appointment lightweight real-time subscriptions
           unsubscribeAppointments();
           unsubscribeDisabledSlots();
+          // Reset refresh state on cleanup
+          setIsRefreshing(false);
         };
       } catch (error) {
         console.error('❌ Failed to setup appointment lightweight real-time:', error);
@@ -944,47 +1011,43 @@ const Appointment = () => {
                     <Label className="text-base font-medium text-primary">
                       Available Time Slots
                     </Label>
-                    {currentSettings.disabledAppointments ? (
-                      <div className="text-sm text-destructive">
-                        Appointments are temporarily disabled.
-                      </div>
-                    ) : timeSlots.length === 0 ? (
-                      <div className="text-sm text-destructive">
-                        {(() => {
-                          const daySettings = getDaySettings(date);
-                          if (!daySettings.enabled) {
-                            return 'Clinic is closed on this day of the week.';
-                          } else if (isHoliday(date)) {
-                            return 'Clinic is closed on this date (holiday).';
-                          } else {
-                            return 'No available time slots for this date.';
-                          }
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {isLoadingSlots && (
-                          <div className="text-sm text-muted-foreground">
-                            Loading available slots...
-                          </div>
-                        )}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        <div className="min-h-[200px] transition-all duration-300">
+                      {currentSettings.disabledAppointments ? (
+                        <div className="text-sm text-destructive">
+                          Appointments are temporarily disabled.
+                        </div>
+                      ) : timeSlots.length === 0 ? (
+                        <div className="text-sm text-destructive">
+                          {(() => {
+                            const daySettings = getDaySettings(date);
+                            if (!daySettings.enabled) {
+                              return 'Clinic is closed on this day of the week.';
+                            } else if (isHoliday(date)) {
+                              return 'Clinic is closed on this date (holiday).';
+                            } else {
+                              return 'No available time slots for this date.';
+                            }
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-h-[120px]">
                           {timeSlots.map((ts) => (
                             <Button
                               key={ts.value}
                               type="button"
                               variant={selectedTime === ts.value ? 'default' : 'outline'}
                               className={cn(
-                                'justify-center', 
+                                'justify-center transition-all duration-200', 
                                 selectedTime === ts.value ? 'btn-appointment' : '',
                                 ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
                               )}
                               disabled={ts.disabled || ts.booked}
                               onClick={() => !ts.booked && setSelectedTime(ts.value)}
-                            >
-                              {ts.label}
-                            </Button>
-                          ))}
+                                                          >
+                                {ts.label}
+                              </Button>
+                            ))}
                         </div>
                         {bookedSlots.length > 0 && (
                           <div className="text-xs text-muted-foreground">
@@ -993,6 +1056,7 @@ const Appointment = () => {
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
 
                   {/* Submit Button */}
