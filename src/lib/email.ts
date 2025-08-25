@@ -296,11 +296,15 @@ export const sendEmail = async (
     // Check if we're in development mode
     if (import.meta.env.DEV) {
       // Development Mode - Simulating email send
+      console.log('📧 Development mode: Simulating email send');
+      console.log('📧 To:', to);
+      console.log('📧 Subject:', subject);
       
       // Simulate email sending delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Email simulation completed successfully
+      console.log('✅ Development mode: Email simulation completed');
       return true;
     }
 
@@ -348,14 +352,34 @@ export const sendEmail = async (
 export const sendAppointmentConfirmation = async (
   appointmentData: AppointmentEmailData
 ): Promise<boolean> => {
-  const template = emailTemplates.confirmation(appointmentData);
-  
-  return await sendEmail(
-    appointmentData.email,
-    template.subject,
-    template.html,
-    template.text
-  );
+  try {
+    console.log('📧 Preparing to send appointment confirmation email...');
+    console.log('📧 Patient data:', {
+      name: appointmentData.name,
+      email: appointmentData.email,
+      date: appointmentData.date,
+      time: appointmentData.time,
+      clinicName: appointmentData.clinicName
+    });
+    
+    const template = emailTemplates.confirmation(appointmentData);
+    
+    console.log('📧 Email template generated successfully');
+    console.log('📧 Subject:', template.subject);
+    
+    const result = await sendEmail(
+      appointmentData.email,
+      template.subject,
+      template.html,
+      template.text
+    );
+    
+    console.log('📧 Email send result:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Error in sendAppointmentConfirmation:', error);
+    return false;
+  }
 };
 
 

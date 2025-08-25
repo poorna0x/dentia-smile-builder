@@ -28,7 +28,7 @@ exports.handler = async (event, context) => {
     const resend = new Resend(process.env.VITE_RESEND_API_KEY);
 
     // Send email
-          const { data, error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
         from: 'Jeshna Dental Clinic <appointments@resend.dev>',
         to: [to],
         reply_to: 'poorna.shetty@outlook.com',

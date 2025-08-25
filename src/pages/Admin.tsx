@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
 import { showLocalNotification, requestNotificationPermission } from '@/lib/notifications';
 import LogoutButton from '@/components/LogoutButton';
+import { sendAppointmentConfirmation } from '@/lib/email';
 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -899,6 +900,29 @@ Jeshna Dental Clinic Team`;
       const appointmentDate = format(newAppointmentForClient.selectedDate, 'yyyy-MM-dd');
       QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
       
+      // Send email confirmation
+      try {
+        const emailSent = await sendAppointmentConfirmation({
+          name: selectedAppointment.name,
+          phone: selectedAppointment.phone,
+          email: selectedAppointment.email,
+          date: format(newAppointmentForClient.selectedDate, 'MMM dd, yyyy'),
+          time: newAppointmentForClient.time,
+          status: 'Confirmed',
+          clinicName: clinic?.name || 'Dental Clinic',
+          clinicPhone: clinic?.contact_phone || '',
+          clinicEmail: clinic?.contact_email || ''
+        });
+        
+        if (emailSent) {
+          console.log('✅ Email confirmation sent successfully');
+        } else {
+          console.warn('⚠️ Failed to send email confirmation');
+        }
+      } catch (emailError) {
+        console.error('❌ Error sending email confirmation:', emailError);
+      }
+
       toast.success(`New appointment created for ${selectedAppointment.name} on ${format(newAppointmentForClient.selectedDate, 'MMM dd, yyyy')} at ${newAppointmentForClient.time}`);
       setShowNewAppointmentForClient(false);
       setShowEditDialog(false);
@@ -1028,6 +1052,29 @@ Jeshna Dental Clinic Team`;
       const appointmentDate = format(generalNewAppointment.selectedDate, 'yyyy-MM-dd');
       QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
       
+      // Send email confirmation
+      try {
+        const emailSent = await sendAppointmentConfirmation({
+          name: formatName(generalNewAppointment.name),
+          phone: formatPhoneNumber(generalNewAppointment.phone),
+          email: generalNewAppointment.email.trim(),
+          date: format(generalNewAppointment.selectedDate, 'MMM dd, yyyy'),
+          time: generalNewAppointment.time,
+          status: 'Confirmed',
+          clinicName: clinic?.name || 'Dental Clinic',
+          clinicPhone: clinic?.contact_phone || '',
+          clinicEmail: clinic?.contact_email || ''
+        });
+        
+        if (emailSent) {
+          console.log('✅ Email confirmation sent successfully');
+        } else {
+          console.warn('⚠️ Failed to send email confirmation');
+        }
+      } catch (emailError) {
+        console.error('❌ Error sending email confirmation:', emailError);
+      }
+
       toast.success(`New appointment created for ${generalNewAppointment.name} on ${format(generalNewAppointment.selectedDate, 'MMM dd, yyyy')} at ${generalNewAppointment.time}`);
       setShowNewAppointmentDialog(false);
       
