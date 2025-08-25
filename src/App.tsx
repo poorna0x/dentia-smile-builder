@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { TooltipProvider } from '@radix-ui/react-tooltip'
+import { useFeatureToggles } from './hooks/useFeatureToggles'
+import WebsiteStatusWrapper from './components/WebsiteStatusWrapper'
 
 import { ClinicProvider } from './contexts/ClinicContext'
 import { supabase } from './lib/supabase'
@@ -20,6 +22,8 @@ import CheckAppointmentStatus from './components/CheckAppointmentStatus'
 import PatientLogin from './pages/PatientLogin'
 import PatientDashboard from './pages/PatientDashboard'
 import AdminPatientManagement from './pages/AdminPatientManagement'
+import SuperAdmin from './pages/SuperAdmin'
+import WebsiteDisabled from './components/WebsiteDisabled'
 
 
 import './App.css'
@@ -29,7 +33,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -96,22 +100,25 @@ function App() {
             }}
           >
             <ClinicProvider>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/appointment" element={<Appointment />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin/login" element={<AdminLogin />} />
-                <Route path="/admin/patients" element={<AdminPatientManagement />} />
-  
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/services" element={<Services />} />
-                <Route path="/dentists" element={<Dentists />} />
-                <Route path="/booking-complete" element={<BookingComplete />} />
-                <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
-                <Route path="/patient/login" element={<PatientLogin />} />
-                <Route path="/patient/dashboard" element={<PatientDashboard />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <WebsiteStatusWrapper>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/appointment" element={<Appointment />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/admin/login" element={<AdminLogin />} />
+                  <Route path="/admin/patients" element={<AdminPatientManagement />} />
+                  <Route path="/super-admin" element={<SuperAdmin />} />
+    
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/services" element={<Services />} />
+                  <Route path="/dentists" element={<Dentists />} />
+                  <Route path="/booking-complete" element={<BookingComplete />} />
+                  <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
+                  <Route path="/patient/login" element={<PatientLogin />} />
+                  <Route path="/patient/dashboard" element={<PatientDashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </WebsiteStatusWrapper>
             </ClinicProvider>
           </Router>
           <Toaster 
