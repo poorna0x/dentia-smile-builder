@@ -282,7 +282,8 @@ GRANT EXECUTE ON FUNCTION log_system_change(TEXT, TEXT, TEXT, JSONB, JSONB, TEXT
 
 -- Create a view for easy feature toggle access (safe)
 DROP VIEW IF EXISTS feature_toggles;
-CREATE OR REPLACE VIEW feature_toggles AS
+CREATE OR REPLACE VIEW feature_toggles 
+WITH (security_invoker = true) AS
 SELECT 
   key as feature_name,
   value as is_enabled

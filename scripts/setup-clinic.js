@@ -361,8 +361,9 @@ VITE_SUPABASE_ANON_KEY=${data.supabaseKey}
 VITE_RESEND_API_KEY=${data.resendApiKey}
 
 # Admin Credentials
-VITE_ADMIN_USERNAME=admin
-VITE_ADMIN_PASSWORD=your-secure-password
+# Old admin credentials removed - now using Supabase Authentication
+# Create a user in Supabase Dashboard → Authentication → Users
+# Then use that email/password to login at /login
 
 # Clinic Configuration
 VITE_DEFAULT_CLINIC_ID=${clinicData.id}

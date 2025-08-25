@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock } from 'lucide-react';
+import LogoutButton from '@/components/LogoutButton';
 interface LabWorkOrder {
   id: string
   work_type: string
@@ -1928,14 +1929,17 @@ export default function AdminPatientManagement() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Patient Management</h1>
               <p className="text-gray-600">Manage patients, treatments, and medical records</p>
             </div>
-            <Button 
-              onClick={() => navigate('/admin')}
-              variant="outline" 
-              className="flex items-center gap-2 text-sm border-2 border-blue-400 text-blue-700 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-500 shadow-sm transition-all duration-200"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Back to Admin</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => navigate('/admin')}
+                variant="outline" 
+                className="flex items-center gap-2 text-sm border-2 border-blue-400 text-blue-700 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-500 shadow-sm transition-all duration-200"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Back to Admin</span>
+              </Button>
+              <LogoutButton />
+            </div>
           </div>
         </div>
 

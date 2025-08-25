@@ -5,6 +5,8 @@ import { Toaster } from 'sonner'
 import { TooltipProvider } from '@radix-ui/react-tooltip'
 import { useFeatureToggles } from './hooks/useFeatureToggles'
 import WebsiteStatusWrapper from './components/WebsiteStatusWrapper'
+import { AuthProvider } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 
 import { ClinicProvider } from './contexts/ClinicContext'
 import { supabase } from './lib/supabase'
@@ -12,7 +14,7 @@ import { supabase } from './lib/supabase'
 import Home from './pages/Home'
 import Appointment from './pages/Appointment'
 import Admin from './pages/Admin'
-import AdminLogin from './pages/AdminLogin'
+
 import Contact from './pages/Contact'
 import Services from './pages/Services'
 import Dentists from './pages/Dentists'
@@ -24,7 +26,7 @@ import PatientDashboard from './pages/PatientDashboard'
 import AdminPatientManagement from './pages/AdminPatientManagement'
 import SuperAdmin from './pages/SuperAdmin'
 import WebsiteDisabled from './components/WebsiteDisabled'
-
+import UnifiedLogin from './pages/UnifiedLogin'
 
 import './App.css'
 
@@ -93,40 +95,63 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Router
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            <ClinicProvider>
-              <WebsiteStatusWrapper>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/appointment" element={<Appointment />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/admin/login" element={<AdminLogin />} />
-                  <Route path="/admin/patients" element={<AdminPatientManagement />} />
-                  <Route path="/super-admin" element={<SuperAdmin />} />
-    
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/services" element={<Services />} />
-                  <Route path="/dentists" element={<Dentists />} />
-                  <Route path="/booking-complete" element={<BookingComplete />} />
-                  <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
-                  <Route path="/patient/login" element={<PatientLogin />} />
-                  <Route path="/patient/dashboard" element={<PatientDashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </WebsiteStatusWrapper>
-            </ClinicProvider>
-          </Router>
-          <Toaster 
-            position="top-right"
-            richColors
-            closeButton
-            duration={4000}
-          />
+          <AuthProvider>
+            <Router
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}
+            >
+              <ClinicProvider>
+                <WebsiteStatusWrapper>
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/appointment" element={<Appointment />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/services" element={<Services />} />
+                    <Route path="/dentists" element={<Dentists />} />
+                    <Route path="/booking-complete" element={<BookingComplete />} />
+                    <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
+                    
+                    {/* Login Route */}
+                    <Route path="/login" element={<UnifiedLogin />} />
+                    
+                    {/* Protected Routes - Single Login Required */}
+                    <Route path="/admin" element={
+                      <ProtectedRoute>
+                        <Admin />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/admin/patients" element={
+                      <ProtectedRoute>
+                        <AdminPatientManagement />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/patient/dashboard" element={
+                      <ProtectedRoute>
+                        <PatientDashboard />
+                      </ProtectedRoute>
+                    } />
+                    
+                    {/* Super Admin Route (separate authentication) */}
+                    <Route path="/super-admin" element={<SuperAdmin />} />
+                    
+                    {/* Legacy routes for backward compatibility */}
+                    <Route path="/patient/login" element={<PatientLogin />} />
+                    
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </WebsiteStatusWrapper>
+              </ClinicProvider>
+            </Router>
+            <Toaster 
+              position="top-right"
+              richColors
+              closeButton
+              duration={4000}
+            />
+          </AuthProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

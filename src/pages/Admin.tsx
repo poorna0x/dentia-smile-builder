@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { isAdminLoggedIn, clearAdminSession } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useOptimizedAppointments } from '@/hooks/useOptimizedAppointments'
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
 import { showLocalNotification, requestNotificationPermission } from '@/lib/notifications';
+import LogoutButton from '@/components/LogoutButton';
 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,7 +154,7 @@ const Admin = () => {
   });
   const [bookedSlotsForGeneral, setBookedSlotsForGeneral] = useState<string[]>([]);
   const [isLoadingSlotsForGeneral, setIsLoadingSlotsForGeneral] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   
   // Disabled slots state
@@ -210,10 +211,12 @@ const Admin = () => {
   // Day name to number mapping
   const dayNumbers = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
 
+  const { isAuthenticated, loading: authLoading } = useAuth();
+
   useEffect(() => {
-    // Check if admin is logged in
-    if (!isAdminLoggedIn()) {
-      navigate('/admin/login', { replace: true });
+    // Check if admin is logged in using new auth system
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login?redirect=/admin', { replace: true });
       return;
     }
     
@@ -359,19 +362,8 @@ const Admin = () => {
 
 
 
-  const handleLogout = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    clearAdminSession();
-    // Clear saved credentials on logout
-    localStorage.removeItem('admin_username');
-    localStorage.removeItem('admin_password');
-    navigate('/admin/login');
-    toast.success('Logged out successfully');
-    setShowLogoutConfirm(false);
-  };
+  // Note: Logout is now handled by the LogoutButton component
+  // which uses the unified authentication system
 
   // WhatsApp message templates
   const getWhatsAppMessage = (type: 'confirmation' | 'cancellation' | 'reminder', appointment: Appointment) => {
@@ -1665,10 +1657,7 @@ Jeshna Dental Clinic Team`;
                 <Settings className="h-4 w-4" />
                 <span className="hidden sm:inline">Settings</span>
               </Button>
-              <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 text-sm border-2 border-red-400 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-500 shadow-sm transition-all duration-200">
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
+              <LogoutButton />
             </div>
           </div>
 
@@ -3095,32 +3084,7 @@ Jeshna Dental Clinic Team`;
         </DialogContent>
       </Dialog>
 
-      {/* Logout Confirmation Dialog */}
-      <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-red-600">Confirm Logout</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to logout? Any unsaved changes will be lost.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowLogoutConfirm(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmLogout}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-            >
-              Logout
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
     </div>
   );

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import LogoutButton from '@/components/LogoutButton';
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
@@ -151,10 +152,7 @@ const PatientDashboard = () => {
             </p>
           </div>
           
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <LogoutButton />
         </div>
 
         {/* Patient Info Card */}
