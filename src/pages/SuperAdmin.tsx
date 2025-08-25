@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { featureToggleEvents } from '@/lib/feature-toggle-events';
 import DatabaseExport from '@/components/DatabaseExport';
+import { getNotificationSettings } from '@/lib/whatsapp';
 
 interface SuperAdminState {
   isAuthenticated: boolean;
@@ -40,6 +41,12 @@ interface SuperAdminState {
     realtimeUpdatesEnabled: boolean;
     emailNotificationsEnabled: boolean;
     paymentSystemEnabled: boolean;
+  };
+  notificationSettings: {
+    whatsapp_enabled: boolean;
+    whatsapp_phone_number: string;
+    review_requests_enabled: boolean;
+    review_message_template: string;
   };
   systemStatus: {
     databaseConnected: boolean;
@@ -63,6 +70,12 @@ const SuperAdmin: React.FC = () => {
       emailNotificationsEnabled: true,
       paymentSystemEnabled: true,
     },
+    notificationSettings: {
+      whatsapp_enabled: false,
+      whatsapp_phone_number: '',
+      review_requests_enabled: false,
+      review_message_template: 'Thank you for choosing our clinic! We hope your visit was great. Please share your experience: {review_link}',
+    },
     systemStatus: {
       databaseConnected: false,
       realtimeActive: false,
@@ -80,6 +93,7 @@ const SuperAdmin: React.FC = () => {
     if (state.isAuthenticated) {
       loadSystemStatus();
       loadFeatureToggles();
+      loadNotificationSettings();
     }
   }, [state.isAuthenticated]);
 
@@ -208,6 +222,91 @@ const SuperAdmin: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load feature toggles:', error);
+    }
+  };
+
+  const loadNotificationSettings = async () => {
+    try {
+      const settings = await getNotificationSettings();
+      if (settings) {
+        setState(prev => ({
+          ...prev,
+          notificationSettings: settings
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load notification settings:', error);
+    }
+  };
+
+  const updateNotificationSetting = async (key: string, value: string | boolean) => {
+    try {
+      // Update local state immediately for responsive UI
+      setState(prev => ({
+        ...prev,
+        notificationSettings: {
+          ...prev.notificationSettings,
+          [key]: value
+        }
+      }));
+
+      // Determine which setting type to update
+      let settingType = '';
+      let settingsUpdate = {};
+      
+      if (key === 'whatsapp_enabled' || key === 'whatsapp_phone_number') {
+        settingType = 'whatsapp_notifications';
+        // Get current settings and update the specific field
+        const { data: currentSettings } = await supabase
+          .from('system_settings')
+          .select('settings')
+          .eq('setting_type', 'whatsapp_notifications')
+          .single();
+        
+        const currentSettingsObj = currentSettings?.settings || {};
+        settingsUpdate = {
+          ...currentSettingsObj,
+          [key === 'whatsapp_enabled' ? 'enabled' : 'phone_number']: value
+        };
+      } else if (key === 'review_requests_enabled' || key === 'review_message_template') {
+        settingType = 'review_requests';
+        // Get current settings and update the specific field
+        const { data: currentSettings } = await supabase
+          .from('system_settings')
+          .select('settings')
+          .eq('setting_type', 'review_requests')
+          .single();
+        
+        const currentSettingsObj = currentSettings?.settings || {};
+        settingsUpdate = {
+          ...currentSettingsObj,
+          [key === 'review_requests_enabled' ? 'enabled' : 'message_template']: value
+        };
+      }
+
+      // Save to database
+      const { error } = await supabase
+        .from('system_settings')
+        .update({ 
+          settings: settingsUpdate,
+          updated_at: new Date().toISOString()
+        })
+        .eq('setting_type', settingType);
+
+      if (error) throw error;
+
+      toast.success(`${key.replace(/_/g, ' ')} updated successfully`);
+    } catch (error) {
+      // Revert on error
+      setState(prev => ({
+        ...prev,
+        notificationSettings: {
+          ...prev.notificationSettings,
+          [key]: !value
+        }
+      }));
+      toast.error(`Failed to update ${key}`);
+      console.error('Failed to update notification setting:', error);
     }
   };
 
@@ -596,6 +695,108 @@ const SuperAdmin: React.FC = () => {
                   checked={state.features.paymentSystemEnabled}
                   onCheckedChange={(enabled) => updateFeatureToggle('paymentSystemEnabled', enabled)}
                 />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notification Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Notification Settings
+            </CardTitle>
+            <CardDescription>
+              Configure WhatsApp and review notification settings
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* WhatsApp Settings */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">WhatsApp Notifications</h3>
+                
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
+                  <div>
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      WhatsApp Enabled
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {state.notificationSettings.whatsapp_enabled ? 
+                        'WhatsApp appointment confirmations are active' : 
+                        'WhatsApp notifications are disabled'
+                      }
+                    </p>
+                  </div>
+                  <Switch
+                    checked={state.notificationSettings.whatsapp_enabled}
+                    onCheckedChange={(enabled) => updateNotificationSetting('whatsapp_enabled', enabled)}
+                  />
+                </div>
+
+                {state.notificationSettings.whatsapp_enabled && (
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsapp_phone_number">WhatsApp Phone Number</Label>
+                      <Input
+                        id="whatsapp_phone_number"
+                        placeholder="+1234567890"
+                        value={state.notificationSettings.whatsapp_phone_number}
+                        onChange={(e) => updateNotificationSetting('whatsapp_phone_number', e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">
+                        API credentials are configured in environment variables
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Review Settings */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Review Requests</h3>
+                
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
+                  <div>
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Review Requests Enabled
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {state.notificationSettings.review_requests_enabled ? 
+                        'Review requests will be sent after appointment completion' : 
+                        'Review requests are disabled'
+                      }
+                    </p>
+                  </div>
+                  <Switch
+                    checked={state.notificationSettings.review_requests_enabled}
+                    onCheckedChange={(enabled) => updateNotificationSetting('review_requests_enabled', enabled)}
+                  />
+                </div>
+
+                {state.notificationSettings.review_requests_enabled && (
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="review_template">Review Message Template</Label>
+                      <textarea
+                        id="review_template"
+                        className="w-full p-3 border rounded-md resize-none"
+                        rows={3}
+                        placeholder="Enter your review request message template"
+                        value={state.notificationSettings.review_message_template}
+                        onChange={(e) => updateNotificationSetting('review_message_template', e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Use {'{review_link}'} for the review link and {'{patient_name}'} for patient name
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

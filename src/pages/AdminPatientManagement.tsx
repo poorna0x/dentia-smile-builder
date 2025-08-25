@@ -19,6 +19,7 @@ import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock, Check } from 'lucide-react';
 import LogoutButton from '@/components/LogoutButton';
+import { sendWhatsAppReviewRequest } from '@/lib/whatsapp';
 interface LabWorkOrder {
   id: string
   work_type: string
@@ -690,6 +691,36 @@ export default function AdminPatientManagement() {
         title: "Appointment Completed",
         description: `Appointment for ${appointmentToComplete.patientName} has been marked as completed`,
       });
+
+      // Send review request via WhatsApp if enabled
+      try {
+        // Get patient phone number from the appointment
+        const { data: appointmentData } = await supabase
+          .from('appointments')
+          .select('patient_phone')
+          .eq('id', appointmentToComplete.id)
+          .single();
+
+        if (appointmentData?.patient_phone) {
+          const reviewLink = `${window.location.origin}/review?patient=${appointmentToComplete.patientName}`;
+          
+          const reviewSent = await sendWhatsAppReviewRequest(
+            appointmentData.patient_phone,
+            appointmentToComplete.patientName,
+            reviewLink
+          );
+
+          if (reviewSent) {
+            toast({
+              title: "Review Request Sent",
+              description: `Review request sent to ${appointmentToComplete.patientName} via WhatsApp`,
+            });
+          }
+        }
+      } catch (reviewError) {
+        console.error('Error sending review request:', reviewError);
+        // Don't fail the completion if review request fails
+      }
 
       // Refresh the appointments list
       loadPatientsWithAppointmentsToday();

@@ -2,6 +2,7 @@
 import { format } from 'date-fns';
 import { Resend } from 'resend';
 import { EMAIL_LOGO_CONFIG } from './email-logo';
+import { sendWhatsAppAppointmentConfirmation } from './whatsapp';
 
 // Initialize Resend
 const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY);
@@ -367,15 +368,43 @@ export const sendAppointmentConfirmation = async (
     console.log('📧 Email template generated successfully');
     console.log('📧 Subject:', template.subject);
     
-    const result = await sendEmail(
+    // Send email
+    const emailResult = await sendEmail(
       appointmentData.email,
       template.subject,
       template.html,
       template.text
     );
     
-    console.log('📧 Email send result:', result);
-    return result;
+    console.log('📧 Email send result:', emailResult);
+
+    // Send WhatsApp message if phone number is available
+    if (appointmentData.phone) {
+      try {
+        console.log('📱 Attempting to send WhatsApp confirmation...');
+        const whatsappResult = await sendWhatsAppAppointmentConfirmation(
+          appointmentData.phone,
+          {
+            name: appointmentData.name,
+            date: appointmentData.date,
+            time: appointmentData.time,
+            clinicName: appointmentData.clinicName,
+            clinicPhone: appointmentData.clinicPhone
+          }
+        );
+        
+        if (whatsappResult) {
+          console.log('✅ WhatsApp confirmation sent successfully');
+        } else {
+          console.log('⚠️ WhatsApp confirmation not sent (likely disabled or failed)');
+        }
+      } catch (whatsappError) {
+        console.error('❌ Error sending WhatsApp confirmation:', whatsappError);
+        // Don't fail the entire function if WhatsApp fails
+      }
+    }
+    
+    return emailResult;
   } catch (error) {
     console.error('❌ Error in sendAppointmentConfirmation:', error);
     return false;
