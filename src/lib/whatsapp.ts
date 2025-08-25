@@ -9,6 +9,10 @@ export interface WhatsAppMessage {
 export interface NotificationSettings {
   whatsapp_enabled: boolean;
   whatsapp_phone_number: string;
+  send_confirmation: boolean;
+  send_reminders: boolean;
+  send_reviews: boolean;
+  reminder_hours: number;
   review_requests_enabled: boolean;
   review_message_template: string;
 }
@@ -94,10 +98,10 @@ export const sendWhatsAppAppointmentConfirmation = async (
   }
 ): Promise<boolean> => {
   try {
-    // Check if WhatsApp is enabled
+    // Check if WhatsApp is enabled and confirmations are enabled
     const settings = await getNotificationSettings();
-    if (!settings?.whatsapp_enabled) {
-      console.log('📱 WhatsApp notifications disabled');
+    if (!settings?.whatsapp_enabled || !settings?.send_confirmation) {
+      console.log('📱 WhatsApp confirmations disabled');
       return false;
     }
 
@@ -118,6 +122,42 @@ export const sendWhatsAppAppointmentConfirmation = async (
   }
 };
 
+// Send appointment reminder via WhatsApp
+export const sendWhatsAppAppointmentReminder = async (
+  phone: string,
+  appointmentData: {
+    name: string;
+    date: string;
+    time: string;
+    clinicName: string;
+    clinicPhone: string;
+  }
+): Promise<boolean> => {
+  try {
+    // Check if reminders are enabled
+    const settings = await getNotificationSettings();
+    if (!settings?.whatsapp_enabled || !settings?.send_reminders) {
+      console.log('📱 Reminders disabled');
+      return false;
+    }
+
+    // Format phone number
+    const formattedPhone = formatPhoneNumber(phone);
+    console.log('📱 Reminder - Original phone:', phone, 'Formatted phone:', formattedPhone);
+
+    const message = `Hi ${appointmentData.name}! This is a friendly reminder for your appointment at ${appointmentData.clinicName} tomorrow at ${appointmentData.time}. Please arrive 10 minutes early. For any changes, call ${appointmentData.clinicPhone}. Thank you!`;
+
+    return await sendWhatsAppMessage({
+      to: formattedPhone,
+      message,
+      type: 'appointment_reminder'
+    });
+  } catch (error) {
+    console.error('❌ Error in sendWhatsAppAppointmentReminder:', error);
+    return false;
+  }
+};
+
 // Send review request via WhatsApp
 export const sendWhatsAppReviewRequest = async (
   phone: string,
@@ -127,7 +167,7 @@ export const sendWhatsAppReviewRequest = async (
   try {
     // Check if review requests are enabled
     const settings = await getNotificationSettings();
-    if (!settings?.review_requests_enabled) {
+    if (!settings?.whatsapp_enabled || !settings?.send_reviews) {
       console.log('📱 Review requests disabled');
       return false;
     }

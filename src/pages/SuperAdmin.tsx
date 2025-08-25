@@ -21,7 +21,8 @@ import {
   Power,
   Database,
   Activity,
-  Globe
+  Globe,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -45,6 +46,10 @@ interface SuperAdminState {
   notificationSettings: {
     whatsapp_enabled: boolean;
     whatsapp_phone_number: string;
+    send_confirmation: boolean;
+    send_reminders: boolean;
+    send_reviews: boolean;
+    reminder_hours: number;
     review_requests_enabled: boolean;
     review_message_template: string;
   };
@@ -70,12 +75,16 @@ const SuperAdmin: React.FC = () => {
       emailNotificationsEnabled: true,
       paymentSystemEnabled: true,
     },
-    notificationSettings: {
-      whatsapp_enabled: false,
-      whatsapp_phone_number: '',
-      review_requests_enabled: false,
-      review_message_template: 'Thank you for choosing our clinic! We hope your visit was great. Please share your experience: {review_link}',
-    },
+      notificationSettings: {
+    whatsapp_enabled: false,
+    whatsapp_phone_number: '',
+    send_confirmation: true,
+    send_reminders: false,
+    send_reviews: false,
+    reminder_hours: 24,
+    review_requests_enabled: false,
+    review_message_template: 'Thank you for choosing our clinic! We hope your visit was great. Please share your experience: {review_link}',
+  },
     systemStatus: {
       databaseConnected: false,
       realtimeActive: false,
@@ -366,6 +375,65 @@ const SuperAdmin: React.FC = () => {
       });
     } catch (error) {
       toast.error('Failed to shutdown website');
+    }
+  };
+
+  const testReminderSystem = async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      const response = await fetch('/.netlify/functions/test-reminder');
+      const result = await response.json();
+      
+      if (result.success) {
+        const status = result.status;
+        toast.success('Reminder system test completed!', {
+          description: `WhatsApp: ${status.whatsapp_enabled ? '✅' : '❌'}, Reminders: ${status.send_reminders ? '✅' : '❌'}, Twilio: ${status.twilio_configured ? '✅' : '❌'}`
+        });
+        console.log('📊 Test Results:', result);
+      } else {
+        toast.error('Reminder test failed', {
+          description: result.error || 'Unknown error'
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to test reminder system', {
+        description: 'Check console for details'
+      });
+      console.error('Reminder test error:', error);
+    } finally {
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const checkReminderStatus = async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true }));
+      
+      // For now, just check if the reminder system is configured
+      const { data: settings, error } = await supabase
+        .from('system_settings')
+        .select('settings')
+        .eq('setting_type', 'whatsapp_notifications')
+        .single();
+
+      if (error) throw error;
+
+      const whatsappSettings = settings?.settings || {};
+      
+      toast.success('Reminder system status checked!', {
+        description: `WhatsApp: ${whatsappSettings.enabled ? 'Enabled' : 'Disabled'}, Reminders: ${whatsappSettings.send_reminders ? 'Enabled' : 'Disabled'}`
+      });
+
+      console.log('📊 Reminder System Status:', whatsappSettings);
+      
+    } catch (error) {
+      toast.error('Failed to check reminder status', {
+        description: 'Check console for details'
+      });
+      console.error('Status check error:', error);
+    } finally {
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -749,6 +817,110 @@ const SuperAdmin: React.FC = () => {
                       <p className="text-xs text-gray-500">
                         API credentials are configured in environment variables
                       </p>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Message Types</h4>
+                      
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div>
+                          <h5 className="font-medium">Appointment Confirmations</h5>
+                          <p className="text-sm text-gray-600">
+                            Send confirmation when appointments are booked
+                          </p>
+                        </div>
+                        <Switch
+                          checked={state.notificationSettings.send_confirmation}
+                          onCheckedChange={(enabled) => updateNotificationSetting('send_confirmation', enabled)}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div>
+                          <h5 className="font-medium">Appointment Reminders</h5>
+                          <p className="text-sm text-gray-600">
+                            Send reminders before appointments
+                          </p>
+                        </div>
+                        <Switch
+                          checked={state.notificationSettings.send_reminders}
+                          onCheckedChange={(enabled) => updateNotificationSetting('send_reminders', enabled)}
+                        />
+                      </div>
+
+                      {state.notificationSettings.send_reminders && (
+                        <div className="space-y-2">
+                          <Label htmlFor="reminder_hours">Reminder Hours Before Appointment</Label>
+                          <Input
+                            id="reminder_hours"
+                            type="number"
+                            min="1"
+                            max="72"
+                            placeholder="24"
+                            value={state.notificationSettings.reminder_hours}
+                            onChange={(e) => updateNotificationSetting('reminder_hours', (parseInt(e.target.value) || 24).toString())}
+                          />
+                          <p className="text-xs text-gray-500">
+                            How many hours before the appointment to send the reminder
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div>
+                          <h5 className="font-medium">Review Requests</h5>
+                          <p className="text-sm text-gray-600">
+                            Send review requests when appointments are completed
+                          </p>
+                        </div>
+                        <Switch
+                          checked={state.notificationSettings.send_reviews}
+                          onCheckedChange={(enabled) => updateNotificationSetting('send_reviews', enabled)}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Testing & Monitoring</h4>
+                      
+                      <div className="p-4 bg-blue-50 rounded-lg border">
+                        <h5 className="font-medium text-blue-900">Test Reminder System</h5>
+                        <p className="text-sm text-blue-700 mb-3">
+                          Manually trigger reminders for testing
+                        </p>
+                        <Button 
+                          onClick={testReminderSystem}
+                          disabled={state.isLoading}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          {state.isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Testing...
+                            </>
+                          ) : (
+                            'Test Reminder System'
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="p-4 bg-green-50 rounded-lg border">
+                        <h5 className="font-medium text-green-900">Check Reminder Status</h5>
+                        <p className="text-sm text-green-700 mb-3">
+                          View upcoming appointments and reminder status
+                        </p>
+                        <Button 
+                          onClick={checkReminderStatus}
+                          disabled={state.isLoading}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Check Status
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
