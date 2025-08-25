@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSmartCaptcha } from '../hooks/useSmartCaptcha';
+import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import SmartCaptcha from '../components/SmartCaptcha';
 
 const UnifiedLogin: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -18,6 +21,15 @@ const UnifiedLogin: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Smart CAPTCHA integration
+  const {
+    isCaptchaVisible,
+    failedAttempts,
+    incrementFailedAttempts,
+    resetFailedAttempts,
+    verifyCaptcha
+  } = useSmartCaptcha();
 
   // Get the intended destination from URL params or default to admin
   const searchParams = new URLSearchParams(location.search);
@@ -37,18 +49,61 @@ const UnifiedLogin: React.FC = () => {
     const result = await login(email, password);
     
     if (result.success) {
+      // Reset failed attempts on successful login
+      resetFailedAttempts();
+      
+      // Log successful login attempt
+      try {
+        await supabase.rpc('log_captcha_attempt', {
+          p_email: email,
+          p_attempt_type: 'login_success',
+          p_failed_attempts_count: failedAttempts,
+          p_is_successful: true
+        });
+      } catch (error) {
+        console.error('Error logging successful login attempt:', error);
+      }
+      
       // Redirect to the intended destination
       navigate(intendedPath);
     } else {
       setError(result.error || 'Login failed');
+      // Increment failed attempts for CAPTCHA tracking
+      incrementFailedAttempts();
+      
+      // Log failed login attempt
+      try {
+        await supabase.rpc('log_captcha_attempt', {
+          p_email: email,
+          p_attempt_type: 'login_failed',
+          p_failed_attempts_count: failedAttempts + 1,
+          p_is_successful: false
+        });
+      } catch (error) {
+        console.error('Error logging failed login attempt:', error);
+      }
     }
     
     setIsLoading(false);
   };
 
+  // Handle CAPTCHA verification
+  const handleCaptchaVerify = async (userAnswer: string, expectedAnswer: string): Promise<boolean> => {
+    return await verifyCaptcha(userAnswer, expectedAnswer);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+      {/* Show CAPTCHA if required */}
+      {isCaptchaVisible ? (
+        <SmartCaptcha
+          onVerify={handleCaptchaVerify}
+          isVisible={isCaptchaVisible}
+          failedAttempts={failedAttempts}
+          onReset={resetFailedAttempts}
+        />
+      ) : (
+        <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <Lock className="w-8 h-8 text-blue-600" />
@@ -142,6 +197,7 @@ const UnifiedLogin: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };
