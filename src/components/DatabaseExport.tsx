@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { useClinic } from '@/contexts/ClinicContext';
 import JSZip from 'jszip';
 
 interface TableInfo {
@@ -37,6 +38,7 @@ interface ExportStatus {
 }
 
 const DatabaseExport: React.FC = () => {
+  const { clinic } = useClinic();
   const [exportStatus, setExportStatus] = useState<ExportStatus>({});
   const [isExportingAll, setIsExportingAll] = useState(false);
 
@@ -132,8 +134,14 @@ const DatabaseExport: React.FC = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
+    
+    // Create filename with clinic name
+    const clinicName = clinic?.name || 'clinic';
+    const sanitizedClinicName = clinicName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const finalFilename = `${sanitizedClinicName}_${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    
     link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', finalFilename);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -221,8 +229,10 @@ const DatabaseExport: React.FC = () => {
             [table.name]: { status: 'exporting', progress: 90 }
           }));
 
-          // Add to ZIP
-          const filename = `${table.name}_${new Date().toISOString().split('T')[0]}.csv`;
+          // Add to ZIP with clinic name
+          const clinicName = clinic?.name || 'clinic';
+          const sanitizedClinicName = clinicName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const filename = `${sanitizedClinicName}_${table.name}_${new Date().toISOString().split('T')[0]}.csv`;
           zip.file(filename, csvContent);
 
           setExportStatus(prev => ({
@@ -249,7 +259,11 @@ const DatabaseExport: React.FC = () => {
       
       // Generate and download ZIP file
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const zipFilename = `database_export_${new Date().toISOString().split('T')[0]}.zip`;
+      
+      // Create filename with clinic name
+      const clinicName = clinic?.name || 'clinic';
+      const sanitizedClinicName = clinicName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const zipFilename = `${sanitizedClinicName}_database_export_${new Date().toISOString().split('T')[0]}.zip`;
       
       const link = document.createElement('a');
       const url = URL.createObjectURL(zipBlob);
