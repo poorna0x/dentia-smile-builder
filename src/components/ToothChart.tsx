@@ -1131,6 +1131,31 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       ))}
                     </div>
                   )}
+
+                  {/* Tooth Details Section */}
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Tooth Details</h4>
+                    <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Tooth:</span>
+                        <span className="text-sm font-medium">#{selectedTooth.number}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Position:</span>
+                        <span className="text-sm font-medium">{selectedTooth.position}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Condition:</span>
+                        <span className="text-sm font-medium">
+                          {selectedTooth.condition ? selectedTooth.condition.condition_type : 'Not recorded'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-600">Treatments:</span>
+                        <span className="text-sm font-medium">{selectedTooth.treatments.length} recorded</span>
+                      </div>
+                    </div>
+                  </div>
                   </div>
                 </TabsContent>
 
