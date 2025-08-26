@@ -145,8 +145,6 @@ export const toothChartUtils = {
 export const dentalTreatmentApi = {
   // Create new dental treatment
   create: async (treatment: Omit<DentalTreatment, 'id' | 'created_at' | 'updated_at'>): Promise<DentalTreatment> => {
-    console.log('API: Creating dental treatment:', treatment)
-    
     const { data, error } = await supabase
       .from('dental_treatments')
       .insert(treatment)
@@ -154,18 +152,14 @@ export const dentalTreatmentApi = {
       .single()
 
     if (error) {
-      console.error('API: Error creating dental treatment:', error)
       throw new Error(`Failed to create dental treatment: ${error.message}`)
     }
 
-    console.log('API: Dental treatment created successfully:', data)
     return data
   },
 
   // Get treatments by patient
   getByPatient: async (patientId: string, clinicId: string): Promise<DentalTreatment[]> => {
-    console.log('API: Getting dental treatments for patient:', patientId)
-    
     const { data, error } = await supabase
       .from('dental_treatments')
       .select('*')
@@ -174,11 +168,9 @@ export const dentalTreatmentApi = {
       .order('treatment_date', { ascending: false })
 
     if (error) {
-      console.error('API: Error getting dental treatments:', error)
       throw new Error(`Failed to get dental treatments: ${error.message}`)
     }
 
-    console.log('API: Dental treatments retrieved:', data?.length || 0)
     return data || []
   },
 

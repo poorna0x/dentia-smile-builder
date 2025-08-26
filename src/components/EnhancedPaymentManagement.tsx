@@ -69,25 +69,20 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     partial_amount: 0
   })
 
+
   // Load payment data
   const loadPaymentData = async () => {
     try {
       setLoading(true)
-      console.log('Loading payment data for treatment:', treatment.id)
       const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
-      console.log('Payment summary loaded:', summary)
       setPaymentSummary(summary)
 
       if (summary) {
         const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
-        console.log('Treatment payment loaded:', treatmentPayment)
         if (treatmentPayment) {
           const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
-          console.log('Payment transactions loaded:', transactions)
           setTransactions(transactions)
         }
-      } else {
-        console.log('No payment summary found for treatment:', treatment.id)
       }
 
       // Reset form data when payment data changes
@@ -126,6 +121,72 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
   const handleInputChange = (field: keyof PaymentFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Function to sync payments across all treatments in a multi-tooth procedure
+  const syncMultiToothPayments = async (currentTreatmentPayment: any, paymentAmount: number, miscAmount: number) => {
+    try {
+      // Check if this is a multi-tooth procedure by looking for related treatments
+      const { dentalTreatmentApi } = await import('@/lib/dental-treatments')
+      const allTreatments = await dentalTreatmentApi.getByPatient(patientId, clinicId)
+
+      // Find treatments that are part of the same multi-tooth procedure
+      const relatedTreatments = allTreatments.filter(t => {
+        const sameDescription = t.treatment_description === treatment.treatment_description
+        const sameDate = t.treatment_date === treatment.treatment_date
+        
+        const currentTreatmentDate = new Date(treatment.created_at)
+        const otherTreatmentDate = new Date(t.created_at)
+        const timeDiff = Math.abs(currentTreatmentDate.getTime() - otherTreatmentDate.getTime())
+        const withinTimeWindow = timeDiff < 5 * 60 * 1000 // 5 minutes
+
+        const isRelated = sameDescription && sameDate && withinTimeWindow && t.id !== treatment.id
+        return isRelated
+      })
+
+      const isMultiTooth = relatedTreatments.length > 0
+
+      if (!isMultiTooth) {
+        return
+      }
+
+      // Show confirmation toast
+      toast.info(`Syncing payment across ${relatedTreatments.length} teeth. This will take a few seconds...`)
+
+      // Update payment records for all related treatments
+      for (const relatedTreatment of relatedTreatments) {
+        try {
+          const relatedPayment = await simplePaymentApi.getTreatmentPayment(relatedTreatment.id)
+          
+          if (relatedPayment) {
+            if (paymentAmount > 0) {
+              await simplePaymentApi.addPaymentTransaction({
+                treatment_payment_id: relatedPayment.id,
+                amount: paymentAmount,
+                payment_date: formData.payment_date,
+                notes: `Multi-tooth sync: ${formData.notes || 'Additional payment'}`
+              })
+            }
+
+            if (miscAmount > 0) {
+              await simplePaymentApi.addPaymentTransaction({
+                treatment_payment_id: relatedPayment.id,
+                amount: miscAmount,
+                payment_date: formData.payment_date,
+                notes: `Multi-tooth sync: Miscellaneous: ${miscCost.description} (₹${miscAmount})`
+              })
+            }
+          }
+        } catch (error) {
+          // Continue with other treatments even if one fails
+        }
+      }
+
+      // Show completion notification
+      toast.success(`✅ Payment synced across ${relatedTreatments.length} teeth successfully!`)
+    } catch (error) {
+      toast.error('❌ Failed to sync payment across teeth')
+    }
   }
 
   const handleSubmitPayment = async (e: React.FormEvent) => {
@@ -173,16 +234,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         return
       }
 
-      console.log('Payment details:', {
-        paymentSummary: !!paymentSummary,
-        paymentType: formData.payment_type,
-        totalAmount: formData.total_amount,
-        partialAmount: formData.partial_amount,
-        calculatedPaymentAmount: paymentAmount,
-        miscAmount: miscPaymentAmount,
-        miscDescription: miscCost.description
-      })
-
       // Add main payment transaction if there's a payment amount
       if (paymentAmount > 0) {
         await simplePaymentApi.addPaymentTransaction({
@@ -202,6 +253,9 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           notes: `Miscellaneous: ${miscCost.description} (₹${miscPaymentAmount})`
         })
       }
+
+      // Check if this is a multi-tooth procedure and sync payments across all related treatments
+      await syncMultiToothPayments(treatmentPayment, paymentAmount, miscPaymentAmount)
 
       // Reload data to get updated summary
       await loadPaymentData()
@@ -362,6 +416,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           </Button>
         </div>
       </div>
+
+
 
       <Tabs defaultValue="summary" className="w-full h-full flex flex-col">
         <TabsList className="grid w-full grid-cols-3 gap-1 mb-4 bg-transparent">
@@ -690,6 +746,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 rows={3}
               />
             </div>
+
+
 
             {/* Action Buttons */}
             <div className="flex gap-2 justify-end pt-4">

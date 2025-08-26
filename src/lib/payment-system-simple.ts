@@ -51,8 +51,6 @@ export interface PaymentFormData {
 export const simplePaymentApi = {
   // Create a new treatment payment record
   createTreatmentPayment: async (payment: Omit<TreatmentPayment, 'id' | 'created_at' | 'updated_at' | 'remaining_amount'>): Promise<TreatmentPayment> => {
-    console.log('API: Creating treatment payment:', payment)
-    
     const { data, error } = await supabase
       .from('treatment_payments')
       .insert(payment)
@@ -60,18 +58,14 @@ export const simplePaymentApi = {
       .single()
 
     if (error) {
-      console.error('API: Error creating treatment payment:', error)
       throw new Error(`Failed to create treatment payment: ${error.message}`)
     }
 
-    console.log('API: Treatment payment created successfully:', data)
     return data
   },
 
   // Get payment summary for a treatment (simplified - no database function)
   getPaymentSummary: async (treatmentId: string): Promise<PaymentSummary | null> => {
-    console.log('API: Getting payment summary for treatment:', treatmentId)
-    
     // Get the treatment payment record
     const { data: paymentData, error: paymentError } = await supabase
       .from('treatment_payments')
@@ -84,7 +78,6 @@ export const simplePaymentApi = {
         // No payment record found
         return null
       }
-      console.error('API: Error getting treatment payment:', paymentError)
       throw new Error(`Failed to get treatment payment: ${paymentError.message}`)
     }
 
@@ -95,7 +88,6 @@ export const simplePaymentApi = {
       .eq('treatment_payment_id', paymentData.id)
 
     if (countError) {
-      console.error('API: Error getting transaction count:', countError)
       throw new Error(`Failed to get transaction count: ${countError.message}`)
     }
 
@@ -107,14 +99,11 @@ export const simplePaymentApi = {
       transaction_count: transactionCount || 0
     }
 
-    console.log('API: Payment summary retrieved:', summary)
     return summary
   },
 
   // Get treatment payment record
   getTreatmentPayment: async (treatmentId: string): Promise<TreatmentPayment | null> => {
-    console.log('API: Getting treatment payment for treatment:', treatmentId)
-    
     const { data, error } = await supabase
       .from('treatment_payments')
       .select('*')
@@ -125,18 +114,14 @@ export const simplePaymentApi = {
       if (error.code === 'PGRST116') {
         return null
       }
-      console.error('API: Error getting treatment payment:', error)
       throw new Error(`Failed to get treatment payment: ${error.message}`)
     }
 
-    console.log('API: Treatment payment retrieved:', data)
     return data
   },
 
   // Add a payment transaction
   addPaymentTransaction: async (transaction: Omit<PaymentTransaction, 'id' | 'created_at'>): Promise<PaymentTransaction> => {
-    console.log('API: Adding payment transaction:', transaction)
-    
     const { data, error } = await supabase
       .from('payment_transactions')
       .insert(transaction)
@@ -144,21 +129,17 @@ export const simplePaymentApi = {
       .single()
 
     if (error) {
-      console.error('API: Error adding payment transaction:', error)
       throw new Error(`Failed to add payment transaction: ${error.message}`)
     }
 
     // Update the treatment payment record
     await simplePaymentApi.updateTreatmentPaymentAmount(transaction.treatment_payment_id)
 
-    console.log('API: Payment transaction added successfully:', data)
     return data
   },
 
   // Update treatment payment amounts
   updateTreatmentPaymentAmount: async (treatmentPaymentId: string): Promise<void> => {
-    console.log('API: Updating treatment payment amounts for:', treatmentPaymentId)
-    
     // Get total paid amount from transactions
     const { data: transactions, error: sumError } = await supabase
       .from('payment_transactions')
@@ -166,7 +147,6 @@ export const simplePaymentApi = {
       .eq('treatment_payment_id', treatmentPaymentId)
 
     if (sumError) {
-      console.error('API: Error getting transaction amounts:', sumError)
       throw new Error(`Failed to get transaction amounts: ${sumError.message}`)
     }
 
@@ -183,17 +163,12 @@ export const simplePaymentApi = {
       .eq('id', treatmentPaymentId)
 
     if (updateError) {
-      console.error('API: Error updating treatment payment:', updateError)
       throw new Error(`Failed to update treatment payment: ${updateError.message}`)
     }
-
-    console.log('API: Treatment payment amounts updated successfully')
   },
 
   // Get payment transactions for a treatment payment
   getPaymentTransactions: async (treatmentPaymentId: string): Promise<PaymentTransaction[]> => {
-    console.log('API: Getting payment transactions for:', treatmentPaymentId)
-    
     const { data, error } = await supabase
       .from('payment_transactions')
       .select('*')
@@ -201,18 +176,14 @@ export const simplePaymentApi = {
       .order('payment_date', { ascending: false })
 
     if (error) {
-      console.error('API: Error getting payment transactions:', error)
       throw new Error(`Failed to get payment transactions: ${error.message}`)
     }
 
-    console.log('API: Payment transactions retrieved:', data)
     return data || []
   },
 
   // Get overdue payments (simplified)
   getOverduePayments: async (clinicId: string): Promise<any[]> => {
-    console.log('API: Getting overdue payments for clinic:', clinicId)
-    
     const { data, error } = await supabase
       .from('treatment_payments')
       .select(`
@@ -225,18 +196,14 @@ export const simplePaymentApi = {
       .lt('remaining_amount', 0)
 
     if (error) {
-      console.error('API: Error getting overdue payments:', error)
       throw new Error(`Failed to get overdue payments: ${error.message}`)
     }
 
-    console.log('API: Overdue payments retrieved:', data)
     return data || []
   },
 
   // Update treatment payment total amount
   updateTreatmentPaymentTotal: async (treatmentPaymentId: string, newTotalAmount: number): Promise<void> => {
-    console.log('API: Updating treatment payment total:', treatmentPaymentId, newTotalAmount)
-    
     const { error } = await supabase
       .from('treatment_payments')
       .update({ 
@@ -246,10 +213,7 @@ export const simplePaymentApi = {
       .eq('id', treatmentPaymentId)
 
     if (error) {
-      console.error('API: Error updating treatment payment total:', error)
       throw new Error(`Failed to update treatment payment total: ${error.message}`)
     }
-
-    console.log('API: Treatment payment total updated successfully')
   }
 }

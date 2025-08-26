@@ -18,7 +18,9 @@ import {
   DollarSign,
   FileText,
   Trash2,
-  CreditCard
+  CreditCard,
+  AlertTriangle,
+  Clock
 } from 'lucide-react'
 import { 
   DentalTreatment, 
@@ -82,6 +84,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [selectedTeeth, setSelectedTeeth] = useState<string[]>([])
   const [showMultiToothDialog, setShowMultiToothDialog] = useState(false)
   const [multiToothAction, setMultiToothAction] = useState<'treatment' | 'image' | null>(null)
+  const [showTreatmentConfirmDialog, setShowTreatmentConfirmDialog] = useState(false)
+  const [pendingTreatmentAction, setPendingTreatmentAction] = useState<'single' | 'multi' | null>(null)
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -130,11 +134,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
         toothConditionApi.getByPatient(patientId, clinicId)
       ])
 
-      console.log('Loaded data from database:', {
-        treatments: treatments.length,
-        conditions: conditions.length,
-        images: 'Will be loaded lazily'
-      })
+
 
       // Debug: Check if images are being assigned to teeth correctly
       const teethWithImages = allTeeth.map(toothNumber => {
@@ -248,6 +248,14 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const handleBulkTreatment = async () => {
     if (!multiToothAction || selectedTeeth.length === 0) return
     
+    // Show confirmation dialog first
+    setPendingTreatmentAction('multi')
+    setShowTreatmentConfirmDialog(true)
+    setShowMultiToothDialog(false)
+  }
+
+  // Handle bulk treatment after confirmation
+  const handleBulkTreatmentConfirmed = async () => {
     try {
       // Create treatments for all selected teeth
       const treatmentPromises = selectedTeeth.map(toothNumber => 
@@ -290,9 +298,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 payment_status: remainingBalance > 0 ? 'Partial' : 'Completed'
               }
               
-              console.log('Creating payment record with data:', paymentData)
               const treatmentPayment = await simplePaymentApi.createTreatmentPayment(paymentData)
-              console.log('Treatment payment created:', treatmentPayment)
               
               // Create the initial payment transaction
               if (paymentAmount > 0) {
@@ -302,18 +308,16 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   payment_date: treatmentForm.treatment_date
                 }
                 
-                console.log('Creating payment transaction with data:', transactionData)
                 const transaction = await simplePaymentApi.addPaymentTransaction(transactionData)
-                console.log('Payment transaction created:', transaction)
               }
               
-              console.log(`Payment record and transaction created for treatment ${treatment.id}`)
+
             } catch (error) {
               console.error(`Error creating payment for treatment ${treatment.id}:`, error)
             }
           }
           
-          console.log(`Payment records created for ${createdTreatments.length} treatments in multi-tooth procedure`)
+
           
           // Refresh tooth data to show the new payments
           await loadToothData()
@@ -409,10 +413,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
         }
       })
     } else {
-      // Single tooth mode
+      // Single tooth mode - show confirmation dialog
       setSelectedTooth(tooth)
       setSelectedPaymentTreatment(null) // Reset payment treatment selection
-      setShowTreatmentDialog(true)
+      setPendingTreatmentAction('single')
+      setShowTreatmentConfirmDialog(true)
       // Reset images loaded state for new tooth
       setImagesLoaded(false)
       setToothImages([])
@@ -487,6 +492,22 @@ const ToothChart: React.FC<ToothChartProps> = ({
     } catch (error) {
       console.error('Error adding condition:', error)
     }
+  }
+
+  // Handle treatment confirmation
+  const handleTreatmentConfirm = () => {
+    setShowTreatmentConfirmDialog(false)
+    if (pendingTreatmentAction === 'single') {
+      setShowTreatmentDialog(true)
+    } else if (pendingTreatmentAction === 'multi') {
+      handleBulkTreatmentConfirmed()
+    }
+    setPendingTreatmentAction(null)
+  }
+
+  const handleTreatmentCancel = () => {
+    setShowTreatmentConfirmDialog(false)
+    setPendingTreatmentAction(null)
   }
 
   // Handle edit treatment
@@ -950,6 +971,43 @@ const ToothChart: React.FC<ToothChartProps> = ({
             </ul>
           </div>
         </div>
+
+        {/* Treatment Confirmation Dialog */}
+        <Dialog open={showTreatmentConfirmDialog} onOpenChange={setShowTreatmentConfirmDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                Confirm Treatment Addition
+              </DialogTitle>
+              <DialogDescription>
+                {pendingTreatmentAction === 'single' 
+                  ? `Adding treatment to tooth ${selectedTooth?.number}. This may take a few seconds to process.`
+                  : `Adding treatment to ${selectedTeeth.length} teeth. This will take some time to process all teeth.`
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="flex items-start gap-2">
+                  <Clock className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Processing Time</p>
+                    <p>Please wait while the system processes your request. Do not close this window.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={handleTreatmentCancel}>
+                  Cancel
+                </Button>
+                <Button onClick={handleTreatmentConfirm} className="bg-blue-600 hover:bg-blue-700">
+                  Continue
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Tooth Details Dialog */}
         {selectedTooth && (
