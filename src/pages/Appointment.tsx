@@ -102,16 +102,31 @@ const Appointment = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
 
-  // Get next available booking date (skip holidays)
+  // Get next available booking date (skip holidays and respect minimum advance notice)
   const getNextAvailableDate = (): Date => {
     const today = new Date();
-    let nextDate = new Date(today);
-    nextDate.setDate(today.getDate() + 1); // Start with tomorrow
+    const now = new Date();
+    
+    // Get minimum advance notice from settings (default to 24 hours)
+    const minimumAdvanceNotice = settings?.minimum_advance_notice || 24;
+    
+    // Calculate the earliest allowed booking time
+    const earliestBookingTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
+    
+    // Start checking from the earliest allowed date
+    let startDate = new Date(earliestBookingTime);
+    startDate.setHours(0, 0, 0, 0); // Start of day
+    
+    // If the earliest booking time is today, start from tomorrow
+    if (startDate <= today) {
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() + 1);
+    }
     
     // Check up to 30 days ahead to find an available date
     for (let i = 0; i < 30; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() + i + 1);
+      const checkDate = new Date(startDate);
+      checkDate.setDate(startDate.getDate() + i);
       
       // Check if it's a holiday
       const isHoliday = isDateHoliday(checkDate);
@@ -120,8 +135,8 @@ const Appointment = () => {
       }
     }
     
-    // Fallback to tomorrow if all dates are holidays
-    return nextDate;
+    // Fallback to the earliest allowed date if all dates are holidays
+    return startDate;
   };
 
   // Check if a date is a holiday
@@ -990,13 +1005,25 @@ const Appointment = () => {
                               setIsCalendarOpen(false);
                             }
                           }}
-                          // Disable past dates and holidays
+                          // Disable past dates, holidays, and dates that don't meet minimum advance notice
                           disabled={(day) => {
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
+                            const now = new Date();
+                            
+                            // Get minimum advance notice from settings (default to 24 hours)
+                            const minimumAdvanceNotice = settings?.minimum_advance_notice || 24;
+                            
+                            // Calculate the earliest allowed booking time
+                            const earliestBookingTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
+                            const earliestBookingDate = new Date(earliestBookingTime);
+                            earliestBookingDate.setHours(0, 0, 0, 0);
+                            
                             const isPast = day < today;
+                            const isTooSoon = day < earliestBookingDate;
                             const isHoliday = isDateHoliday(day);
-                            return isPast || isHoliday;
+                            
+                            return isPast || isTooSoon || isHoliday;
                           }}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
@@ -1005,6 +1032,23 @@ const Appointment = () => {
                       </PopoverContent>
                     </Popover>
                   </div>
+
+                  {/* Minimum Advance Notice Info */}
+                  {settings?.minimum_advance_notice && settings.minimum_advance_notice > 0 && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-blue-600" />
+                        <span className="font-medium text-blue-800">Booking Notice Required</span>
+                      </div>
+                      <p className="mt-1 text-blue-700">
+                        {settings.minimum_advance_notice < 24 ? (
+                          `Appointments must be booked at least ${settings.minimum_advance_notice} hour${settings.minimum_advance_notice === 1 ? '' : 's'} in advance.`
+                        ) : (
+                          `Appointments must be booked at least ${Math.floor(settings.minimum_advance_notice / 24)} day${Math.floor(settings.minimum_advance_notice / 24) === 1 ? '' : 's'} and ${settings.minimum_advance_notice % 24} hour${settings.minimum_advance_notice % 24 === 1 ? '' : 's'} in advance.`
+                        )}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Time Slots or Holiday Notice */}
                   <div className="space-y-2">
