@@ -76,6 +76,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [activeTab, setActiveTab] = useState('treatments')
   const [toothImages, setToothImages] = useState<any[]>([])
   
+  // Multi-tooth functionality state
+  const [isMultiToothMode, setIsMultiToothMode] = useState(false)
+  const [selectedTeeth, setSelectedTeeth] = useState<string[]>([])
+  const [showMultiToothDialog, setShowMultiToothDialog] = useState(false)
+  const [multiToothAction, setMultiToothAction] = useState<'treatment' | 'image' | null>(null)
+  
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
     treatment_type: '',
@@ -187,8 +193,97 @@ const ToothChart: React.FC<ToothChartProps> = ({
     }
   }
 
-  // Get color for tooth based on condition
+  // Multi-tooth utility functions
+  const toggleMultiToothMode = () => {
+    setIsMultiToothMode(!isMultiToothMode)
+    setSelectedTeeth([])
+    if (isMultiToothMode) {
+      setSelectedTooth(null)
+      setShowTreatmentDialog(false)
+    }
+  }
+
+  const selectAllTeeth = () => {
+    setSelectedTeeth(teeth.map(t => t.number))
+  }
+
+  const selectUpperJaw = () => {
+    setSelectedTeeth(teeth.slice(0, 16).map(t => t.number))
+  }
+
+  const selectLowerJaw = () => {
+    setSelectedTeeth(teeth.slice(16, 32).map(t => t.number))
+  }
+
+  const selectQuadrant = (quadrant: number) => {
+    const start = (quadrant - 1) * 8
+    const end = start + 8
+    setSelectedTeeth(teeth.slice(start, end).map(t => t.number))
+  }
+
+  const clearSelection = () => {
+    setSelectedTeeth([])
+  }
+
+  const openMultiToothDialog = (action: 'treatment' | 'image') => {
+    if (selectedTeeth.length === 0) {
+      alert('Please select at least one tooth first')
+      return
+    }
+    setMultiToothAction(action)
+    setShowMultiToothDialog(true)
+  }
+
+  // Bulk treatment application
+  const handleBulkTreatment = async () => {
+    if (!multiToothAction || selectedTeeth.length === 0) return
+    
+    try {
+      const treatmentPromises = selectedTeeth.map(toothNumber => 
+        dentalTreatmentApi.create({
+          clinic_id: clinicId,
+          patient_id: patientId,
+          tooth_number: toothNumber,
+          tooth_position: teeth.find(t => t.number === toothNumber)?.position || 'Unknown',
+          treatment_type: treatmentForm.treatment_type === 'Other' ? treatmentForm.custom_treatment_type : treatmentForm.treatment_type,
+          treatment_description: treatmentForm.treatment_description,
+          treatment_status: treatmentForm.treatment_status,
+          treatment_date: treatmentForm.treatment_date,
+          notes: treatmentForm.notes
+        })
+      )
+
+      await Promise.all(treatmentPromises)
+      
+      // Reset form and close dialog
+      setTreatmentForm({
+        treatment_type: '',
+        custom_treatment_type: '',
+        treatment_description: '',
+        treatment_status: 'Completed',
+        treatment_date: new Date().toISOString().split('T')[0],
+        notes: ''
+      })
+      setShowMultiToothDialog(false)
+      setMultiToothAction(null)
+      setSelectedTeeth([])
+      setIsMultiToothMode(false)
+      
+      // Reload data
+      await loadToothData()
+      onTreatmentAdded?.()
+    } catch (error) {
+      console.error('Error adding bulk treatment:', error)
+    }
+  }
+
+  // Get color for tooth based on condition and selection
   const getToothColor = (tooth: ToothData): string => {
+    // Multi-tooth selection takes priority
+    if (isMultiToothMode && selectedTeeth.includes(tooth.number)) {
+      return 'bg-blue-200 hover:bg-blue-300 border-blue-500'
+    }
+    
     if (!tooth.condition) return 'bg-gray-100 hover:bg-gray-200'
     
     const conditionType = tooth.condition.condition_type.toLowerCase()
@@ -227,13 +322,26 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
   // Handle tooth click
   const handleToothClick = (tooth: ToothData) => {
-    setSelectedTooth(tooth)
-    setSelectedPaymentTreatment(null) // Reset payment treatment selection
-    setShowTreatmentDialog(true)
-    // Reset images loaded state for new tooth
-    setImagesLoaded(false)
-    setToothImages([])
-    setActiveTab('treatments')
+    if (isMultiToothMode) {
+      // Multi-tooth selection mode
+      setSelectedTeeth(prev => {
+        const isSelected = prev.includes(tooth.number)
+        if (isSelected) {
+          return prev.filter(t => t !== tooth.number)
+        } else {
+          return [...prev, tooth.number]
+        }
+      })
+    } else {
+      // Single tooth mode
+      setSelectedTooth(tooth)
+      setSelectedPaymentTreatment(null) // Reset payment treatment selection
+      setShowTreatmentDialog(true)
+      // Reset images loaded state for new tooth
+      setImagesLoaded(false)
+      setToothImages([])
+      setActiveTab('treatments')
+    }
   }
 
   // Handle add treatment
@@ -474,10 +582,80 @@ const ToothChart: React.FC<ToothChartProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Circle className="h-5 w-5" />
-          Dental Chart
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Circle className="h-5 w-5" />
+            Dental Chart
+          </CardTitle>
+          
+          {/* Multi-tooth mode toggle */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={isMultiToothMode ? "default" : "outline"}
+              size="sm"
+              onClick={toggleMultiToothMode}
+              className="text-xs"
+            >
+              {isMultiToothMode ? "Exit Multi-Tooth" : "Multi-Tooth Mode"}
+            </Button>
+          </div>
+        </div>
+        
+        {/* Multi-tooth controls */}
+        {isMultiToothMode && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-sm font-medium text-blue-800">Quick Select:</span>
+              <Button size="sm" variant="outline" onClick={selectAllTeeth} className="text-xs">
+                All Teeth
+              </Button>
+              <Button size="sm" variant="outline" onClick={selectUpperJaw} className="text-xs">
+                Upper Jaw
+              </Button>
+              <Button size="sm" variant="outline" onClick={selectLowerJaw} className="text-xs">
+                Lower Jaw
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectQuadrant(1)} className="text-xs">
+                Q1 (1-8)
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectQuadrant(2)} className="text-xs">
+                Q2 (9-16)
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectQuadrant(3)} className="text-xs">
+                Q3 (17-24)
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectQuadrant(4)} className="text-xs">
+                Q4 (25-32)
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSelection} className="text-xs">
+                Clear
+              </Button>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-blue-800">Actions:</span>
+              <Button 
+                size="sm" 
+                onClick={() => openMultiToothDialog('treatment')}
+                disabled={selectedTeeth.length === 0}
+                className="text-xs bg-green-600 hover:bg-green-700"
+              >
+                Add Treatment ({selectedTeeth.length})
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={() => openMultiToothDialog('image')}
+                disabled={selectedTeeth.length === 0}
+                className="text-xs bg-purple-600 hover:bg-purple-700"
+              >
+                Add Image ({selectedTeeth.length})
+              </Button>
+              <span className="text-sm text-blue-600">
+                Selected: {selectedTeeth.length} tooth{selectedTeeth.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {/* Human Teeth Formation Chart with Universal Numbering */}
@@ -1208,6 +1386,176 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 Delete Treatment
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Multi-Tooth Dialog */}
+        <Dialog open={showMultiToothDialog} onOpenChange={setShowMultiToothDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
+            <DialogHeader>
+              <DialogTitle>
+                {multiToothAction === 'treatment' ? 'Add Treatment to Multiple Teeth' : 'Upload Image to Multiple Teeth'}
+              </DialogTitle>
+              <DialogDescription>
+                {multiToothAction === 'treatment' 
+                  ? `Add the same treatment to ${selectedTeeth.length} selected tooth${selectedTeeth.length !== 1 ? 's' : ''}.`
+                  : `Upload the same image to ${selectedTeeth.length} selected tooth${selectedTeeth.length !== 1 ? 's' : ''}.`
+                }
+              </DialogDescription>
+            </DialogHeader>
+            
+            {multiToothAction === 'treatment' ? (
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-blue-800">Selected Teeth:</p>
+                  <p className="text-sm text-blue-600">{selectedTeeth.sort((a, b) => parseInt(a) - parseInt(b)).join(', ')}</p>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="treatment_type">Treatment Type *</Label>
+                    <Select value={treatmentForm.treatment_type} onValueChange={(value) => setTreatmentForm(prev => ({ ...prev, treatment_type: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select treatment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* Common treatments first */}
+                        <SelectItem value="Cleaning">Cleaning</SelectItem>
+                        <SelectItem value="Filling">Filling</SelectItem>
+                        <SelectItem value="Root Canal">Root Canal</SelectItem>
+                        <SelectItem value="Extraction">Extraction</SelectItem>
+                        <SelectItem value="Crown">Crown</SelectItem>
+                        <SelectItem value="Bridge">Bridge</SelectItem>
+                        <SelectItem value="Implant">Implant</SelectItem>
+                        
+                        {/* Orthodontic treatments */}
+                        <SelectItem value="Braces Installation">Braces Installation</SelectItem>
+                        <SelectItem value="Braces Adjustment">Braces Adjustment</SelectItem>
+                        <SelectItem value="Braces Removal">Braces Removal</SelectItem>
+                        <SelectItem value="Retainer Fitting">Retainer Fitting</SelectItem>
+                        <SelectItem value="Retainer Adjustment">Retainer Adjustment</SelectItem>
+                        <SelectItem value="Clear Aligners">Clear Aligners</SelectItem>
+                        
+                        {/* Preventive treatments */}
+                        <SelectItem value="Whitening">Whitening</SelectItem>
+                        <SelectItem value="Sealant">Sealant</SelectItem>
+                        <SelectItem value="Fluoride Treatment">Fluoride Treatment</SelectItem>
+                        <SelectItem value="Deep Cleaning">Deep Cleaning</SelectItem>
+                        <SelectItem value="Scaling">Scaling</SelectItem>
+                        
+                        {/* Restorative treatments */}
+                        <SelectItem value="Veneer">Veneer</SelectItem>
+                        <SelectItem value="Inlay">Inlay</SelectItem>
+                        <SelectItem value="Onlay">Onlay</SelectItem>
+                        <SelectItem value="Denture">Denture</SelectItem>
+                        <SelectItem value="Partial Denture">Partial Denture</SelectItem>
+                        
+                        {/* Diagnostic and other */}
+                        <SelectItem value="X-Ray">X-Ray</SelectItem>
+                        <SelectItem value="CT Scan">CT Scan</SelectItem>
+                        <SelectItem value="Consultation">Consultation</SelectItem>
+                        <SelectItem value="Follow-up">Follow-up</SelectItem>
+                        <SelectItem value="Emergency Treatment">Emergency Treatment</SelectItem>
+                        <SelectItem value="Pain Management">Pain Management</SelectItem>
+                        <SelectItem value="Gum Treatment">Gum Treatment</SelectItem>
+                        <SelectItem value="Oral Surgery">Oral Surgery</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="treatment_status">Status *</Label>
+                    <Select value={treatmentForm.treatment_status} onValueChange={(value: any) => setTreatmentForm(prev => ({ ...prev, treatment_status: value }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Planned">Planned</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Custom treatment type input */}
+                {treatmentForm.treatment_type === 'Other' && (
+                  <div>
+                    <Label htmlFor="custom_treatment_type">Custom Treatment Type *</Label>
+                    <Input
+                      id="custom_treatment_type"
+                      placeholder="Enter custom treatment type..."
+                      value={treatmentForm.custom_treatment_type}
+                      onChange={(e) => setTreatmentForm(prev => ({ ...prev, custom_treatment_type: e.target.value }))}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="treatment_description">Description</Label>
+                  <Textarea
+                    id="treatment_description"
+                    placeholder="Describe the treatment details..."
+                    value={treatmentForm.treatment_description}
+                    onChange={(e) => setTreatmentForm(prev => ({ ...prev, treatment_description: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="treatment_date">Treatment Date *</Label>
+                  <Input
+                    id="treatment_date"
+                    type="date"
+                    value={treatmentForm.treatment_date}
+                    onChange={(e) => setTreatmentForm(prev => ({ ...prev, treatment_date: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Additional notes..."
+                    value={treatmentForm.notes}
+                    onChange={(e) => setTreatmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6">
+                  <Button variant="outline" onClick={() => setShowMultiToothDialog(false)} className="w-full sm:w-auto">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleBulkTreatment} 
+                    disabled={!treatmentForm.treatment_type} 
+                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                  >
+                    Add to {selectedTeeth.length} Tooth{selectedTeeth.length !== 1 ? 's' : ''}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-purple-800">Selected Teeth:</p>
+                  <p className="text-sm text-purple-600">{selectedTeeth.sort((a, b) => parseInt(a) - parseInt(b)).join(', ')}</p>
+                </div>
+                
+                <p className="text-sm text-gray-600">
+                  Multi-tooth image upload will be implemented in the next phase. For now, please upload images individually.
+                </p>
+                
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => setShowMultiToothDialog(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
