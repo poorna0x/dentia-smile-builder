@@ -474,14 +474,20 @@ const SuperAdmin: React.FC = () => {
   // Dentist Management Functions
   const loadClinics = async () => {
     try {
+      console.log('🔄 Loading clinics...');
       const { data, error } = await supabase
         .from('clinics')
         .select('id, name, slug')
         .eq('is_active', true)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading clinics:', error);
+        throw error;
+      }
 
+      console.log('✅ Clinics loaded:', data);
+      
       setState(prev => ({
         ...prev,
         dentistManagement: {
@@ -497,7 +503,10 @@ const SuperAdmin: React.FC = () => {
 
   const loadDentists = async (clinicId: string) => {
     try {
+      console.log('🔄 Loading dentists for clinic:', clinicId);
       const dentists = await dentistsApi.getAll(clinicId);
+      console.log('✅ Dentists loaded:', dentists);
+      
       setState(prev => ({
         ...prev,
         dentistManagement: {
@@ -1147,11 +1156,17 @@ const SuperAdmin: React.FC = () => {
                       <SelectValue placeholder="Select a clinic to manage dentists" />
                     </SelectTrigger>
                     <SelectContent>
-                      {state.dentistManagement.clinics.map((clinic) => (
-                        <SelectItem key={clinic.id} value={clinic.id}>
-                          {clinic.name} ({clinic.slug})
+                      {state.dentistManagement.clinics.length === 0 ? (
+                        <SelectItem value="" disabled>
+                          No clinics available
                         </SelectItem>
-                      ))}
+                      ) : (
+                        state.dentistManagement.clinics.map((clinic) => (
+                          <SelectItem key={clinic.id} value={clinic.id}>
+                            {clinic.name} ({clinic.slug})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   
@@ -1164,40 +1179,56 @@ const SuperAdmin: React.FC = () => {
                       }
                     }))}
                     disabled={!state.dentistManagement.selectedClinicId}
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Dentist
                   </Button>
+                </div>
+                
+                {/* Debug Info */}
+                <div className="text-xs text-gray-500">
+                  Available clinics: {state.dentistManagement.clinics.length} | 
+                  Selected clinic: {state.dentistManagement.selectedClinicId ? 'Yes' : 'No'} | 
+                  Dentists loaded: {state.dentistManagement.dentists.length}
                 </div>
               </div>
 
               {/* Dentists List */}
               {state.dentistManagement.selectedClinicId && (
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Dentists</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">Dentists</h3>
+                    <Badge variant="outline">
+                      {state.dentistManagement.dentists.length} dentist(s)
+                    </Badge>
+                  </div>
                   
                   {state.dentistManagement.dentists.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                       <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No dentists found for this clinic</p>
-                      <p className="text-sm">Add a dentist to get started</p>
+                      <p className="font-medium">No dentists found for this clinic</p>
+                      <p className="text-sm mt-1">Click "Add Dentist" to get started</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="grid gap-3">
                       {state.dentistManagement.dentists.map((dentist) => (
                         <div
                           key={dentist.id}
-                          className="flex items-center justify-between p-4 bg-white rounded-lg border"
+                          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
                         >
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900">{dentist.name}</h4>
                             <p className="text-sm text-gray-600">
                               {dentist.specialization || 'General Dentistry'}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-2">
                               <Badge variant={dentist.is_active ? "default" : "secondary"}>
                                 {dentist.is_active ? 'Active' : 'Inactive'}
                               </Badge>
+                              <span className="text-xs text-gray-400">
+                                ID: {dentist.id.slice(0, 8)}...
+                              </span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1205,7 +1236,7 @@ const SuperAdmin: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteDentist(dentist.id)}
-                              className="text-red-600 hover:text-red-700"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
                               <X className="h-4 w-4" />
                             </Button>
@@ -1231,16 +1262,19 @@ const SuperAdmin: React.FC = () => {
             }
           }))}
         >
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Add New Dentist</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Add New Dentist
+              </DialogTitle>
               <DialogDescription>
-                Add a new dentist to the selected clinic
+                Add a new dentist to the selected clinic. The dentist will be available for appointment assignments.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="dentist-name">Dentist Name *</Label>
+                <Label htmlFor="dentist-name" className="font-medium">Dentist Name *</Label>
                 <Input
                   id="dentist-name"
                   placeholder="Dr. John Smith"
@@ -1255,10 +1289,14 @@ const SuperAdmin: React.FC = () => {
                       }
                     }
                   }))}
+                  className="w-full"
                 />
+                <p className="text-xs text-gray-500">
+                  Enter the full name of the dentist
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dentist-specialization">Specialization</Label>
+                <Label htmlFor="dentist-specialization" className="font-medium">Specialization</Label>
                 <Input
                   id="dentist-specialization"
                   placeholder="General Dentistry, Orthodontics, etc."
@@ -1273,10 +1311,14 @@ const SuperAdmin: React.FC = () => {
                       }
                     }
                   }))}
+                  className="w-full"
                 />
+                <p className="text-xs text-gray-500">
+                  Optional: Enter the dentist's specialization or area of expertise
+                </p>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex gap-2">
               <Button
                 variant="outline"
                 onClick={() => setState(prev => ({
@@ -1287,10 +1329,16 @@ const SuperAdmin: React.FC = () => {
                     newDentist: { name: '', specialization: '' }
                   }
                 }))}
+                className="flex-1"
               >
                 Cancel
               </Button>
-              <Button onClick={handleAddDentist}>
+              <Button 
+                onClick={handleAddDentist}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={!state.dentistManagement.newDentist.name.trim()}
+              >
+                <Plus className="h-4 w-4 mr-2" />
                 Add Dentist
               </Button>
             </DialogFooter>
