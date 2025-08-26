@@ -87,6 +87,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [showTreatmentConfirmDialog, setShowTreatmentConfirmDialog] = useState(false)
   const [pendingTreatmentAction, setPendingTreatmentAction] = useState<'single' | 'multi' | null>(null)
   
+  // State for loading during API calls
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingMessage, setProcessingMessage] = useState('')
+  
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
     treatment_type: '',
@@ -256,8 +260,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
   // Handle bulk treatment after confirmation
   const handleBulkTreatmentConfirmed = async () => {
+    setIsProcessing(true)
+    setProcessingMessage(`Processing ${selectedTeeth.length} teeth...`)
+    
     try {
       // Create treatments for all selected teeth
+      setProcessingMessage('Creating treatments...')
       const treatmentPromises = selectedTeeth.map(toothNumber => 
         dentalTreatmentApi.create({
           clinic_id: clinicId,
@@ -276,6 +284,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       // Create payment record if payment is included
       if (treatmentForm.include_payment && treatmentForm.payment_amount > 0) {
+        setProcessingMessage('Creating payment records...')
         try {
           // Import payment API dynamically to avoid circular dependencies
           const { simplePaymentApi } = await import('@/lib/payment-system-simple')
@@ -320,6 +329,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
           
           // Refresh tooth data to show the new payments
+          setProcessingMessage('Finalizing...')
           await loadToothData()
         } catch (paymentError) {
           console.error('Error creating payment records:', paymentError)
@@ -352,8 +362,15 @@ const ToothChart: React.FC<ToothChartProps> = ({
       // Reload data
       await loadToothData()
       onTreatmentAdded?.()
+      
+      setIsProcessing(false)
+      setProcessingMessage('')
+      toast.success(`Successfully added treatment to ${selectedTeeth.length} teeth!`)
     } catch (error) {
       console.error('Error adding bulk treatment:', error)
+      setIsProcessing(false)
+      setProcessingMessage('')
+      toast.error('Failed to add treatments. Please try again.')
     }
   }
 
@@ -429,6 +446,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const handleAddTreatment = async () => {
     if (!selectedTooth) return
     
+    setIsProcessing(true)
+    setProcessingMessage('Adding treatment...')
+    
     try {
       await dentalTreatmentApi.create({
         clinic_id: clinicId,
@@ -441,6 +461,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_date: treatmentForm.treatment_date,
         notes: treatmentForm.notes
       })
+      
+      setProcessingMessage('Finalizing...')
       
       // Reset form and close dialog
       setTreatmentForm({
@@ -456,8 +478,15 @@ const ToothChart: React.FC<ToothChartProps> = ({
       // Reload data
       await loadToothData()
       onTreatmentAdded?.()
+      
+      setIsProcessing(false)
+      setProcessingMessage('')
+      toast.success('Treatment added successfully!')
     } catch (error) {
       console.error('Error adding treatment:', error)
+      setIsProcessing(false)
+      setProcessingMessage('')
+      toast.error('Failed to add treatment. Please try again.')
     }
   }
 
@@ -1870,6 +1899,20 @@ const ToothChart: React.FC<ToothChartProps> = ({
             />
           </DialogContent>
         </Dialog>
+
+        {/* Processing Overlay */}
+        {isProcessing && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Processing...</h3>
+              <p className="text-sm text-gray-600">{processingMessage}</p>
+              <div className="mt-4 text-xs text-gray-500">
+                Please wait while we process your request. Do not close this window.
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
