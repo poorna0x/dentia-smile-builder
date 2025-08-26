@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
@@ -267,6 +267,9 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Set Treatment Cost & Payment</DialogTitle>
+            <DialogDescription>
+              Set the total treatment cost and payment details for this patient.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitPayment} className="space-y-4">
             {/* Total Amount */}

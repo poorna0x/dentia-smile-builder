@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
@@ -509,6 +509,9 @@ const EnhancedLabWorkPaymentManagement: React.FC<EnhancedLabWorkPaymentManagemen
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{paymentSummary ? 'Add Additional Payment' : 'Set Cost & Payment'}</DialogTitle>
+            <DialogDescription>
+              {paymentSummary ? 'Add an additional payment to the existing lab work cost.' : 'Set the total lab work cost and initial payment details.'}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitPayment} className="space-y-4">
             {/* Total Cost - Only show if no payment record exists */}
@@ -648,6 +651,9 @@ const EnhancedLabWorkPaymentManagement: React.FC<EnhancedLabWorkPaymentManagemen
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Lab Work Cost</DialogTitle>
+            <DialogDescription>
+              Update the total lab work cost for this patient.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateCost} className="space-y-4">
             <div>

@@ -690,6 +690,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   <Circle className="h-5 w-5" />
                   Tooth {selectedTooth.number} - {selectedTooth.name}
                 </DialogTitle>
+                <DialogDescription>
+                  View and manage treatments, conditions, payments, and images for this tooth.
+                </DialogDescription>
               </DialogHeader>
 
               <Tabs defaultValue="treatments" className="w-full h-full flex flex-col min-h-0" style={{ height: 'calc(100% - 60px)' }}>
@@ -1176,7 +1179,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
         {/* Image Upload Dialog */}
         <Dialog open={showImageUploadDialog} onOpenChange={setShowImageUploadDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
             <DialogHeader>
               <DialogTitle>Upload Image for Tooth {selectedTooth?.number}</DialogTitle>
               <DialogDescription>

@@ -198,8 +198,8 @@ export default function ToothImageUpload({
   };
 
   return (
-    <Card className="w-full max-w-lg mx-auto">
-      <CardContent className="p-6">
+    <Card className="w-full max-w-lg mx-auto overflow-hidden">
+      <CardContent className="p-6 overflow-x-hidden">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">
             Upload Image for Tooth {toothNumber}
@@ -373,11 +373,6 @@ export default function ToothImageUpload({
 
           {/* Upload Button */}
           <div className="flex gap-2 justify-end">
-            {/* Debug info - remove this later */}
-            <div className="text-xs text-gray-500 mr-2">
-              File: {selectedFile ? '✓' : '✗'} | 
-              Uploading: {uploading ? '✓' : '✗'}
-            </div>
             <Button variant="outline" onClick={onClose} disabled={uploading}>
               Cancel
             </Button>
