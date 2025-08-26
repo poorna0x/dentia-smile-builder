@@ -265,7 +265,7 @@ const Admin = () => {
         }),
         customHolidays: settings.custom_holidays || [],
         showStatsCards: settings.show_stats_cards !== false, // Default to true if not set
-        minimumAdvanceNotice: settings.minimum_advance_notice || 24, // Default: 24 hours
+        minimumAdvanceNotice: settings.minimum_advance_notice !== null && settings.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24, // Default: 24 hours
         daySchedules: {
           Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
           Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },

@@ -108,7 +108,7 @@ const Appointment = () => {
     const now = new Date();
     
     // Get minimum advance notice from settings (default to 24 hours)
-    const minimumAdvanceNotice = settings?.minimum_advance_notice || 24;
+    const minimumAdvanceNotice = settings?.minimum_advance_notice !== null && settings?.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24;
     
     // Calculate the earliest allowed booking time
     const earliestBookingTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
@@ -1012,7 +1012,7 @@ const Appointment = () => {
                             const now = new Date();
                             
                             // Get minimum advance notice from settings (default to 24 hours)
-                            const minimumAdvanceNotice = settings?.minimum_advance_notice || 24;
+                            const minimumAdvanceNotice = settings?.minimum_advance_notice !== null && settings?.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24;
                             
                             // Calculate the earliest allowed booking time
                             const earliestBookingTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
@@ -1034,14 +1034,28 @@ const Appointment = () => {
                   </div>
 
                   {/* Minimum Advance Notice Info */}
-                  {settings?.minimum_advance_notice && settings.minimum_advance_notice > 0 && (
-                    <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  {settings?.minimum_advance_notice !== null && settings?.minimum_advance_notice !== undefined && (
+                    <div className={`text-xs text-muted-foreground border rounded-lg p-3 ${
+                      settings.minimum_advance_notice > 0 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : 'bg-green-50 border-green-200'
+                    }`}>
                       <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-blue-600" />
-                        <span className="font-medium text-blue-800">Booking Notice Required</span>
+                        <Clock className={`h-3 w-3 ${
+                          settings.minimum_advance_notice > 0 ? 'text-blue-600' : 'text-green-600'
+                        }`} />
+                        <span className={`font-medium ${
+                          settings.minimum_advance_notice > 0 ? 'text-blue-800' : 'text-green-800'
+                        }`}>
+                          {settings.minimum_advance_notice > 0 ? 'Booking Notice Required' : 'Immediate Booking Allowed'}
+                        </span>
                       </div>
-                      <p className="mt-1 text-blue-700">
-                        {settings.minimum_advance_notice < 24 ? (
+                      <p className={`mt-1 ${
+                        settings.minimum_advance_notice > 0 ? 'text-blue-700' : 'text-green-700'
+                      }`}>
+                        {settings.minimum_advance_notice === 0 ? (
+                          'Patients can book appointments immediately without advance notice.'
+                        ) : settings.minimum_advance_notice < 24 ? (
                           `Appointments must be booked at least ${settings.minimum_advance_notice} hour${settings.minimum_advance_notice === 1 ? '' : 's'} in advance.`
                         ) : (
                           `Appointments must be booked at least ${Math.floor(settings.minimum_advance_notice / 24)} day${Math.floor(settings.minimum_advance_notice / 24) === 1 ? '' : 's'} and ${settings.minimum_advance_notice % 24} hour${settings.minimum_advance_notice % 24 === 1 ? '' : 's'} in advance.`
