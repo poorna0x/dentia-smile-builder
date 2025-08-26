@@ -101,13 +101,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
     notes: '',
     // Payment fields for multi-tooth procedures
     include_payment: false,
-    payment_type: 'full' as 'full' | 'partial' | 'installment',
+    payment_type: 'full' as 'full' | 'partial',
     total_cost: '',
     payment_amount: '',
-    payment_method: 'Cash' as const,
-    payment_notes: '',
-    installment_count: 1,
-    installment_amount: ''
+    payment_notes: ''
   })
   
   // Condition form state
@@ -349,10 +346,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
         payment_type: 'full',
         total_cost: '',
         payment_amount: '',
-        payment_method: 'Cash',
-        payment_notes: '',
-        installment_count: 1,
-        installment_amount: ''
+        payment_notes: ''
       })
       setShowMultiToothDialog(false)
       setMultiToothAction(null)
@@ -1696,7 +1690,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
                           <SelectContent>
                             <SelectItem value="full">Full Payment</SelectItem>
                             <SelectItem value="partial">Partial Payment</SelectItem>
-                            <SelectItem value="installment">Installment Payment</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1714,8 +1707,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                             setTreatmentForm(prev => ({ 
                               ...prev, 
                               total_cost: e.target.value,
-                              payment_amount: prev.payment_type === 'full' ? e.target.value : prev.payment_amount,
-                              installment_amount: prev.payment_type === 'installment' ? (totalCost / prev.installment_count).toString() : ''
+                              payment_amount: prev.payment_type === 'full' ? e.target.value : prev.payment_amount
                             }))
                           }}
                           className="text-right border-2 border-gray-400 focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -1725,9 +1717,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       {/* Payment Amount */}
                       <div>
                         <Label htmlFor="payment_amount">
-                          {treatmentForm.payment_type === 'full' ? 'Payment Amount' : 
-                           treatmentForm.payment_type === 'partial' ? 'Partial Payment Amount' : 
-                           'Installment Amount'} *
+                          {treatmentForm.payment_type === 'full' ? 'Payment Amount' : 'Partial Payment Amount'} *
                         </Label>
                         <Input
                           id="payment_amount"
@@ -1744,58 +1734,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
                         )}
                       </div>
 
-                      {/* Installment Details */}
-                      {treatmentForm.payment_type === 'installment' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="installment_count">Number of Installments</Label>
-                            <Input
-                              id="installment_count"
-                              type="number"
-                              min="1"
-                              value={treatmentForm.installment_count}
-                              onChange={(e) => {
-                                const count = parseInt(e.target.value) || 1
-                                const totalCost = parseFloat(treatmentForm.total_cost) || 0
-                                setTreatmentForm(prev => ({ 
-                                  ...prev, 
-                                  installment_count: count,
-                                  installment_amount: totalCost > 0 ? (totalCost / count).toString() : ''
-                                }))
-                              }}
-                              className="border-2 border-gray-400 focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="installment_amount">Amount per Installment</Label>
-                            <Input
-                              id="installment_amount"
-                              type="number"
-                              value={treatmentForm.installment_amount}
-                              readOnly
-                              className="text-right bg-gray-50 border-2 border-gray-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </div>
-                        </div>
-                      )}
 
-                      {/* Payment Method */}
-                      <div>
-                        <Label htmlFor="payment_method">Payment Method *</Label>
-                        <Select value={treatmentForm.payment_method} onValueChange={(value: any) => setTreatmentForm(prev => ({ ...prev, payment_method: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Cash">Cash</SelectItem>
-                            <SelectItem value="Card">Card</SelectItem>
-                            <SelectItem value="Insurance">Insurance</SelectItem>
-                            <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                            <SelectItem value="Check">Check</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+
+
                       
                       {/* Payment Notes */}
                       <div>
@@ -1813,16 +1754,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       <div className="text-sm text-green-700 bg-green-100 p-3 rounded">
                         <div className="font-medium mb-2">Payment Summary:</div>
                         <div>• Total Cost: ₹{parseFloat(treatmentForm.total_cost || '0').toFixed(2)}</div>
-                        <div>• Payment Type: {treatmentForm.payment_type === 'full' ? 'Full Payment' : 
-                                               treatmentForm.payment_type === 'partial' ? 'Partial Payment' : 
-                                               'Installment Payment'}</div>
+                        <div>• Payment Type: {treatmentForm.payment_type === 'full' ? 'Full Payment' : 'Partial Payment'}</div>
                         <div>• Amount: ₹{parseFloat(treatmentForm.payment_amount || '0').toFixed(2)}</div>
                         {treatmentForm.payment_type === 'partial' && parseFloat(treatmentForm.total_cost || '0') > 0 && (
                           <div>• Remaining: ₹{(parseFloat(treatmentForm.total_cost || '0') - parseFloat(treatmentForm.payment_amount || '0')).toFixed(2)}</div>
                         )}
-                        {treatmentForm.payment_type === 'installment' && parseFloat(treatmentForm.installment_amount || '0') > 0 && (
-                          <div>• Installments: {treatmentForm.installment_count} × ₹{parseFloat(treatmentForm.installment_amount || '0').toFixed(2)}</div>
-                        )}
+
                         <div className="mt-2 text-xs">
                           💡 <strong>Note:</strong> Payment records will be created for all {selectedTeeth.length} teeth, 
                           making it easy to track payments when viewing any involved tooth.
