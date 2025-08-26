@@ -166,6 +166,13 @@ const Admin = () => {
     startTime: '10:00',
     endTime: '11:00'
   });
+
+  // Patient search and validation state
+  const [showPatientSearch, setShowPatientSearch] = useState(false);
+  const [patientSearchResults, setPatientSearchResults] = useState<any[]>([]);
+  const [isSearchingPatients, setIsSearchingPatients] = useState(false);
+  const [selectedPatientForBooking, setSelectedPatientForBooking] = useState<any>(null);
+  const [showPatientSearchDialog, setShowPatientSearchDialog] = useState(false);
   
 
 
@@ -361,7 +368,50 @@ const Admin = () => {
     // };
   }, [clinic?.id, refreshAppointments, refreshSettings]);
 
+  // Patient search and validation functions
+  const searchPatients = async (searchTerm: string) => {
+    if (!searchTerm.trim() || !clinic?.id) return;
+    
+    setIsSearchingPatients(true);
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, first_name, last_name, phone, email, date_of_birth, allergies')
+        .eq('clinic_id', clinic.id)
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+        .limit(10);
+      
+      if (error) throw error;
+      setPatientSearchResults(data || []);
+    } catch (error) {
+      console.error('Error searching patients:', error);
+      toast.error('Error searching patients');
+    } finally {
+      setIsSearchingPatients(false);
+    }
+  };
 
+  const handleSelectPatientForBooking = (patient: any) => {
+    setSelectedPatientForBooking(patient);
+    setGeneralNewAppointment(prev => ({
+      ...prev,
+      name: `${patient.first_name} ${patient.last_name || ''}`.trim(),
+      phone: patient.phone,
+      email: patient.email || ''
+    }));
+    setShowPatientSearchDialog(false);
+    toast.success(`Selected patient: ${patient.first_name} ${patient.last_name || ''}`);
+  };
+
+  const clearSelectedPatient = () => {
+    setSelectedPatientForBooking(null);
+    setGeneralNewAppointment(prev => ({
+      ...prev,
+      name: '',
+      phone: '',
+      email: ''
+    }));
+  };
 
   // Note: Logout is now handled by the LogoutButton component
   // which uses the unified authentication system
@@ -1675,6 +1725,8 @@ Jeshna Dental Clinic Team`;
     );
   }
 
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Centered Clinic Name Header */}
@@ -2861,6 +2913,65 @@ Jeshna Dental Clinic Team`;
             {/* Patient Information */}
             <form autoComplete="new-password" onSubmit={(e) => e.preventDefault()}>
               <div className="space-y-4">
+              
+              {/* Patient Search Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Patient Selection</Label>
+                  {selectedPatientForBooking && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelectedPatient}
+                      className="text-xs text-red-600 hover:text-red-700"
+                    >
+                      Clear Selection
+                    </Button>
+                  )}
+                </div>
+                
+                {selectedPatientForBooking ? (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-green-800">Selected Patient</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="font-medium">Name:</span> {selectedPatientForBooking.first_name} {selectedPatientForBooking.last_name || ''}
+                      </div>
+                      <div>
+                        <span className="font-medium">Phone:</span> {selectedPatientForBooking.phone}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="font-medium">Email:</span> {selectedPatientForBooking.email || 'Not provided'}
+                      </div>
+                      {selectedPatientForBooking.allergies?.length > 0 && (
+                        <div className="sm:col-span-2">
+                          <span className="font-medium">Allergies:</span> {selectedPatientForBooking.allergies.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowPatientSearchDialog(true)}
+                      className="w-full border-2 border-blue-400 text-blue-700 hover:bg-blue-50"
+                    >
+                      <Search className="h-4 w-4 mr-2" />
+                      Search Existing Patients
+                    </Button>
+                    <div className="text-xs text-gray-500 text-center">
+                      Or enter details below to create a new patient
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="appointmentPatientName">Patient Name *</Label>
                 <Input
@@ -3163,6 +3274,116 @@ Jeshna Dental Clinic Team`;
       </Dialog>
 
 
+
+      {/* Patient Search Dialog */}
+      <Dialog open={showPatientSearchDialog} onOpenChange={setShowPatientSearchDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Search Existing Patients</DialogTitle>
+            <DialogDescription>
+              Search for existing patients to link with the appointment
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto space-y-4 px-2 pb-2">
+            {/* Search Input */}
+            <div className="space-y-2">
+              <Label>Search by Name, Phone, or Email</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Enter patient name, phone, or email..."
+                  onChange={(e) => {
+                    const searchTerm = e.target.value;
+                    if (searchTerm.length >= 2) {
+                      searchPatients(searchTerm);
+                    } else {
+                      setPatientSearchResults([]);
+                    }
+                  }}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Search Results */}
+            <div className="space-y-2">
+              {isSearchingPatients ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                  <span className="text-gray-600">Searching patients...</span>
+                </div>
+              ) : patientSearchResults.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    Found {patientSearchResults.length} patient(s)
+                  </div>
+                  {patientSearchResults.map((patient) => (
+                    <div
+                      key={patient.id}
+                      onClick={() => handleSelectPatientForBooking(patient)}
+                      className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {patient.first_name} {patient.last_name || ''}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            📱 {patient.phone}
+                            {patient.email && ` • 📧 ${patient.email}`}
+                          </div>
+                          {patient.allergies?.length > 0 && (
+                            <div className="text-xs text-orange-600 mt-1">
+                              ⚠️ Allergies: {patient.allergies.join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-3 flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`tel:${patient.phone}`, '_self');
+                            }}
+                            className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                            title="Call"
+                          >
+                            <Phone className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <User className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>No patients found</p>
+                  <p className="text-sm">Try searching with a different term</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-shrink-0 flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowPatientSearchDialog(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => setShowPatientSearchDialog(false)}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              Continue with New Patient
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
