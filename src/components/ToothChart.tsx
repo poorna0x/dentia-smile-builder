@@ -73,6 +73,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [selectedPaymentTreatment, setSelectedPaymentTreatment] = useState<DentalTreatment | null>(null)
   const [showImagesDialog, setShowImagesDialog] = useState(false)
   const [showImageUploadDialog, setShowImageUploadDialog] = useState(false)
+  const [activeTab, setActiveTab] = useState('treatments')
+  const [toothImages, setToothImages] = useState<any[]>([])
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -106,18 +108,16 @@ const ToothChart: React.FC<ToothChartProps> = ({
         allTeeth.push(i.toString().padStart(2, '0'))
       }
       
-      // Load real data from database
-      const [treatments, conditions, images] = await Promise.all([
+      // Load real data from database (images will be loaded lazily)
+      const [treatments, conditions] = await Promise.all([
         dentalTreatmentApi.getByPatient(patientId, clinicId),
-        toothConditionApi.getByPatient(patientId, clinicId),
-        toothImageApi.getByPatient(patientId, clinicId)
+        toothConditionApi.getByPatient(patientId, clinicId)
       ])
 
       console.log('Loaded data from database:', {
         treatments: treatments.length,
         conditions: conditions.length,
-        images: images.length,
-        imagesData: images
+        images: 'Will be loaded lazily'
       })
 
       // Debug: Check if images are being assigned to teeth correctly
@@ -134,25 +134,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
         const quadrant = Math.ceil(num / 8)
         const name = `${positionName} (Quadrant ${quadrant})`
 
-        // Get treatments, condition, and images for this tooth
+        // Get treatments and condition for this tooth (images loaded lazily)
         const toothTreatments = treatments.filter(t => t.tooth_number === toothNumber)
         const toothCondition = conditions.find(c => c.tooth_number === toothNumber)
-        const toothImages = images.filter(img => img.tooth_number === toothNumber)
-
-        if (toothImages.length > 0) {
-          console.log(`Tooth ${toothNumber} has ${toothImages.length} images:`, toothImages)
-        }
-
-        // Convert database images to component format
-        const componentImages = toothImages.map(dbImage => ({
-          id: dbImage.id,
-          url: dbImage.cloudinary_url, // Map cloudinary_url to url
-          type: dbImage.image_type,
-          description: dbImage.description || '',
-          uploaded_at: dbImage.uploaded_at,
-          size: dbImage.file_size_bytes,
-          public_id: dbImage.cloudinary_public_id
-        }))
 
         return {
           number: toothNumber,
@@ -160,7 +144,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
           name,
           condition: toothCondition || null,
           treatments: toothTreatments,
-          images: componentImages,
+          images: [], // Will be loaded lazily when Images tab is clicked
           isSelected: false
         }
       })
@@ -170,6 +154,36 @@ const ToothChart: React.FC<ToothChartProps> = ({
       console.error('Error loading tooth data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Load images for a specific tooth (lazy loading)
+  const loadToothImages = async (toothNumber: string) => {
+    try {
+      const images = await toothImageApi.getByPatient(patientId, clinicId)
+      const toothImages = images.filter(img => img.tooth_number === toothNumber)
+      
+      // Convert database images to component format
+      const componentImages = toothImages.map(dbImage => ({
+        id: dbImage.id,
+        url: dbImage.cloudinary_url,
+        type: dbImage.image_type,
+        description: dbImage.description || '',
+        uploaded_at: dbImage.uploaded_at,
+        size: dbImage.file_size_bytes,
+        public_id: dbImage.cloudinary_public_id
+      }))
+
+      // Update the selected tooth with images
+      setSelectedTooth(prev => prev ? {
+        ...prev,
+        images: componentImages
+      } : null)
+
+      setToothImages(componentImages)
+      setImagesLoaded(true)
+    } catch (error) {
+      console.error('Error loading tooth images:', error)
     }
   }
 
@@ -216,6 +230,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
     setSelectedTooth(tooth)
     setSelectedPaymentTreatment(null) // Reset payment treatment selection
     setShowTreatmentDialog(true)
+    // Reset images loaded state for new tooth
+    setImagesLoaded(false)
+    setToothImages([])
+    setActiveTab('treatments')
   }
 
   // Handle add treatment
@@ -421,11 +439,14 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       setTeeth(updatedTeeth)
       
-      // Update selected tooth
+      // Update selected tooth and tooth images
       setSelectedTooth(prev => prev ? {
         ...prev,
         images: (prev.images || []).filter(img => img.id !== imageId)
       } : null)
+      
+      // Update tooth images state
+      setToothImages(prev => prev.filter(img => img.id !== imageId))
       
       console.log('Image deleted from database:', imageId)
     } catch (error) {
@@ -695,7 +716,18 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 </DialogDescription>
               </DialogHeader>
 
-              <Tabs defaultValue="treatments" className="w-full h-full flex flex-col min-h-0" style={{ height: 'calc(100% - 60px)' }}>
+              <Tabs 
+                defaultValue="treatments" 
+                className="w-full h-full flex flex-col min-h-0" 
+                style={{ height: 'calc(100% - 60px)' }}
+                onValueChange={(value) => {
+                  setActiveTab(value)
+                  // Load images only when Images tab is clicked
+                  if (value === 'images' && selectedTooth && !imagesLoaded) {
+                    loadToothImages(selectedTooth.number)
+                  }
+                }}
+              >
                 <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1 text-xs sm:text-sm flex-shrink-0 mb-6 bg-transparent">
                   <TabsTrigger value="treatments" className="text-xs sm:text-sm">Treatments</TabsTrigger>
                   <TabsTrigger value="condition" className="text-xs sm:text-sm">Condition</TabsTrigger>
@@ -853,12 +885,14 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
                 <TabsContent value="images" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   <div className="pt-4">
-                    <ToothImageGallery
-                      toothNumber={selectedTooth.number}
-                      images={selectedTooth.images || []}
-                      onImageDelete={handleDeleteImage}
-                      onAddImage={() => setShowImageUploadDialog(true)}
-                    />
+                    {activeTab === 'images' && (
+                      <ToothImageGallery
+                        toothNumber={selectedTooth.number}
+                        images={toothImages}
+                        onImageDelete={handleDeleteImage}
+                        onAddImage={() => setShowImageUploadDialog(true)}
+                      />
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>
