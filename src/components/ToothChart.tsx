@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Circle, 
   Plus, 
@@ -89,7 +90,16 @@ const ToothChart: React.FC<ToothChartProps> = ({
     treatment_description: '',
     treatment_status: 'Completed' as const,
     treatment_date: new Date().toISOString().split('T')[0],
-    notes: ''
+    notes: '',
+    // Payment fields for multi-tooth procedures
+    include_payment: false,
+    payment_type: 'full' as 'full' | 'partial' | 'installment',
+    total_cost: '',
+    payment_amount: '',
+    payment_method: 'Cash' as const,
+    payment_notes: '',
+    installment_count: 1,
+    installment_amount: ''
   })
   
   // Condition form state
@@ -234,11 +244,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
     setShowMultiToothDialog(true)
   }
 
-  // Bulk treatment application
+  // Bulk treatment application with payment support
   const handleBulkTreatment = async () => {
     if (!multiToothAction || selectedTeeth.length === 0) return
     
     try {
+      // Create treatments for all selected teeth
       const treatmentPromises = selectedTeeth.map(toothNumber => 
         dentalTreatmentApi.create({
           clinic_id: clinicId,
@@ -253,7 +264,64 @@ const ToothChart: React.FC<ToothChartProps> = ({
         })
       )
 
-      await Promise.all(treatmentPromises)
+      const createdTreatments = await Promise.all(treatmentPromises)
+      
+      // Create payment record if payment is included
+      if (treatmentForm.include_payment && treatmentForm.payment_amount > 0) {
+        try {
+          // Import payment API dynamically to avoid circular dependencies
+          const { simplePaymentApi } = await import('@/lib/payment-system-simple')
+          
+          // Calculate payment details based on payment type
+          const totalCost = parseFloat(treatmentForm.total_cost) || parseFloat(treatmentForm.payment_amount) || 0
+          const paymentAmount = parseFloat(treatmentForm.payment_amount) || 0
+          const remainingBalance = totalCost - paymentAmount
+          
+          // Create payment records for all treatments in the multi-tooth procedure
+          for (const treatment of createdTreatments) {
+            try {
+              // Create the treatment payment record
+              const paymentData = {
+                clinic_id: clinicId,
+                patient_id: patientId,
+                treatment_id: treatment.id,
+                total_amount: totalCost,
+                paid_amount: paymentAmount,
+                payment_status: remainingBalance > 0 ? 'Partial' : 'Completed'
+              }
+              
+              console.log('Creating payment record with data:', paymentData)
+              const treatmentPayment = await simplePaymentApi.createTreatmentPayment(paymentData)
+              console.log('Treatment payment created:', treatmentPayment)
+              
+              // Create the initial payment transaction
+              if (paymentAmount > 0) {
+                const transactionData = {
+                  treatment_payment_id: treatmentPayment.id,
+                  amount: paymentAmount,
+                  payment_date: treatmentForm.treatment_date
+                }
+                
+                console.log('Creating payment transaction with data:', transactionData)
+                const transaction = await simplePaymentApi.addPaymentTransaction(transactionData)
+                console.log('Payment transaction created:', transaction)
+              }
+              
+              console.log(`Payment record and transaction created for treatment ${treatment.id}`)
+            } catch (error) {
+              console.error(`Error creating payment for treatment ${treatment.id}:`, error)
+            }
+          }
+          
+          console.log(`Payment records created for ${createdTreatments.length} treatments in multi-tooth procedure`)
+          
+          // Refresh tooth data to show the new payments
+          await loadToothData()
+        } catch (paymentError) {
+          console.error('Error creating payment records:', paymentError)
+          // Don't fail the entire operation if payment creation fails
+        }
+      }
       
       // Reset form and close dialog
       setTreatmentForm({
@@ -262,7 +330,15 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_description: '',
         treatment_status: 'Completed',
         treatment_date: new Date().toISOString().split('T')[0],
-        notes: ''
+        notes: '',
+        include_payment: false,
+        payment_type: 'full',
+        total_cost: '',
+        payment_amount: '',
+        payment_method: 'Cash',
+        payment_notes: '',
+        installment_count: 1,
+        installment_amount: ''
       })
       setShowMultiToothDialog(false)
       setMultiToothAction(null)
@@ -1512,6 +1588,167 @@ const ToothChart: React.FC<ToothChartProps> = ({
                     value={treatmentForm.treatment_date}
                     onChange={(e) => setTreatmentForm(prev => ({ ...prev, treatment_date: e.target.value }))}
                   />
+                </div>
+
+                {/* Payment Section */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Checkbox
+                      id="include_payment"
+                      checked={treatmentForm.include_payment}
+                      onCheckedChange={(checked) => setTreatmentForm(prev => ({ ...prev, include_payment: checked as boolean }))}
+                    />
+                    <Label htmlFor="include_payment" className="text-sm font-medium">
+                      Include Payment for this Multi-Tooth Procedure
+                    </Label>
+                  </div>
+                  
+                  {treatmentForm.include_payment && (
+                    <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                      {/* Payment Type Selection */}
+                      <div>
+                        <Label htmlFor="payment_type">Payment Type *</Label>
+                        <Select value={treatmentForm.payment_type} onValueChange={(value: any) => setTreatmentForm(prev => ({ ...prev, payment_type: value }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="full">Full Payment</SelectItem>
+                            <SelectItem value="partial">Partial Payment</SelectItem>
+                            <SelectItem value="installment">Installment Payment</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Total Cost */}
+                      <div>
+                        <Label htmlFor="total_cost">Total Procedure Cost *</Label>
+                        <Input
+                          id="total_cost"
+                          type="number"
+                          placeholder="0.00"
+                          value={treatmentForm.total_cost}
+                          onChange={(e) => {
+                            const totalCost = parseFloat(e.target.value) || 0
+                            setTreatmentForm(prev => ({ 
+                              ...prev, 
+                              total_cost: e.target.value,
+                              payment_amount: prev.payment_type === 'full' ? e.target.value : prev.payment_amount,
+                              installment_amount: prev.payment_type === 'installment' ? (totalCost / prev.installment_count).toString() : ''
+                            }))
+                          }}
+                          className="text-right border-2 border-gray-400 focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+
+                      {/* Payment Amount */}
+                      <div>
+                        <Label htmlFor="payment_amount">
+                          {treatmentForm.payment_type === 'full' ? 'Payment Amount' : 
+                           treatmentForm.payment_type === 'partial' ? 'Partial Payment Amount' : 
+                           'Installment Amount'} *
+                        </Label>
+                        <Input
+                          id="payment_amount"
+                          type="number"
+                          placeholder="0.00"
+                          value={treatmentForm.payment_amount}
+                          onChange={(e) => setTreatmentForm(prev => ({ ...prev, payment_amount: e.target.value }))}
+                          className="text-right border-2 border-gray-400 focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        {treatmentForm.payment_type === 'partial' && parseFloat(treatmentForm.total_cost) > 0 && (
+                          <p className="text-sm text-blue-600 mt-1">
+                            Remaining: ₹{(parseFloat(treatmentForm.total_cost) - parseFloat(treatmentForm.payment_amount || '0')).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Installment Details */}
+                      {treatmentForm.payment_type === 'installment' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="installment_count">Number of Installments</Label>
+                            <Input
+                              id="installment_count"
+                              type="number"
+                              min="1"
+                              value={treatmentForm.installment_count}
+                              onChange={(e) => {
+                                const count = parseInt(e.target.value) || 1
+                                const totalCost = parseFloat(treatmentForm.total_cost) || 0
+                                setTreatmentForm(prev => ({ 
+                                  ...prev, 
+                                  installment_count: count,
+                                  installment_amount: totalCost > 0 ? (totalCost / count).toString() : ''
+                                }))
+                              }}
+                              className="border-2 border-gray-400 focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="installment_amount">Amount per Installment</Label>
+                            <Input
+                              id="installment_amount"
+                              type="number"
+                              value={treatmentForm.installment_amount}
+                              readOnly
+                              className="text-right bg-gray-50 border-2 border-gray-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Payment Method */}
+                      <div>
+                        <Label htmlFor="payment_method">Payment Method *</Label>
+                        <Select value={treatmentForm.payment_method} onValueChange={(value: any) => setTreatmentForm(prev => ({ ...prev, payment_method: value }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Cash">Cash</SelectItem>
+                            <SelectItem value="Card">Card</SelectItem>
+                            <SelectItem value="Insurance">Insurance</SelectItem>
+                            <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="Check">Check</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* Payment Notes */}
+                      <div>
+                        <Label htmlFor="payment_notes">Payment Notes</Label>
+                        <Textarea
+                          id="payment_notes"
+                          placeholder="Payment details, insurance info, installment schedule, etc..."
+                          value={treatmentForm.payment_notes}
+                          onChange={(e) => setTreatmentForm(prev => ({ ...prev, payment_notes: e.target.value }))}
+                          rows={2}
+                        />
+                      </div>
+                      
+                      {/* Payment Summary */}
+                      <div className="text-sm text-green-700 bg-green-100 p-3 rounded">
+                        <div className="font-medium mb-2">Payment Summary:</div>
+                        <div>• Total Cost: ₹{parseFloat(treatmentForm.total_cost || '0').toFixed(2)}</div>
+                        <div>• Payment Type: {treatmentForm.payment_type === 'full' ? 'Full Payment' : 
+                                               treatmentForm.payment_type === 'partial' ? 'Partial Payment' : 
+                                               'Installment Payment'}</div>
+                        <div>• Amount: ₹{parseFloat(treatmentForm.payment_amount || '0').toFixed(2)}</div>
+                        {treatmentForm.payment_type === 'partial' && parseFloat(treatmentForm.total_cost || '0') > 0 && (
+                          <div>• Remaining: ₹{(parseFloat(treatmentForm.total_cost || '0') - parseFloat(treatmentForm.payment_amount || '0')).toFixed(2)}</div>
+                        )}
+                        {treatmentForm.payment_type === 'installment' && parseFloat(treatmentForm.installment_amount || '0') > 0 && (
+                          <div>• Installments: {treatmentForm.installment_count} × ₹{parseFloat(treatmentForm.installment_amount || '0').toFixed(2)}</div>
+                        )}
+                        <div className="mt-2 text-xs">
+                          💡 <strong>Note:</strong> Payment records will be created for all {selectedTeeth.length} teeth, 
+                          making it easy to track payments when viewing any involved tooth.
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>

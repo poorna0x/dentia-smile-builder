@@ -22,7 +22,8 @@ import {
   TrendingUp,
   CheckCircle,
   AlertTriangle,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react'
 
 interface EnhancedPaymentManagementProps {
@@ -72,15 +73,21 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
   const loadPaymentData = async () => {
     try {
       setLoading(true)
+      console.log('Loading payment data for treatment:', treatment.id)
       const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
+      console.log('Payment summary loaded:', summary)
       setPaymentSummary(summary)
 
       if (summary) {
         const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
+        console.log('Treatment payment loaded:', treatmentPayment)
         if (treatmentPayment) {
           const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
+          console.log('Payment transactions loaded:', transactions)
           setTransactions(transactions)
         }
+      } else {
+        console.log('No payment summary found for treatment:', treatment.id)
       }
 
       // Reset form data when payment data changes
@@ -107,6 +114,15 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
   useEffect(() => {
     loadPaymentData()
   }, [treatment.id])
+
+  // Force refresh payment data when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadPaymentData()
+    }, 1000) // Refresh after 1 second to ensure payment records are created
+    
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleInputChange = (field: keyof PaymentFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -327,13 +343,24 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
             <p className="text-xs sm:text-sm text-gray-600">Tooth {treatment.tooth_number} • {treatment.treatment_status}</p>
           </div>
         </div>
-        <Button 
-          onClick={() => setShowAddPaymentDialog(true)}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">{paymentSummary ? 'Add More Payment' : 'Set Cost & Payment'}</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={loadPaymentData}
+            variant="outline"
+            size="sm"
+            className="text-xs"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setShowAddPaymentDialog(true)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">{paymentSummary ? 'Add More Payment' : 'Set Cost & Payment'}</span>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="summary" className="w-full h-full flex flex-col">
