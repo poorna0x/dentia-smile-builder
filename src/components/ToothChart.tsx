@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,14 @@ import {
   Trash2,
   CreditCard,
   AlertTriangle,
-  Clock
+  Clock,
+  Upload,
+  Camera,
+  X,
+  Loader2,
+  Image as ImageIcon,
+  FileImage,
+  AlertCircle
 } from 'lucide-react'
 import { 
   DentalTreatment, 
@@ -30,6 +37,7 @@ import {
   toothConditionApi
 } from '@/lib/dental-treatments'
 import { toothImageApi, ToothImage as DbToothImage } from '@/lib/tooth-images'
+import { compressImage, validateImageFile, formatFileSize } from '@/lib/image-compression'
 import { testToothImagesTable, testToothImagesFunctions } from '@/lib/test-database'
 import DentalTreatmentForm from './DentalTreatmentForm'
 import PaymentManagementSimple from './PaymentManagementSimple'
@@ -77,7 +85,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [showImagesDialog, setShowImagesDialog] = useState(false)
   const [showImageUploadDialog, setShowImageUploadDialog] = useState(false)
   const [activeTab, setActiveTab] = useState('treatments')
-  const [toothImages, setToothImages] = useState<any[]>([])
   
   // Multi-tooth functionality state
   const [isMultiToothMode, setIsMultiToothMode] = useState(false)
@@ -90,6 +97,27 @@ const ToothChart: React.FC<ToothChartProps> = ({
   // State for loading during API calls
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
+  
+  // Image loading states
+  const [imagesLoaded, setImagesLoaded] = useState(false)
+  const [toothImages, setToothImages] = useState<any[]>([])
+  
+  // Image form state for multi-tooth upload
+  const [imageForm, setImageForm] = useState({
+    image_type: '',
+    description: '',
+    file: null as File | null,
+    previewUrl: null as string | null,
+    compressionInfo: null as {
+      originalSize: number;
+      compressedSize: number;
+      compressionRatio: number;
+    } | null
+  })
+
+  // File input refs for multi-tooth image upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -253,6 +281,218 @@ const ToothChart: React.FC<ToothChartProps> = ({
     setPendingTreatmentAction('multi')
     setShowTreatmentConfirmDialog(true)
     setShowMultiToothDialog(false)
+  }
+
+  // Handle bulk image upload
+  const handleBulkImageUpload = async () => {
+    if (!imageForm.file || !imageForm.image_type) return
+    
+    // Show confirmation dialog first
+    setPendingTreatmentAction('multi')
+    setShowTreatmentConfirmDialog(true)
+    setShowMultiToothDialog(false)
+  }
+
+  // Handle file selection for multi-tooth image upload
+  const handleFileSelect = async (file: File) => {
+    // Validate file
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      toast({
+        title: "Invalid file",
+        description: validation.error,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setImageForm(prev => ({ ...prev, file }));
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImageForm(prev => ({ ...prev, previewUrl: e.target?.result as string }));
+    };
+    reader.readAsDataURL(file);
+
+    // Compress image
+    try {
+      const compressed = await compressImage(file);
+      setImageForm(prev => ({
+        ...prev,
+        compressionInfo: {
+          originalSize: compressed.originalSize,
+          compressedSize: compressed.compressedSize,
+          compressionRatio: compressed.compressionRatio,
+        },
+        file: compressed.file
+      }));
+    } catch (error) {
+      console.error('Compression failed:', error);
+      toast({
+        title: "Compression failed",
+        description: "Using original image",
+        variant: "destructive"
+      });
+    }
+  }
+
+  // Handle drag and drop for multi-tooth image upload
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  }
+
+  // Handle drag over for multi-tooth image upload
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  }
+
+  // Helper function to upload image to Cloudinary
+  const uploadImageToCloudinary = async (file: File, toothNumber: string) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    if (!cloudName) {
+      throw new Error('Cloudinary cloud name not configured');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'dental_clinic');
+    formData.append('folder', `dental-clinic/tooth-${toothNumber}`);
+    formData.append('tags', `${imageForm.image_type},tooth-${toothNumber},dental`);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+      bytes: file.size
+    };
+  }
+
+  // Helper function to delete image from Cloudinary
+  const deleteImageFromCloudinary = async (publicId: string) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    if (!cloudName) {
+      throw new Error('Cloudinary cloud name not configured');
+    }
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          public_id: publicId,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Delete failed: ${response.status}`);
+    }
+  }
+
+  // Handle bulk image upload after confirmation
+  const handleBulkImageUploadConfirmed = async () => {
+    if (!imageForm.file || !imageForm.image_type) return
+    
+    setIsProcessing(true)
+    setProcessingMessage(`Uploading image to ${selectedTeeth.length} teeth...`)
+    
+    let uploadResult: any = null
+    const createdRecords: any[] = []
+    
+    try {
+      // Step 1: Upload image once to Cloudinary
+      setProcessingMessage('Uploading image to Cloudinary...')
+      uploadResult = await uploadImageToCloudinary(imageForm.file, selectedTeeth[0])
+      
+      // Step 2: Create database records for all teeth
+      for (let i = 0; i < selectedTeeth.length; i++) {
+        const toothNumber = selectedTeeth[i]
+        setProcessingMessage(`Creating record for tooth ${toothNumber} (${i + 1}/${selectedTeeth.length})...`)
+        
+        const imageData = {
+          patient_id: patientId,
+          clinic_id: clinicId,
+          tooth_number: toothNumber,
+          cloudinary_url: uploadResult.url,
+          cloudinary_public_id: uploadResult.public_id,
+          image_type: imageForm.image_type,
+          description: imageForm.description || '',
+          file_size_bytes: uploadResult.bytes
+        }
+        
+        const record = await toothImageApi.create(imageData)
+        createdRecords.push(record)
+      }
+      
+      setProcessingMessage('Finalizing...')
+      
+      // Reset form and close dialog
+      setImageForm({
+        image_type: '',
+        description: '',
+        file: null,
+        previewUrl: null,
+        compressionInfo: null
+      })
+      setSelectedTeeth([])
+      setIsMultiToothMode(false)
+      setShowMultiToothDialog(false)
+      
+      // Refresh data
+      await loadToothData()
+      
+      setIsProcessing(false)
+      setProcessingMessage('')
+      toast.success(`Image uploaded to ${selectedTeeth.length} teeth successfully!`)
+      
+    } catch (error) {
+      console.error('Error in bulk image upload:', error)
+      
+      // Rollback: Delete all created database records
+      if (createdRecords.length > 0) {
+        setProcessingMessage('Rolling back changes...')
+        for (const record of createdRecords) {
+          try {
+            await toothImageApi.delete(record.id)
+          } catch (deleteError) {
+            console.error('Error deleting record during rollback:', deleteError)
+          }
+        }
+      }
+      
+      // Delete Cloudinary file if upload was successful but database failed
+      if (uploadResult && uploadResult.public_id) {
+        try {
+          await deleteImageFromCloudinary(uploadResult.public_id)
+        } catch (deleteError) {
+          console.error('Error deleting Cloudinary file during rollback:', deleteError)
+        }
+      }
+      
+      setIsProcessing(false)
+      setProcessingMessage('')
+      toast.error('Failed to upload image. All changes have been rolled back.')
+    }
   }
 
   // Handle bulk treatment after confirmation
@@ -520,7 +760,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const handleTreatmentConfirm = () => {
     setShowTreatmentConfirmDialog(false)
     if (pendingTreatmentAction === 'multi') {
-      handleBulkTreatmentConfirmed()
+      if (multiToothAction === 'treatment') {
+        handleBulkTreatmentConfirmed()
+      } else if (multiToothAction === 'image') {
+        handleBulkImageUploadConfirmed()
+      }
     }
     setPendingTreatmentAction(null)
   }
@@ -1001,7 +1245,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 Confirm Treatment Addition
               </DialogTitle>
                              <DialogDescription>
-                 Adding treatment to {selectedTeeth.length} teeth. This will take some time to process all teeth.
+                 {multiToothAction === 'treatment' 
+                   ? `Adding treatment to ${selectedTeeth.length} teeth. This will take some time to process all teeth.`
+                   : `Uploading image to ${selectedTeeth.length} teeth. This will take some time to process all teeth.`
+                 }
                </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -1825,13 +2072,168 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   <p className="text-sm text-purple-600">{selectedTeeth.sort((a, b) => parseInt(a) - parseInt(b)).join(', ')}</p>
                 </div>
                 
-                <p className="text-sm text-gray-600">
-                  Multi-tooth image upload will be implemented in the next phase. For now, please upload images individually.
-                </p>
-                
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => setShowMultiToothDialog(false)}>
-                    Close
+                {/* Image Upload Form */}
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="image_type">Image Type *</Label>
+                    <Select value={imageForm.image_type} onValueChange={(value) => setImageForm(prev => ({ ...prev, image_type: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select image type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="xray">X-Ray</SelectItem>
+                        <SelectItem value="photo">Photo</SelectItem>
+                        <SelectItem value="scan">3D Scan</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="image_description">Description</Label>
+                    <Textarea
+                      id="image_description"
+                      placeholder="Describe the image..."
+                      value={imageForm.description}
+                      onChange={(e) => setImageForm(prev => ({ ...prev, description: e.target.value }))}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Image Upload Area */}
+                  <div>
+                    <Label>Select Image *</Label>
+                    
+                    {/* Drag & Drop Area */}
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                        imageForm.file 
+                          ? 'border-green-500 bg-green-50' 
+                          : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                      }`}
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                    >
+                      {imageForm.previewUrl ? (
+                        <div className="space-y-4">
+                          <img 
+                            src={imageForm.previewUrl} 
+                            alt="Preview" 
+                            className="max-w-full h-32 object-contain mx-auto rounded"
+                          />
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-green-600">
+                              ✓ {imageForm.file?.name}
+                            </p>
+                            {imageForm.compressionInfo && (
+                              <div className="text-xs text-gray-600 space-y-1">
+                                <p>Original: {formatFileSize(imageForm.compressionInfo.originalSize)}</p>
+                                <p>Compressed: {formatFileSize(imageForm.compressionInfo.compressedSize)}</p>
+                                <p>Saved: {imageForm.compressionInfo.compressionRatio.toFixed(1)}%</p>
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setImageForm(prev => ({
+                                ...prev,
+                                file: null,
+                                previewUrl: null,
+                                compressionInfo: null
+                              }))
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Remove
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex justify-center">
+                            <Upload className="h-12 w-12 text-gray-400" />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-700">
+                              Drag & drop an image here, or click to browse
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Supports JPG, PNG, GIF up to 10MB
+                            </p>
+                          </div>
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <FileImage className="h-4 w-4 mr-1" />
+                              Browse Files
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => cameraInputRef.current?.click()}
+                            >
+                              <Camera className="h-4 w-4 mr-1" />
+                              Take Photo
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Hidden file inputs */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          handleFileSelect(file)
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          handleFileSelect(file)
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded">
+                    <div className="font-medium mb-2">Upload Summary:</div>
+                    <div>• Image will be uploaded once to Cloudinary</div>
+                    <div>• Same image will be linked to all {selectedTeeth.length} teeth</div>
+                    <div>• Efficient storage: one file, multiple references</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6">
+                  <Button variant="outline" onClick={() => setShowMultiToothDialog(false)} className="w-full sm:w-auto">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleBulkImageUpload} 
+                    disabled={!imageForm.image_type || !imageForm.file} 
+                    className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700"
+                  >
+                    Upload to {selectedTeeth.length} Tooth{selectedTeeth.length !== 1 ? 's' : ''}
                   </Button>
                 </div>
               </div>
