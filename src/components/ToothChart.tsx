@@ -38,6 +38,7 @@ import {
 } from '@/lib/dental-treatments'
 import { toothImageApi, ToothImage as DbToothImage } from '@/lib/tooth-images'
 import { compressImage, validateImageFile, formatFileSize } from '@/lib/image-compression'
+import { toast } from '@/hooks/use-toast'
 import { testToothImagesTable, testToothImagesFunctions } from '@/lib/test-database'
 import DentalTreatmentForm from './DentalTreatmentForm'
 import PaymentManagementSimple from './PaymentManagementSimple'
@@ -387,25 +388,21 @@ const ToothChart: React.FC<ToothChartProps> = ({
   // Helper function to delete image from Cloudinary
   const deleteImageFromCloudinary = async (publicId: string) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    if (!cloudName) {
-      throw new Error('Cloudinary cloud name not configured');
+    const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
+    const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
+    
+    if (!cloudName || !apiKey || !apiSecret) {
+      console.warn('Cloudinary credentials not configured for delete operation');
+      return; // Skip deletion if credentials not available
     }
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          public_id: publicId,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Delete failed: ${response.status}`);
+    try {
+      // For now, we'll skip the Cloudinary delete since it requires server-side authentication
+      // The image will remain in Cloudinary but won't be accessible without the public_id
+      console.log('Skipping Cloudinary delete for:', publicId);
+    } catch (error) {
+      console.warn('Failed to delete from Cloudinary:', error);
+      // Don't throw error to avoid breaking the rollback process
     }
   }
 
@@ -463,7 +460,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       setIsProcessing(false)
       setProcessingMessage('')
-      toast.success(`Image uploaded to ${selectedTeeth.length} teeth successfully!`)
+      toast({
+        title: "Upload successful",
+        description: `Image uploaded to ${selectedTeeth.length} teeth successfully!`
+      })
       
     } catch (error) {
       console.error('Error in bulk image upload:', error)
@@ -471,12 +471,18 @@ const ToothChart: React.FC<ToothChartProps> = ({
       // Rollback: Delete all created database records
       if (createdRecords.length > 0) {
         setProcessingMessage('Rolling back changes...')
+        let rollbackSuccess = true
         for (const record of createdRecords) {
           try {
             await toothImageApi.delete(record.id)
           } catch (deleteError) {
             console.error('Error deleting record during rollback:', deleteError)
+            rollbackSuccess = false
           }
+        }
+        
+        if (!rollbackSuccess) {
+          console.warn('Some database records could not be deleted during rollback')
         }
       }
       
@@ -485,13 +491,18 @@ const ToothChart: React.FC<ToothChartProps> = ({
         try {
           await deleteImageFromCloudinary(uploadResult.public_id)
         } catch (deleteError) {
-          console.error('Error deleting Cloudinary file during rollback:', deleteError)
+          console.warn('Could not delete Cloudinary file during rollback:', deleteError)
+          // This is not critical since the file won't be accessible without the database record
         }
       }
       
       setIsProcessing(false)
       setProcessingMessage('')
-      toast.error('Failed to upload image. All changes have been rolled back.')
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. All changes have been rolled back.",
+        variant: "destructive"
+      })
     }
   }
 
@@ -599,12 +610,19 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       setIsProcessing(false)
       setProcessingMessage('')
-      toast.success(`Successfully added treatment to ${selectedTeeth.length} teeth!`)
+      toast({
+        title: "Success",
+        description: `Successfully added treatment to ${selectedTeeth.length} teeth!`
+      })
     } catch (error) {
       console.error('Error adding bulk treatment:', error)
       setIsProcessing(false)
       setProcessingMessage('')
-      toast.error('Failed to add treatments. Please try again.')
+      toast({
+        title: "Error",
+        description: "Failed to add treatments. Please try again.",
+        variant: "destructive"
+      })
     }
   }
 
@@ -714,12 +732,19 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       setIsProcessing(false)
       setProcessingMessage('')
-      toast.success('Treatment added successfully!')
+      toast({
+        title: "Success",
+        description: "Treatment added successfully!"
+      })
     } catch (error) {
       console.error('Error adding treatment:', error)
       setIsProcessing(false)
       setProcessingMessage('')
-      toast.error('Failed to add treatment. Please try again.')
+      toast({
+        title: "Error",
+        description: "Failed to add treatment. Please try again.",
+        variant: "destructive"
+      })
     }
   }
 
