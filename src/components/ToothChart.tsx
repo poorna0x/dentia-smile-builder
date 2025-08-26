@@ -430,11 +430,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
         }
       })
     } else {
-      // Single tooth mode - show confirmation dialog
+      // Single tooth mode - directly open treatment dialog
       setSelectedTooth(tooth)
       setSelectedPaymentTreatment(null) // Reset payment treatment selection
-      setPendingTreatmentAction('single')
-      setShowTreatmentConfirmDialog(true)
+      setShowTreatmentDialog(true)
       // Reset images loaded state for new tooth
       setImagesLoaded(false)
       setToothImages([])
@@ -523,12 +522,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
     }
   }
 
-  // Handle treatment confirmation
+  // Handle treatment confirmation (only for multi-tooth)
   const handleTreatmentConfirm = () => {
     setShowTreatmentConfirmDialog(false)
-    if (pendingTreatmentAction === 'single') {
-      setShowTreatmentDialog(true)
-    } else if (pendingTreatmentAction === 'multi') {
+    if (pendingTreatmentAction === 'multi') {
       handleBulkTreatmentConfirmed()
     }
     setPendingTreatmentAction(null)
@@ -1009,12 +1006,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 Confirm Treatment Addition
               </DialogTitle>
-              <DialogDescription>
-                {pendingTreatmentAction === 'single' 
-                  ? `Adding treatment to tooth ${selectedTooth?.number}. This may take a few seconds to process.`
-                  : `Adding treatment to ${selectedTeeth.length} teeth. This will take some time to process all teeth.`
-                }
-              </DialogDescription>
+                             <DialogDescription>
+                 Adding treatment to {selectedTeeth.length} teeth. This will take some time to process all teeth.
+               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
