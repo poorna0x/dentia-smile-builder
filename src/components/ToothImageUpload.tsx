@@ -198,7 +198,7 @@ export default function ToothImageUpload({
   };
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card className="w-full max-w-lg mx-auto">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">

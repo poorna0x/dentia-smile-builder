@@ -1176,7 +1176,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
         {/* Image Upload Dialog */}
         <Dialog open={showImageUploadDialog} onOpenChange={setShowImageUploadDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Upload Image for Tooth {selectedTooth?.number}</DialogTitle>
               <DialogDescription>
