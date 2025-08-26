@@ -84,6 +84,7 @@ export interface SchedulingSettings {
   disable_until_time?: string
   disabled_slots: string[]
   show_stats_cards?: boolean
+  minimum_advance_notice?: number
   notification_settings: NotificationSettings
   created_at: string
   updated_at: string

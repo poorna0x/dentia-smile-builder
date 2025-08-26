@@ -83,6 +83,7 @@ interface SchedulingSettings {
   weeklyHolidays: string[];
   customHolidays: string[];
   showStatsCards: boolean;
+  minimumAdvanceNotice: number; // Hours in advance required for booking
   daySchedules: {
     [key: string]: DaySchedule;
   };
@@ -196,6 +197,7 @@ const Admin = () => {
     weeklyHolidays: [],
     customHolidays: [],
     showStatsCards: true,
+    minimumAdvanceNotice: 24, // Default: 24 hours advance notice
     daySchedules: {
       Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
       Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -263,6 +265,7 @@ const Admin = () => {
         }),
         customHolidays: settings.custom_holidays || [],
         showStatsCards: settings.show_stats_cards !== false, // Default to true if not set
+        minimumAdvanceNotice: settings.minimum_advance_notice || 24, // Default: 24 hours
         daySchedules: {
           Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
           Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -1331,6 +1334,7 @@ Jeshna Dental Clinic Team`;
             disabled_appointments: settingsToSave.appointmentsDisabled,
             disabled_slots: [],
             show_stats_cards: settingsToSave.showStatsCards,
+            minimum_advance_notice: settingsToSave.minimumAdvanceNotice,
             day_schedules: daySchedules,
             notification_settings: {
               email_notifications: true,
@@ -1398,6 +1402,8 @@ Jeshna Dental Clinic Team`;
           custom_holidays: (schedulingSettings.customHolidays || []).map(date => new Date(date).toISOString().split('T')[0]),
           disabled_appointments: schedulingSettings.appointmentsDisabled,
           disabled_slots: [],
+          show_stats_cards: schedulingSettings.showStatsCards,
+          minimum_advance_notice: schedulingSettings.minimumAdvanceNotice,
           day_schedules: daySchedules,
           notification_settings: {
             email_notifications: true,
@@ -2282,6 +2288,48 @@ Jeshna Dental Clinic Team`;
                         className="border-2 border-gray-300"
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* Minimum Advance Notice */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-medium">Minimum Advance Notice</Label>
+                    <p className="text-sm text-gray-600">How many hours in advance patients must book appointments</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="168"
+                        step="1"
+                        value={schedulingSettings.minimumAdvanceNotice}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          const updatedSettings = {
+                            ...schedulingSettings,
+                            minimumAdvanceNotice: value
+                          };
+                          setSchedulingSettings(updatedSettings);
+                          debouncedAutoSave(updatedSettings);
+                        }}
+                        className="w-full"
+                        placeholder="24"
+                      />
+                    </div>
+                    <div className="text-sm text-gray-500 whitespace-nowrap">
+                      hours
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {schedulingSettings.minimumAdvanceNotice === 0 ? (
+                      "Patients can book appointments immediately"
+                    ) : schedulingSettings.minimumAdvanceNotice < 24 ? (
+                      `Patients must book at least ${schedulingSettings.minimumAdvanceNotice} hour${schedulingSettings.minimumAdvanceNotice === 1 ? '' : 's'} in advance`
+                    ) : (
+                      `Patients must book at least ${Math.floor(schedulingSettings.minimumAdvanceNotice / 24)} day${Math.floor(schedulingSettings.minimumAdvanceNotice / 24) === 1 ? '' : 's'} and ${schedulingSettings.minimumAdvanceNotice % 24} hour${schedulingSettings.minimumAdvanceNotice % 24 === 1 ? '' : 's'} in advance`
+                    )}
                   </div>
                 </div>
 
