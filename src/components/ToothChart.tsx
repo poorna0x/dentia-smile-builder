@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,10 +26,15 @@ import {
   dentalTreatmentApi,
   toothConditionApi
 } from '@/lib/dental-treatments'
+import { toothImageApi, ToothImage as DbToothImage } from '@/lib/tooth-images'
+import { testToothImagesTable, testToothImagesFunctions } from '@/lib/test-database'
 import DentalTreatmentForm from './DentalTreatmentForm'
 import PaymentManagementSimple from './PaymentManagementSimple'
 import PaymentTreatmentSelector from './PaymentTreatmentSelector'
 import EnhancedPaymentManagement from './EnhancedPaymentManagement'
+import ToothImageUpload from './ToothImageUpload'
+import ToothImageGallery from './ToothImageGallery'
+import { ToothImage } from './ToothImageUpload'
 
 interface ToothChartProps {
   patientId: string
@@ -44,6 +49,7 @@ interface ToothData {
   name: string
   condition?: any
   treatments: any[]
+  images: ToothImage[]
   isSelected: boolean
 }
 
@@ -65,6 +71,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
   const [treatmentToDelete, setTreatmentToDelete] = useState<DentalTreatment | null>(null)
   const [selectedPaymentTreatment, setSelectedPaymentTreatment] = useState<DentalTreatment | null>(null)
+  const [showImagesDialog, setShowImagesDialog] = useState(false)
+  const [showImageUploadDialog, setShowImageUploadDialog] = useState(false)
   
   // Treatment form state
   const [treatmentForm, setTreatmentForm] = useState({
@@ -99,13 +107,21 @@ const ToothChart: React.FC<ToothChartProps> = ({
       }
       
       // Load real data from database
-      const [treatments, conditions] = await Promise.all([
+      const [treatments, conditions, images] = await Promise.all([
         dentalTreatmentApi.getByPatient(patientId, clinicId),
-        toothConditionApi.getByPatient(patientId, clinicId)
+        toothConditionApi.getByPatient(patientId, clinicId),
+        toothImageApi.getByPatient(patientId, clinicId)
       ])
-      
-      // Create tooth data with real data
-      const teethData: ToothData[] = allTeeth.map(toothNumber => {
+
+      console.log('Loaded data from database:', {
+        treatments: treatments.length,
+        conditions: conditions.length,
+        images: images.length,
+        imagesData: images
+      })
+
+      // Debug: Check if images are being assigned to teeth correctly
+      const teethWithImages = allTeeth.map(toothNumber => {
         const num = parseInt(toothNumber)
         let position = 'Unknown'
         if (num >= 1 && num <= 8) position = 'Upper Right'
@@ -118,9 +134,25 @@ const ToothChart: React.FC<ToothChartProps> = ({
         const quadrant = Math.ceil(num / 8)
         const name = `${positionName} (Quadrant ${quadrant})`
 
-        // Get treatments and condition for this tooth
+        // Get treatments, condition, and images for this tooth
         const toothTreatments = treatments.filter(t => t.tooth_number === toothNumber)
         const toothCondition = conditions.find(c => c.tooth_number === toothNumber)
+        const toothImages = images.filter(img => img.tooth_number === toothNumber)
+
+        if (toothImages.length > 0) {
+          console.log(`Tooth ${toothNumber} has ${toothImages.length} images:`, toothImages)
+        }
+
+        // Convert database images to component format
+        const componentImages = toothImages.map(dbImage => ({
+          id: dbImage.id,
+          url: dbImage.cloudinary_url, // Map cloudinary_url to url
+          type: dbImage.image_type,
+          description: dbImage.description || '',
+          uploaded_at: dbImage.uploaded_at,
+          size: dbImage.file_size_bytes,
+          public_id: dbImage.cloudinary_public_id
+        }))
 
         return {
           number: toothNumber,
@@ -128,11 +160,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
           name,
           condition: toothCondition || null,
           treatments: toothTreatments,
+          images: componentImages,
           isSelected: false
         }
       })
 
-      setTeeth(teethData)
+      setTeeth(teethWithImages)
     } catch (error) {
       console.error('Error loading tooth data:', error)
     } finally {
@@ -290,6 +323,117 @@ const ToothChart: React.FC<ToothChartProps> = ({
     onTreatmentAdded?.()
   }
 
+  // Handle image upload
+  const handleImageUpload = async (image: ToothImage) => {
+    if (!selectedTooth) return
+    
+    try {
+      console.log('Starting image upload to database...', {
+        clinic_id: clinicId,
+        patient_id: patientId,
+        tooth_number: selectedTooth.number,
+        image_type: image.type,
+        description: image.description,
+        cloudinary_url: image.url,
+        cloudinary_public_id: image.public_id,
+        file_size_bytes: image.size
+      })
+
+      // Save to database
+      const dbImage = await toothImageApi.create({
+        clinic_id: clinicId,
+        patient_id: patientId,
+        tooth_number: selectedTooth.number,
+        image_type: image.type,
+        description: image.description || '',
+        cloudinary_url: image.url,
+        cloudinary_public_id: image.public_id,
+        file_size_bytes: image.size
+      })
+
+      console.log('Database save successful:', dbImage)
+
+      // Convert database image to component format
+      const componentImage: ToothImage = {
+        id: dbImage.id,
+        url: dbImage.cloudinary_url,
+        type: dbImage.image_type,
+        description: dbImage.description,
+        uploaded_at: dbImage.uploaded_at,
+        size: dbImage.file_size_bytes,
+        public_id: dbImage.cloudinary_public_id
+      }
+
+      // Update the tooth data with the new image
+      const updatedTeeth = teeth.map(tooth => {
+        if (tooth.number === selectedTooth.number) {
+          return {
+            ...tooth,
+            images: [...(tooth.images || []), componentImage]
+          }
+        }
+        return tooth
+      })
+      
+      setTeeth(updatedTeeth)
+      
+      // Update selected tooth
+      setSelectedTooth(prev => prev ? {
+        ...prev,
+        images: [...(prev.images || []), componentImage]
+      } : null)
+      
+      console.log('Image uploaded and saved to database:', componentImage)
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      // Show error to user
+      toast({
+        title: "Database Error",
+        description: "Image uploaded to Cloudinary but failed to save to database. Please try again.",
+        variant: "destructive"
+      })
+      throw error
+    }
+  }
+
+  // Handle image delete
+  const handleDeleteImage = async (imageId: string) => {
+    if (!selectedTooth) return
+    
+    try {
+      // Delete from database
+      const success = await toothImageApi.delete(imageId, clinicId)
+      
+      if (!success) {
+        throw new Error('Failed to delete image from database')
+      }
+
+      // Update the tooth data by removing the image
+      const updatedTeeth = teeth.map(tooth => {
+        if (tooth.number === selectedTooth.number) {
+          return {
+            ...tooth,
+            images: (tooth.images || []).filter(img => img.id !== imageId)
+          }
+        }
+        return tooth
+      })
+      
+      setTeeth(updatedTeeth)
+      
+      // Update selected tooth
+      setSelectedTooth(prev => prev ? {
+        ...prev,
+        images: (prev.images || []).filter(img => img.id !== imageId)
+      } : null)
+      
+      console.log('Image deleted from database:', imageId)
+    } catch (error) {
+      console.error('Error deleting image:', error)
+      throw error
+    }
+  }
+
   if (loading) {
     return (
       <Card>
@@ -344,6 +488,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
                         {tooth.treatments.length}
                       </div>
                     )}
+                    {tooth.images && tooth.images.length > 0 && (
+                      <div className="text-xs text-purple-600 mt-1 bg-purple-100 px-1 rounded">
+                        📷 {tooth.images.length}
+                      </div>
+                    )}
                   </div>
                 ))}
               
@@ -368,6 +517,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
                     {tooth.treatments.length > 0 && (
                       <div className="text-xs text-blue-600 mt-1">
                         {tooth.treatments.length}
+                      </div>
+                    )}
+                    {tooth.images && tooth.images.length > 0 && (
+                      <div className="text-xs text-purple-600 mt-1 bg-purple-100 px-1 rounded">
+                        📷 {tooth.images.length}
                       </div>
                     )}
                   </div>
@@ -402,6 +556,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
                         {tooth.treatments.length}
                       </div>
                     )}
+                    {tooth.images && tooth.images.length > 0 && (
+                      <div className="text-xs text-purple-600 mt-1 bg-purple-100 px-1 rounded">
+                        📷 {tooth.images.length}
+                      </div>
+                    )}
                   </div>
                 ))}
               
@@ -426,6 +585,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
                     {tooth.treatments.length > 0 && (
                       <div className="text-xs text-blue-600 mt-1">
                         {tooth.treatments.length}
+                      </div>
+                    )}
+                    {tooth.images && tooth.images.length > 0 && (
+                      <div className="text-xs text-purple-600 mt-1 bg-purple-100 px-1 rounded">
+                        📷 {tooth.images.length}
                       </div>
                     )}
                   </div>
@@ -533,7 +697,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   <TabsTrigger value="treatments" className="text-xs sm:text-sm">Treatments</TabsTrigger>
                   <TabsTrigger value="condition" className="text-xs sm:text-sm">Condition</TabsTrigger>
                   <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
-                  <TabsTrigger value="details" className="text-xs sm:text-sm">Details</TabsTrigger>
+                  <TabsTrigger value="images" className="text-xs sm:text-sm">Images</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="treatments" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
@@ -684,62 +848,14 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   )}
                 </TabsContent>
 
-                <TabsContent value="details" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
+                <TabsContent value="images" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   <div className="pt-4">
-                    <h3 className="text-lg font-semibold">Tooth Information</h3>
-                  <Card className="flex-1">
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-gray-600">Number:</span>
-                              <span className="font-medium">{selectedTooth.number}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-gray-600">Position:</span>
-                              <span className="font-medium">{selectedTooth.position}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-gray-600">Total Treatments:</span>
-                              <span className="font-medium">{selectedTooth.treatments.length}</span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-gray-600">Name:</span>
-                              <span className="font-medium text-right">{selectedTooth.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="font-semibold text-gray-600">Current Condition:</span>
-                              <span className="font-medium text-right">{selectedTooth.condition?.condition_type || 'Not recorded'}</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Additional spacing to match other tabs */}
-                        <div className="pt-8">
-                          <div className="border-t border-gray-200 pt-4">
-                            <h4 className="font-medium text-gray-700 mb-3">Tooth Summary</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                <div className="text-lg font-bold text-blue-600">{selectedTooth.number}</div>
-                                <div className="text-xs text-gray-600">Tooth Number</div>
-                              </div>
-                              <div className="text-center p-3 bg-green-50 rounded-lg">
-                                <div className="text-lg font-bold text-green-600">{selectedTooth.treatments.length}</div>
-                                <div className="text-xs text-gray-600">Total Treatments</div>
-                              </div>
-                              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                                <div className="text-lg font-bold text-purple-600">{selectedTooth.condition ? 'Yes' : 'No'}</div>
-                                <div className="text-xs text-gray-600">Has Condition</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    <ToothImageGallery
+                      toothNumber={selectedTooth.number}
+                      images={selectedTooth.images || []}
+                      onImageDelete={handleDeleteImage}
+                      onAddImage={() => setShowImageUploadDialog(true)}
+                    />
                   </div>
                 </TabsContent>
               </Tabs>
@@ -752,6 +868,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
             <DialogHeader>
               <DialogTitle>Add Treatment - Tooth {selectedTooth?.number}</DialogTitle>
+              <DialogDescription>
+                Add a new treatment record for this tooth. Fill in the details below.
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
@@ -891,6 +1010,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
             <DialogHeader>
               <DialogTitle>Update Condition - Tooth {selectedTooth?.number}</DialogTitle>
+              <DialogDescription>
+                Update the current condition of this tooth. This will replace any existing condition.
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
@@ -997,6 +1119,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
             <DialogHeader>
               <DialogTitle>Edit Treatment - Tooth {selectedTooth?.number}</DialogTitle>
+              <DialogDescription>
+                Edit the details of this treatment record.
+              </DialogDescription>
             </DialogHeader>
             
             {editingTreatment && (
@@ -1017,6 +1142,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Delete Treatment</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. The treatment will be permanently deleted.
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
@@ -1043,6 +1171,23 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 Delete Treatment
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Image Upload Dialog */}
+        <Dialog open={showImageUploadDialog} onOpenChange={setShowImageUploadDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Upload Image for Tooth {selectedTooth?.number}</DialogTitle>
+              <DialogDescription>
+                Upload X-rays, photos, or 3D scans for this specific tooth. Images will be automatically compressed for optimal storage.
+              </DialogDescription>
+            </DialogHeader>
+            <ToothImageUpload
+              toothNumber={selectedTooth?.number || ''}
+              onImageUpload={handleImageUpload}
+              onClose={() => setShowImageUploadDialog(false)}
+            />
           </DialogContent>
         </Dialog>
       </CardContent>
