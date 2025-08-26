@@ -46,6 +46,16 @@ export interface Clinic {
   updated_at: string
 }
 
+export interface Dentist {
+  id: string
+  clinic_id: string
+  name: string
+  specialization?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Appointment {
   id: string
   clinic_id: string
@@ -58,6 +68,7 @@ export interface Appointment {
   original_date?: string
   original_time?: string
   patient_id?: string
+  dentist_id?: string
   created_at: string
   updated_at: string
 }
@@ -73,6 +84,7 @@ export interface SchedulingSettings {
   disable_until_time?: string
   disabled_slots: string[]
   show_stats_cards?: boolean
+  minimum_advance_notice?: number
   notification_settings: NotificationSettings
   created_at: string
   updated_at: string
@@ -428,6 +440,97 @@ export const subscribeToDisabledSlots = (callback: (payload: any) => void) => {
     .channel('disabled_slots_changes')
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'disabled_slots' }, 
+      callback
+    )
+    .subscribe()
+}
+
+// Dentists API
+export const dentistsApi = {
+  // Get all dentists for a clinic
+  async getAll(clinicId: string) {
+    const { data, error } = await supabase
+      .from('dentists')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .eq('is_active', true)
+      .order('name', { ascending: true })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get a single dentist
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('dentists')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Create a new dentist
+  async create(dentist: Omit<Dentist, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('dentists')
+      .insert([dentist])
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Update a dentist
+  async update(id: string, updates: Partial<Dentist>) {
+    const { data, error } = await supabase
+      .from('dentists')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Delete a dentist (soft delete by setting is_active to false)
+  async delete(id: string) {
+    const { data, error } = await supabase
+      .from('dentists')
+      .update({ is_active: false })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get dentist performance statistics
+  async getPerformance(clinicId: string, startDate?: string, endDate?: string) {
+    let query = supabase
+      .rpc('get_dentist_performance', {
+        clinic_uuid: clinicId,
+        start_date: startDate,
+        end_date: endDate
+      })
+    
+    const { data, error } = await query
+    
+    if (error) throw error
+    return data
+  }
+}
+
+export const subscribeToDentists = (callback: (payload: any) => void) => {
+  return supabase
+    .channel('dentists_changes')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'dentists' }, 
       callback
     )
     .subscribe()

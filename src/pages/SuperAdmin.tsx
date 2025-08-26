@@ -7,6 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Shield, 
   Lock, 
@@ -22,13 +24,16 @@ import {
   Database,
   Activity,
   Globe,
-  Loader2
+  Loader2,
+  Plus,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { featureToggleEvents } from '@/lib/feature-toggle-events';
 import DatabaseExport from '@/components/DatabaseExport';
 import { getNotificationSettings } from '@/lib/whatsapp';
+import { dentistsApi, type Dentist } from '@/lib/supabase';
 
 interface SuperAdminState {
   isAuthenticated: boolean;
@@ -59,6 +64,16 @@ interface SuperAdminState {
     realtimeActive: boolean;
     emailServiceActive: boolean;
     lastBackup: string | null;
+  };
+  dentistManagement: {
+    clinics: Array<{ id: string; name: string; slug: string }>;
+    selectedClinicId: string | null;
+    dentists: Dentist[];
+    showAddDentistDialog: boolean;
+    newDentist: {
+      name: string;
+      specialization: string;
+    };
   };
 }
 
@@ -92,6 +107,16 @@ const SuperAdmin: React.FC = () => {
       realtimeActive: false,
       emailServiceActive: false,
       lastBackup: null,
+    },
+    dentistManagement: {
+      clinics: [],
+      selectedClinicId: null,
+      dentists: [],
+      showAddDentistDialog: false,
+      newDentist: {
+        name: '',
+        specialization: ''
+      }
     }
   });
 
@@ -105,6 +130,7 @@ const SuperAdmin: React.FC = () => {
       loadSystemStatus();
       loadFeatureToggles();
       loadNotificationSettings();
+      loadClinics();
     }
   }, [state.isAuthenticated]);
 
@@ -442,6 +468,112 @@ const SuperAdmin: React.FC = () => {
       console.error('Status check error:', error);
     } finally {
       setState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  // Dentist Management Functions
+  const loadClinics = async () => {
+    try {
+      console.log('🔄 Loading clinics...');
+      const { data, error } = await supabase
+        .from('clinics')
+        .select('id, name, slug')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('❌ Error loading clinics:', error);
+        throw error;
+      }
+
+      console.log('✅ Clinics loaded:', data);
+      
+      setState(prev => ({
+        ...prev,
+        dentistManagement: {
+          ...prev.dentistManagement,
+          clinics: data || []
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to load clinics:', error);
+      toast.error('Failed to load clinics');
+    }
+  };
+
+  const loadDentists = async (clinicId: string) => {
+    try {
+      console.log('🔄 Loading dentists for clinic:', clinicId);
+      const dentists = await dentistsApi.getAll(clinicId);
+      console.log('✅ Dentists loaded:', dentists);
+      
+      setState(prev => ({
+        ...prev,
+        dentistManagement: {
+          ...prev.dentistManagement,
+          dentists,
+          selectedClinicId: clinicId
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to load dentists:', error);
+      toast.error('Failed to load dentists');
+    }
+  };
+
+  const handleAddDentist = async () => {
+    try {
+      const { selectedClinicId, newDentist } = state.dentistManagement;
+      
+      if (!selectedClinicId) {
+        toast.error('Please select a clinic first');
+        return;
+      }
+
+      if (!newDentist.name.trim()) {
+        toast.error('Dentist name is required');
+        return;
+      }
+
+      const dentist = await dentistsApi.create({
+        clinic_id: selectedClinicId,
+        name: newDentist.name.trim(),
+        specialization: newDentist.specialization.trim() || 'General Dentistry',
+        is_active: true
+      });
+
+      toast.success(`Dentist ${dentist.name} added successfully`);
+      
+      // Reload dentists list
+      await loadDentists(selectedClinicId);
+      
+      // Reset form
+      setState(prev => ({
+        ...prev,
+        dentistManagement: {
+          ...prev.dentistManagement,
+          showAddDentistDialog: false,
+          newDentist: { name: '', specialization: '' }
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to add dentist:', error);
+      toast.error('Failed to add dentist');
+    }
+  };
+
+  const handleDeleteDentist = async (dentistId: string) => {
+    try {
+      await dentistsApi.delete(dentistId);
+      toast.success('Dentist deleted successfully');
+      
+      // Reload dentists list
+      if (state.dentistManagement.selectedClinicId) {
+        await loadDentists(state.dentistManagement.selectedClinicId);
+      }
+    } catch (error) {
+      console.error('Failed to delete dentist:', error);
+      toast.error('Failed to delete dentist');
     }
   };
 
@@ -994,6 +1126,224 @@ const SuperAdmin: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Dentist Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Dentist Management
+            </CardTitle>
+            <CardDescription>
+              Manage dentists for each clinic. Add, remove, and configure dentist profiles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Clinic Selection */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Select Clinic</h3>
+                <div className="flex items-center gap-4">
+                  <Select
+                    value={state.dentistManagement.selectedClinicId || ''}
+                    onValueChange={(clinicId) => {
+                      if (clinicId) {
+                        loadDentists(clinicId);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-64">
+                      <SelectValue placeholder="Select a clinic to manage dentists" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {state.dentistManagement.clinics.length === 0 ? (
+                        <SelectItem value="" disabled>
+                          No clinics available
+                        </SelectItem>
+                      ) : (
+                        state.dentistManagement.clinics.map((clinic) => (
+                          <SelectItem key={clinic.id} value={clinic.id}>
+                            {clinic.name} ({clinic.slug})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      dentistManagement: {
+                        ...prev.dentistManagement,
+                        showAddDentistDialog: true
+                      }
+                    }))}
+                    disabled={!state.dentistManagement.selectedClinicId}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Dentist
+                  </Button>
+                </div>
+                
+                {/* Debug Info */}
+                <div className="text-xs text-gray-500">
+                  Available clinics: {state.dentistManagement.clinics.length} | 
+                  Selected clinic: {state.dentistManagement.selectedClinicId ? 'Yes' : 'No'} | 
+                  Dentists loaded: {state.dentistManagement.dentists.length}
+                </div>
+              </div>
+
+              {/* Dentists List */}
+              {state.dentistManagement.selectedClinicId && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">Dentists</h3>
+                    <Badge variant="outline">
+                      {state.dentistManagement.dentists.length} dentist(s)
+                    </Badge>
+                  </div>
+                  
+                  {state.dentistManagement.dentists.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p className="font-medium">No dentists found for this clinic</p>
+                      <p className="text-sm mt-1">Click "Add Dentist" to get started</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {state.dentistManagement.dentists.map((dentist) => (
+                        <div
+                          key={dentist.id}
+                          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                        >
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{dentist.name}</h4>
+                            <p className="text-sm text-gray-600">
+                              {dentist.specialization || 'General Dentistry'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant={dentist.is_active ? "default" : "secondary"}>
+                                {dentist.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                              <span className="text-xs text-gray-400">
+                                ID: {dentist.id.slice(0, 8)}...
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteDentist(dentist.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Add Dentist Dialog */}
+        <Dialog 
+          open={state.dentistManagement.showAddDentistDialog} 
+          onOpenChange={(open) => setState(prev => ({
+            ...prev,
+            dentistManagement: {
+              ...prev.dentistManagement,
+              showAddDentistDialog: open
+            }
+          }))}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Add New Dentist
+              </DialogTitle>
+              <DialogDescription>
+                Add a new dentist to the selected clinic. The dentist will be available for appointment assignments.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="dentist-name" className="font-medium">Dentist Name *</Label>
+                <Input
+                  id="dentist-name"
+                  placeholder="Dr. John Smith"
+                  value={state.dentistManagement.newDentist.name}
+                  onChange={(e) => setState(prev => ({
+                    ...prev,
+                    dentistManagement: {
+                      ...prev.dentistManagement,
+                      newDentist: {
+                        ...prev.dentistManagement.newDentist,
+                        name: e.target.value
+                      }
+                    }
+                  }))}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
+                  Enter the full name of the dentist
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dentist-specialization" className="font-medium">Specialization</Label>
+                <Input
+                  id="dentist-specialization"
+                  placeholder="General Dentistry, Orthodontics, etc."
+                  value={state.dentistManagement.newDentist.specialization}
+                  onChange={(e) => setState(prev => ({
+                    ...prev,
+                    dentistManagement: {
+                      ...prev.dentistManagement,
+                      newDentist: {
+                        ...prev.dentistManagement.newDentist,
+                        specialization: e.target.value
+                      }
+                    }
+                  }))}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
+                  Optional: Enter the dentist's specialization or area of expertise
+                </p>
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setState(prev => ({
+                  ...prev,
+                  dentistManagement: {
+                    ...prev.dentistManagement,
+                    showAddDentistDialog: false,
+                    newDentist: { name: '', specialization: '' }
+                  }
+                }))}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddDentist}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={!state.dentistManagement.newDentist.name.trim()}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Dentist
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Database Export */}
         <DatabaseExport />
