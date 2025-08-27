@@ -181,6 +181,10 @@ const Admin = () => {
   const [dentists, setDentists] = useState<Dentist[]>([]);
   const [selectedDentistId, setSelectedDentistId] = useState<string>('');
   const [isLoadingDentists, setIsLoadingDentists] = useState(false);
+
+  // Patient view confirmation dialog state
+  const [showPatientViewDialog, setShowPatientViewDialog] = useState(false);
+  const [patientToView, setPatientToView] = useState<Appointment | null>(null);
   
 
 
@@ -1654,6 +1658,26 @@ Jeshna Dental Clinic Team`;
     debouncedAutoSave(updatedSettings);
   };
 
+  // Handle patient view navigation
+  const handleViewPatient = (appointment: Appointment) => {
+    setPatientToView(appointment);
+    setShowPatientViewDialog(true);
+  };
+
+  const handleConfirmViewPatient = () => {
+    if (patientToView) {
+      // Navigate to AdminPatientManagement with search term
+      navigate('/admin/patients', { 
+        state: { 
+          searchTerm: patientToView.name,
+          autoSearch: true 
+        }
+      });
+      setShowPatientViewDialog(false);
+      setPatientToView(null);
+    }
+  };
+
   // Use real appointments data if available, otherwise use empty array
   const realAppointments = appointments || [];
 
@@ -2152,7 +2176,11 @@ Jeshna Dental Clinic Team`;
                       >
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            <User 
+                              className="h-4 w-4 text-gray-500 flex-shrink-0 cursor-pointer hover:text-blue-600 transition-colors" 
+                              onClick={() => handleViewPatient(appointment)}
+                              title="View patient details"
+                            />
                             <div className="min-w-0">
                               <div className="font-medium truncate">{appointment.name}</div>
                               <div className="text-sm text-gray-500 truncate">{appointment.email}</div>
@@ -3584,6 +3612,63 @@ Jeshna Dental Clinic Team`;
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Complete Appointment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Patient View Confirmation Dialog */}
+      <Dialog open={showPatientViewDialog} onOpenChange={setShowPatientViewDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-blue-600" />
+              View Patient Details
+            </DialogTitle>
+            <DialogDescription>
+              Navigate to Patient Management to view detailed patient information
+            </DialogDescription>
+          </DialogHeader>
+          
+          {patientToView && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium">Patient:</span> {patientToView.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Email:</span> {patientToView.email}
+                  </div>
+                  <div>
+                    <span className="font-medium">Phone:</span> {patientToView.phone}
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-600">
+                This will open Patient Management and automatically search for "{patientToView.name}" to show their complete medical history, records, and appointment history.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPatientViewDialog(false);
+                setPatientToView(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmViewPatient}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              <User className="h-4 w-4 mr-2" />
+              View Patient
             </Button>
           </DialogFooter>
         </DialogContent>

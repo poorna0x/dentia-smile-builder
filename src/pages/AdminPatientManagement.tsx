@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -84,6 +84,7 @@ export default function AdminPatientManagement() {
   const { clinic } = useClinic();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // State for patients
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -1489,6 +1490,24 @@ export default function AdminPatientManagement() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSearchResults]);
+
+  // Auto-search when navigating from Admin page
+  useEffect(() => {
+    if (location.state?.autoSearch && location.state?.searchTerm) {
+      const incomingSearchTerm = location.state.searchTerm;
+      setSearchTerm(incomingSearchTerm);
+      
+      // Trigger search after a small delay to ensure component is ready
+      const timer = setTimeout(() => {
+        handleSearch();
+      }, 100);
+      
+      // Clear the state to prevent re-triggering on re-renders
+      navigate(location.pathname, { replace: true });
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, navigate]);
 
   const loadPatients = async () => {
     if (!clinic?.id) return;
