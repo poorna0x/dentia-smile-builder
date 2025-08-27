@@ -70,19 +70,26 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
   })
 
 
-  // Load payment data
+  // Load payment data (optimized)
   const loadPaymentData = async () => {
     try {
       setLoading(true)
+      
+      // Get payment summary (this includes transaction count)
       const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
       setPaymentSummary(summary)
 
+      // Only load transactions if we have a payment record
       if (summary) {
         const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
         if (treatmentPayment) {
           const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
           setTransactions(transactions)
+        } else {
+          setTransactions([])
         }
+      } else {
+        setTransactions([])
       }
 
       // Reset form data when payment data changes
@@ -100,7 +107,10 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       })
     } catch (error) {
       console.error('Error loading payment data:', error)
-      toast.error('Failed to load payment data')
+      // Don't show error toast for missing payment records
+      if (!error.message?.includes('No payment record')) {
+        toast.error('Failed to load payment data')
+      }
     } finally {
       setLoading(false)
     }
@@ -110,14 +120,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     loadPaymentData()
   }, [treatment.id])
 
-  // Force refresh payment data when component mounts
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadPaymentData()
-    }, 1000) // Refresh after 1 second to ensure payment records are created
-    
-    return () => clearTimeout(timer)
-  }, [])
+  // Remove the force refresh - it's causing unnecessary lag
 
   const handleInputChange = (field: keyof PaymentFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
