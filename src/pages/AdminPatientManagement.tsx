@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useClinic } from '@/contexts/ClinicContext';
@@ -17,7 +17,7 @@ import { labWorkApi } from '@/lib/lab-work';
 import { supabase, dentistsApi, Dentist } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
-import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock, Check } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock, Check, MoreHorizontal } from 'lucide-react';
 import LogoutButton from '@/components/LogoutButton';
 import { sendWhatsAppReviewRequest } from '@/lib/whatsapp';
 interface LabWorkOrder {
@@ -110,6 +110,7 @@ export default function AdminPatientManagement() {
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
+  const [showAppointmentActionsDialog, setShowAppointmentActionsDialog] = useState(false);
   const [appointmentToComplete, setAppointmentToComplete] = useState<{id: string, patientName: string} | null>(null);
   const [selectedDentistId, setSelectedDentistId] = useState<string>('');
   const [existingPatients, setExistingPatients] = useState<Patient[]>([]);
@@ -679,6 +680,69 @@ export default function AdminPatientManagement() {
     
     setAppointmentToComplete({ id: appointmentId, patientName });
     setShowCompleteConfirmDialog(true);
+    setShowAppointmentActionsDialog(false); // Close the actions dialog
+  };
+
+  const handleCancelAppointment = async (appointmentId: string, patientName: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'Cancelled' })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appointment Cancelled",
+        description: `Appointment for ${patientName} has been cancelled`,
+      });
+
+      // Refresh the appointments list
+      loadPatientsWithAppointmentsToday();
+      
+      // Dispatch custom event to notify other pages
+      window.dispatchEvent(new CustomEvent('appointmentCompleted', {
+        detail: {
+          appointmentId: appointmentId,
+          patientName: patientName,
+          action: 'cancelled'
+        }
+      }));
+
+      setShowAppointmentActionsDialog(false);
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel appointment",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRescheduleAppointment = (appointmentId: string, patientName: string) => {
+    // Get patient data for pre-filling
+    const patient = patients.find(p => p.first_name === patientName);
+    if (patient) {
+      // Pre-fill patient data and redirect to appointment page
+      const patientData = encodeURIComponent(JSON.stringify({
+        id: patient.id,
+        name: `${patient.first_name} ${patient.last_name || ''}`.trim(),
+        phone: patient.phone,
+        email: patient.email || '',
+        allergies: patient.allergies || [],
+        rescheduleFrom: appointmentId // Flag to indicate this is a reschedule
+      }));
+      
+      // Navigate to appointment page with pre-filled patient data
+      window.location.href = `/appointment?clinic=${clinic?.slug || 'default'}&patient=${patientData}`;
+    } else {
+      toast({
+        title: "Error",
+        description: "Patient data not found for rescheduling",
+        variant: "destructive"
+      });
+    }
   };
 
   const confirmCompleteAppointment = async () => {
@@ -765,7 +829,8 @@ export default function AdminPatientManagement() {
         detail: {
           appointmentId: appointmentToComplete.id,
           patientName: appointmentToComplete.patientName,
-          dentistId: selectedDentistId
+          dentistId: selectedDentistId,
+          action: 'completed'
         }
       }));
       
@@ -2645,12 +2710,13 @@ export default function AdminPatientManagement() {
                               variant="outline"
                               onClick={() => {
                                 const firstAppointment = patient.today_appointments[0];
-                                handleCompleteAppointment(firstAppointment.id, patient.first_name);
+                                setAppointmentToComplete({ id: firstAppointment.id, patientName: patient.first_name });
+                                setShowAppointmentActionsDialog(true);
                               }}
                               className="h-9 w-9 flex items-center justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg"
-                              title="Complete Today's Appointment"
+                              title="Manage Appointment"
                             >
-                              <Check className="w-4 h-4" />
+                              <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           )}
 
@@ -2859,8 +2925,7 @@ export default function AdminPatientManagement() {
                               className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
                               title="Complete Today's Appointment"
                             >
-                              <Check className="w-4 h-4" />
-                              <span className="text-sm font-medium">Complete</span>
+                              <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           ) : (
                             <Button
@@ -4401,6 +4466,68 @@ export default function AdminPatientManagement() {
                 Complete Appointment
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Appointment Actions Dialog */}
+        <Dialog open={showAppointmentActionsDialog} onOpenChange={setShowAppointmentActionsDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Manage Appointment
+              </DialogTitle>
+              <DialogDescription>
+                Choose an action for {appointmentToComplete?.patientName}'s appointment
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3 py-4">
+              {/* Complete Option */}
+              <Button
+                onClick={() => appointmentToComplete && handleCompleteAppointment(appointmentToComplete.id, appointmentToComplete.patientName)}
+                className="w-full justify-start bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Complete Appointment
+                {dentists.length > 1 && (
+                  <span className="ml-auto text-xs opacity-75">(Select dentist)</span>
+                )}
+              </Button>
+
+              {/* Cancel Option */}
+              <Button
+                onClick={() => appointmentToComplete && handleCancelAppointment(appointmentToComplete.id, appointmentToComplete.patientName)}
+                variant="destructive"
+                className="w-full justify-start"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel Appointment
+              </Button>
+
+              {/* Reschedule Option */}
+              <Button
+                onClick={() => appointmentToComplete && handleRescheduleAppointment(appointmentToComplete.id, appointmentToComplete.patientName)}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Reschedule Appointment
+              </Button>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAppointmentActionsDialog(false);
+                  setAppointmentToComplete(null);
+                }}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
