@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -85,6 +86,7 @@ export default function AdminPatientManagement() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isDentist, isStaff, hasPermission } = usePermissions();
   
   // State for patients
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -1490,6 +1492,24 @@ export default function AdminPatientManagement() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSearchResults]);
+
+  // Check role access - redirect staff to admin page if they don't have permission
+  useEffect(() => {
+    // Add a small delay to ensure permissions are loaded
+    const timer = setTimeout(() => {
+      if (isStaff && !hasPermission('access_patient_portal')) {
+        toast({
+          title: "Access Restricted",
+          description: "Patient management access is not enabled for staff. Redirecting to admin page.",
+          variant: "destructive"
+        });
+        navigate('/admin');
+        return;
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isStaff, navigate, toast, hasPermission]);
 
   // Auto-search when navigating from Admin page
   useEffect(() => {

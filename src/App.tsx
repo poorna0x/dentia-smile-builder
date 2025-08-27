@@ -26,7 +26,7 @@ import PatientDashboard from './pages/PatientDashboard'
 import AdminPatientManagement from './pages/AdminPatientManagement'
 import SuperAdmin from './pages/SuperAdmin'
 import WebsiteDisabled from './components/WebsiteDisabled'
-import UnifiedLogin from './pages/UnifiedLogin'
+import RoleBasedLogin from './pages/RoleBasedLogin'
 
 import './App.css'
 
@@ -115,7 +115,7 @@ function App() {
                     <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
                     
                     {/* Login Route */}
-                    <Route path="/login" element={<UnifiedLogin />} />
+                    <Route path="/login" element={<RoleBasedLogin />} />
                     
                     {/* Protected Routes - Single Login Required */}
                     <Route path="/admin" element={

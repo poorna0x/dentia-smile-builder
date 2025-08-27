@@ -105,6 +105,15 @@ export interface NotificationSettings {
   auto_confirm: boolean
 }
 
+export interface StaffPermissions {
+  id: string
+  clinic_id: string
+  can_access_settings: boolean
+  can_access_patient_portal: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface DisabledSlot {
   id: string
   clinic_id: string
@@ -531,6 +540,67 @@ export const subscribeToDentists = (callback: (payload: any) => void) => {
     .channel('dentists_changes')
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'dentists' }, 
+      callback
+    )
+    .subscribe()
+}
+
+// Staff Permissions API
+export const staffPermissionsApi = {
+  // Get staff permissions for a clinic
+  async getByClinic(clinicId: string) {
+    const { data, error } = await supabase
+      .from('staff_permissions')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      throw error
+    }
+    
+    // Handle case where columns might not exist yet
+    if (data) {
+      return {
+        ...data,
+        can_access_settings: data.can_change_settings ?? false, // Map to correct column
+        can_access_patient_portal: data.can_access_patient_portal ?? false
+      };
+    }
+    
+    return data;
+  },
+
+  // Create or update staff permissions
+  async upsert(clinicId: string, permissions: {
+    can_access_settings: boolean;
+    can_access_patient_portal: boolean;
+  }) {
+    const { data, error } = await supabase
+      .from('staff_permissions')
+      .upsert({
+        clinic_id: clinicId,
+        can_view_appointments: true,
+        can_mark_complete: true,
+        can_view_patient_basic_info: true,
+        can_change_settings: permissions.can_access_settings, // Use the correct column name
+        can_access_patient_portal: permissions.can_access_patient_portal
+      }, {
+        onConflict: 'clinic_id'
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  }
+}
+
+export const subscribeToStaffPermissions = (callback: (payload: any) => void) => {
+  return supabase
+    .channel('staff_permissions_changes')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'staff_permissions' }, 
       callback
     )
     .subscribe()

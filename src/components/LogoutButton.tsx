@@ -12,6 +12,8 @@ const LogoutButton: React.FC = () => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
+      // Clear role from sessionStorage
+      sessionStorage.removeItem('userRole');
       await logout();
       navigate('/');
     } catch (error) {

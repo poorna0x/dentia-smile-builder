@@ -1,13 +1,15 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOptimizedAppointments } from '@/hooks/useOptimizedAppointments'
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
-import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist } from '@/lib/supabase';
+import { usePermissions } from '@/hooks/usePermissions';
+import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
@@ -39,7 +41,10 @@ import {
   Settings,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  Users,
+  Save
 } from 'lucide-react';
 
 // WhatsApp Icon Component
@@ -185,6 +190,14 @@ const Admin = () => {
   // Patient view confirmation dialog state
   const [showPatientViewDialog, setShowPatientViewDialog] = useState(false);
   const [patientToView, setPatientToView] = useState<Appointment | null>(null);
+
+  // Staff permissions state
+  const [staffPermissions, setStaffPermissions] = useState({
+    canAccessSettings: false,
+    canAccessPatientPortal: false
+  });
+
+
   
 
 
@@ -200,6 +213,70 @@ const Admin = () => {
     refresh: refreshAppointments
   } = useOptimizedAppointments()
   const { settings, loading: settingsLoading, refresh: refreshSettings } = useSettings();
+  const { isDentist, isStaff, hasPermission, clearRole, userRole, refreshPermissions } = usePermissions();
+  const { toast: toastHook } = useToast();
+
+  // Load staff permissions when clinic is available
+  useEffect(() => {
+    if (clinic && clinic.id && isDentist) {
+      loadStaffPermissions();
+    }
+  }, [clinic, isDentist]);
+
+  // Load staff permissions from database
+  const loadStaffPermissions = async () => {
+    if (!clinic || !clinic.id) return;
+    
+    try {
+      const permissions = await staffPermissionsApi.getByClinic(clinic.id);
+      if (permissions) {
+        setStaffPermissions({
+          canAccessSettings: permissions.can_access_settings,
+          canAccessPatientPortal: permissions.can_access_patient_portal
+        });
+      }
+    } catch (error) {
+      console.error('Error loading staff permissions:', error);
+    }
+  };
+
+  // Auto-save staff permissions to database
+  const saveStaffPermissions = async (newPermissions?: {
+    canAccessSettings?: boolean;
+    canAccessPatientPortal?: boolean;
+  }) => {
+    if (!clinic || !clinic.id) return;
+    
+    // Use new permissions if provided, otherwise use current state
+    const permissionsToSave = {
+      canAccessSettings: newPermissions?.canAccessSettings ?? staffPermissions.canAccessSettings,
+      canAccessPatientPortal: newPermissions?.canAccessPatientPortal ?? staffPermissions.canAccessPatientPortal
+    };
+    
+    console.log('💾 Saving staff permissions:', {
+      clinicId: clinic.id,
+      permissions: permissionsToSave
+    });
+    
+    try {
+      const result = await staffPermissionsApi.upsert(clinic.id, {
+        can_access_settings: permissionsToSave.canAccessSettings,
+        can_access_patient_portal: permissionsToSave.canAccessPatientPortal
+      });
+      
+      console.log('✅ Staff permissions saved successfully:', result);
+      
+      // Refresh permissions in usePermissions hook
+      await refreshPermissions();
+    } catch (error) {
+      console.error('❌ Error saving staff permissions:', error);
+      toastHook({
+        title: "❌ Error",
+        description: "Failed to save staff permissions. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
       // Lightweight real-time simulation (silent)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
@@ -1666,6 +1743,18 @@ Jeshna Dental Clinic Team`;
 
   const handleConfirmViewPatient = () => {
     if (patientToView) {
+      // Check if user is staff and doesn't have patient portal permission
+      if (isStaff && !hasPermission('access_patient_portal')) {
+        toastHook({
+          title: "Access Restricted",
+          description: "Patient management access is not enabled for staff.",
+          variant: "destructive"
+        });
+        setShowPatientViewDialog(false);
+        setPatientToView(null);
+        return;
+      }
+      
       // Navigate to AdminPatientManagement with search term
       navigate('/admin/patients', { 
         state: { 
@@ -2386,8 +2475,8 @@ Jeshna Dental Clinic Team`;
             )}
           </Card>
 
-          {/* Settings Section */}
-          {showSettings && (
+          {/* Settings Section - Only visible to dentists or staff with settings access */}
+          {showSettings && (isDentist || hasPermission('change_settings')) && (
             <Card id="settings-section" className="mt-6 md:mt-8 bg-gradient-to-br from-emerald-50 to-teal-100 border-emerald-200 shadow-lg">
             <CardHeader>
               <CardTitle className="text-emerald-800">Scheduling Settings</CardTitle>
@@ -2731,6 +2820,122 @@ Jeshna Dental Clinic Team`;
 
                 
 
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Staff Permissions Section - Only visible to dentists */}
+          {showSettings && isDentist && (
+            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-purple-800 flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Staff Permissions
+                </CardTitle>
+                <CardDescription className="text-purple-700">
+                  Control what staff members can access in the system
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Settings Access */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Settings Access</Label>
+                      <p className="text-sm text-gray-600">Allow staff to modify clinic settings</p>
+                    </div>
+                    <div className="border-2 border-gray-300 rounded-lg p-1 bg-white">
+                      <Switch
+                        checked={staffPermissions.canAccessSettings}
+                        onCheckedChange={async (checked) => {
+                          setStaffPermissions(prev => ({
+                            ...prev,
+                            canAccessSettings: checked
+                          }));
+                          // Auto-save after state update
+                          setTimeout(async () => {
+                            await saveStaffPermissions({
+                              canAccessSettings: checked
+                            });
+                            toastHook({
+                              title: "✅ Settings Access Updated",
+                              description: checked ? "Staff can now access settings" : "Staff settings access disabled",
+                            });
+                          }, 100);
+                        }}
+                        className="border-2 border-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Patient Portal Access */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Patient Portal Access</Label>
+                      <p className="text-sm text-gray-600">Allow staff to access patient management</p>
+                    </div>
+                    <div className="border-2 border-gray-300 rounded-lg p-1 bg-white">
+                      <Switch
+                        checked={staffPermissions.canAccessPatientPortal}
+                        onCheckedChange={async (checked) => {
+                          setStaffPermissions(prev => ({
+                            ...prev,
+                            canAccessPatientPortal: checked
+                          }));
+                          // Auto-save after state update
+                          setTimeout(async () => {
+                            console.log('🔧 Before save - Patient Portal Access:', {
+                              currentState: staffPermissions.canAccessPatientPortal,
+                              newValue: checked,
+                              allPermissions: staffPermissions
+                            });
+                            await saveStaffPermissions({
+                              canAccessPatientPortal: checked
+                            });
+                            console.log('🔧 Staff permissions after save:', {
+                              canAccessSettings: staffPermissions.canAccessSettings,
+                              canAccessPatientPortal: checked
+                            });
+                            toastHook({
+                              title: "✅ Patient Portal Access Updated",
+                              description: checked ? "Staff can now access patient management" : "Staff patient portal access disabled",
+                            });
+                          }, 100);
+                        }}
+                        className="border-2 border-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+
+
+
+              </CardContent>
+            </Card>
+          )}
+          
+
+          
+          {/* Staff Access Denied Message */}
+          {showSettings && isStaff && !hasPermission('change_settings') && (
+            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-red-50 to-pink-100 border-red-200 shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-red-800 flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Access Restricted
+                </CardTitle>
+                <CardDescription className="text-red-700">
+                  Settings access is limited to dentists only
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-red-600">
+                  As a staff member, you can view and manage appointments but cannot modify system settings. 
+                  Please contact your dentist for any settings changes.
+                </p>
               </CardContent>
             </Card>
           )}
