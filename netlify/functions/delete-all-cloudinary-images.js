@@ -47,6 +47,28 @@ exports.handler = async (event, context) => {
     // Parse the request body
     const { deleteType = 'all' } = JSON.parse(event.body);
 
+    // Calculate days based on delete type
+    let daysToDelete = null;
+    switch (deleteType) {
+      case '1month':
+        daysToDelete = 30;
+        break;
+      case '3months':
+        daysToDelete = 90;
+        break;
+      case '6months':
+        daysToDelete = 180;
+        break;
+      case '1year':
+        daysToDelete = 365;
+        break;
+      case 'old':
+        daysToDelete = 730; // 2 years
+        break;
+      default:
+        daysToDelete = null; // 'all' or 'orphaned'
+    }
+
     let deletedCount = 0;
     let errorCount = 0;
     let nextCursor = null;
@@ -67,14 +89,14 @@ exports.handler = async (event, context) => {
       // Filter images based on delete type
       let imagesToDelete = listResult.resources;
 
-      if (deleteType === 'old') {
-        // Delete images older than 2 years
-        const twoYearsAgo = new Date();
-        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      if (daysToDelete) {
+        // Delete images older than specified days
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysToDelete);
         
         imagesToDelete = listResult.resources.filter(image => {
           const createdAt = new Date(image.created_at);
-          return createdAt < twoYearsAgo;
+          return createdAt < cutoffDate;
         });
       }
 

@@ -84,7 +84,7 @@ interface SuperAdminState {
       imagesByType: { [key: string]: number };
     } | null;
     showDeleteDialog: boolean;
-    deleteType: 'all' | 'orphaned' | 'old' | null;
+    deleteType: 'all' | 'orphaned' | 'old' | '1month' | '3months' | '6months' | '1year' | null;
     deleteProgress: number;
   };
 }
@@ -726,7 +726,7 @@ const SuperAdmin: React.FC = () => {
     }
   };
 
-  const deleteCloudinaryData = async (deleteType: 'all' | 'orphaned' | 'old') => {
+  const deleteCloudinaryData = async (deleteType: 'all' | 'orphaned' | 'old' | '1month' | '3months' | '6months' | '1year') => {
     try {
       setState(prev => ({
         ...prev,
@@ -954,18 +954,18 @@ const SuperAdmin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Shield className="h-8 w-8 text-red-600" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
               Super Admin Dashboard
             </h1>
-            <p className="text-gray-600 mt-2">System-wide controls and monitoring</p>
+            <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">System-wide controls and monitoring</p>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
+          <Button variant="outline" onClick={handleLogout} className="w-full sm:w-auto">
             <Lock className="h-4 w-4 mr-2" />
             Logout
           </Button>
@@ -1099,65 +1099,83 @@ const SuperAdmin: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Users className="h-4 w-4" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold flex items-center gap-2 text-lg">
+                    <Users className="h-4 w-4 text-blue-600" />
                     Patient Management
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mt-1">
                     {state.features.patientManagementEnabled ? 
                       'Patients can access their dashboard and manage their data' : 
                       'Patient management is disabled - patients cannot access their data'
                     }
                   </p>
                 </div>
-                <Switch
-                  checked={state.features.patientManagementEnabled}
-                  onCheckedChange={(enabled) => updateFeatureToggle('patientManagementEnabled', enabled)}
-                />
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={state.features.patientManagementEnabled}
+                    onCheckedChange={(enabled) => updateFeatureToggle('patientManagementEnabled', enabled)}
+                    className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300"
+                  />
+                  <Badge variant={state.features.patientManagementEnabled ? "default" : "secondary"} className="hidden sm:flex">
+                    {state.features.patientManagementEnabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </div>
               </div>
 
               <Separator />
 
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold flex items-center gap-2 text-lg">
+                    <Calendar className="h-4 w-4 text-green-600" />
                     Appointment Booking
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mt-1">
                     {state.features.appointmentBookingEnabled ? 
                       'Public appointment booking is available' : 
                       'Public appointment booking is disabled'
                     }
                   </p>
                 </div>
-                <Switch
-                  checked={state.features.appointmentBookingEnabled}
-                  onCheckedChange={(enabled) => updateFeatureToggle('appointmentBookingEnabled', enabled)}
-                />
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={state.features.appointmentBookingEnabled}
+                    onCheckedChange={(enabled) => updateFeatureToggle('appointmentBookingEnabled', enabled)}
+                    className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
+                  />
+                  <Badge variant={state.features.appointmentBookingEnabled ? "default" : "secondary"} className="hidden sm:flex">
+                    {state.features.appointmentBookingEnabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </div>
               </div>
 
               <Separator />
 
-              <div className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold flex items-center gap-2 text-lg">
+                    <Shield className="h-4 w-4 text-purple-600" />
                     Admin Panel
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mt-1">
                     {state.features.adminPanelEnabled ? 
                       'Admin panel is accessible to authorized users' : 
                       'Admin panel is disabled - no admin access'
                     }
                   </p>
                 </div>
-                <Switch
-                  checked={state.features.adminPanelEnabled}
-                  onCheckedChange={(enabled) => updateFeatureToggle('adminPanelEnabled', enabled)}
-                />
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={state.features.adminPanelEnabled}
+                    onCheckedChange={(enabled) => updateFeatureToggle('adminPanelEnabled', enabled)}
+                    className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-gray-300"
+                  />
+                  <Badge variant={state.features.adminPanelEnabled ? "default" : "secondary"} className="hidden sm:flex">
+                    {state.features.adminPanelEnabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </div>
               </div>
 
               <Separator />
@@ -1739,9 +1757,9 @@ const SuperAdmin: React.FC = () => {
 
             {/* Actions Section */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Data Management Actions</h4>
-                <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h4 className="font-semibold text-lg">Data Management Actions</h4>
+                <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={testNetlifyFunction}
                     variant="outline"
@@ -1779,7 +1797,7 @@ const SuperAdmin: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Delete All Images */}
                 <div className="p-4 bg-red-50 rounded-lg border">
                   <h5 className="font-medium text-red-900 mb-2">Delete All Images</h5>
@@ -1798,16 +1816,17 @@ const SuperAdmin: React.FC = () => {
                     variant="destructive"
                     size="sm"
                     disabled={!state.cloudinaryManagement.stats?.totalImages}
+                    className="w-full sm:w-auto"
                   >
                     Delete All
                   </Button>
                 </div>
 
-                {/* Delete Old Images */}
-                <div className="p-4 bg-orange-50 rounded-lg border">
-                  <h5 className="font-medium text-orange-900 mb-2">Delete Old Images</h5>
-                  <p className="text-sm text-orange-700 mb-3">
-                    Delete images older than 2 years to free up storage
+                {/* Delete 1 Month Old Images */}
+                <div className="p-4 bg-pink-50 rounded-lg border">
+                  <h5 className="font-medium text-pink-900 mb-2">Delete 1 Month Old</h5>
+                  <p className="text-sm text-pink-700 mb-3">
+                    Delete images older than 30 days to free up storage
                   </p>
                   <Button
                     onClick={() => setState(prev => ({
@@ -1815,14 +1834,83 @@ const SuperAdmin: React.FC = () => {
                       cloudinaryManagement: {
                         ...prev.cloudinaryManagement,
                         showDeleteDialog: true,
-                        deleteType: 'old'
+                        deleteType: '1month'
                       }
                     }))}
                     variant="outline"
                     size="sm"
-                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    className="border-pink-300 text-pink-700 hover:bg-pink-100 w-full sm:w-auto"
                   >
-                    Delete Old
+                    Delete 1 Month
+                  </Button>
+                </div>
+
+                {/* Delete 3 Months Old Images */}
+                <div className="p-4 bg-purple-50 rounded-lg border">
+                  <h5 className="font-medium text-purple-900 mb-2">Delete 3 Months Old</h5>
+                  <p className="text-sm text-purple-700 mb-3">
+                    Delete images older than 90 days to free up storage
+                  </p>
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      cloudinaryManagement: {
+                        ...prev.cloudinaryManagement,
+                        showDeleteDialog: true,
+                        deleteType: '3months'
+                      }
+                    }))}
+                    variant="outline"
+                    size="sm"
+                    className="border-purple-300 text-purple-700 hover:bg-purple-100 w-full sm:w-auto"
+                  >
+                    Delete 3 Months
+                  </Button>
+                </div>
+
+                {/* Delete 6 Months Old Images */}
+                <div className="p-4 bg-indigo-50 rounded-lg border">
+                  <h5 className="font-medium text-indigo-900 mb-2">Delete 6 Months Old</h5>
+                  <p className="text-sm text-indigo-700 mb-3">
+                    Delete images older than 180 days to free up storage
+                  </p>
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      cloudinaryManagement: {
+                        ...prev.cloudinaryManagement,
+                        showDeleteDialog: true,
+                        deleteType: '6months'
+                      }
+                    }))}
+                    variant="outline"
+                    size="sm"
+                    className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 w-full sm:w-auto"
+                  >
+                    Delete 6 Months
+                  </Button>
+                </div>
+
+                {/* Delete 1 Year Old Images */}
+                <div className="p-4 bg-blue-50 rounded-lg border">
+                  <h5 className="font-medium text-blue-900 mb-2">Delete 1 Year Old</h5>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Delete images older than 365 days to free up storage
+                  </p>
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      cloudinaryManagement: {
+                        ...prev.cloudinaryManagement,
+                        showDeleteDialog: true,
+                        deleteType: '1year'
+                      }
+                    }))}
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100 w-full sm:w-auto"
+                  >
+                    Delete 1 Year
                   </Button>
                 </div>
 
@@ -1843,7 +1931,7 @@ const SuperAdmin: React.FC = () => {
                     }))}
                     variant="outline"
                     size="sm"
-                    className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                    className="border-yellow-300 text-yellow-700 hover:bg-yellow-100 w-full sm:w-auto"
                   >
                     Delete Orphaned
                   </Button>
@@ -1879,12 +1967,24 @@ const SuperAdmin: React.FC = () => {
               <div className="p-4 bg-red-50 rounded-lg border border-red-200">
                 <h4 className="font-medium text-red-900 mb-2">
                   {state.cloudinaryManagement.deleteType === 'all' && 'Delete All Images'}
+                  {state.cloudinaryManagement.deleteType === '1month' && 'Delete Images (1+ month old)'}
+                  {state.cloudinaryManagement.deleteType === '3months' && 'Delete Images (3+ months old)'}
+                  {state.cloudinaryManagement.deleteType === '6months' && 'Delete Images (6+ months old)'}
+                  {state.cloudinaryManagement.deleteType === '1year' && 'Delete Images (1+ year old)'}
                   {state.cloudinaryManagement.deleteType === 'old' && 'Delete Old Images (2+ years)'}
                   {state.cloudinaryManagement.deleteType === 'orphaned' && 'Delete Orphaned Images'}
                 </h4>
                 <p className="text-sm text-red-700">
                   {state.cloudinaryManagement.deleteType === 'all' && 
                     `This will delete all ${state.cloudinaryManagement.stats?.totalImages || 0} images from Cloudinary and the database.`}
+                  {state.cloudinaryManagement.deleteType === '1month' && 
+                    'This will delete images older than 30 days to free up storage space.'}
+                  {state.cloudinaryManagement.deleteType === '3months' && 
+                    'This will delete images older than 90 days to free up storage space.'}
+                  {state.cloudinaryManagement.deleteType === '6months' && 
+                    'This will delete images older than 180 days to free up storage space.'}
+                  {state.cloudinaryManagement.deleteType === '1year' && 
+                    'This will delete images older than 365 days to free up storage space.'}
                   {state.cloudinaryManagement.deleteType === 'old' && 
                     'This will delete images older than 2 years to free up storage space.'}
                   {state.cloudinaryManagement.deleteType === 'orphaned' && 
