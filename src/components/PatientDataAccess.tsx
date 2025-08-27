@@ -16,12 +16,14 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { supabase } from '@/lib/supabase';
 import { Patient } from '@/lib/patient-management';
 import { patientUtils } from '@/lib/patient-management';
+import { toothImageApi, ToothImage } from '@/lib/tooth-images';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Phone, 
   Search, 
@@ -39,7 +41,11 @@ import {
   Eye,
   ChevronRight,
   CheckCircle,
-  XCircle
+  XCircle,
+  Image as ImageIcon,
+  Download,
+  X,
+  Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -579,6 +585,213 @@ const DetailedDentalChart = ({
   );
 };
 
+// Tooth Images Dialog Component
+const ToothImagesDialog = ({ 
+  patient, 
+  images, 
+  onClose 
+}: { 
+  patient: Patient; 
+  images: ToothImage[]; 
+  onClose: () => void;
+}) => {
+  const [selectedImage, setSelectedImage] = useState<ToothImage | null>(null);
+  const [filterType, setFilterType] = useState<'all' | 'xray' | 'photo' | 'scan'>('all');
+
+  // Filter images by type
+  const filteredImages = images.filter(img => {
+    const typeMatch = filterType === 'all' || img.image_type === filterType;
+    return typeMatch;
+  });
+
+  const getImageTypeIcon = (type: string) => {
+    switch (type) {
+      case 'xray': return '🦷';
+      case 'photo': return '📷';
+      case 'scan': return '🔬';
+      default: return '🖼️';
+    }
+  };
+
+  const getImageTypeLabel = (type: string) => {
+    switch (type) {
+      case 'xray': return 'X-Ray';
+      case 'photo': return 'Photo';
+      case 'scan': return '3D Scan';
+      default: return 'Image';
+    }
+  };
+
+  const handleDownload = async (image: ToothImage) => {
+    try {
+      const response = await fetch(image.cloudinary_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tooth-${image.tooth_number}-${image.image_type}-${new Date(image.uploaded_at).toISOString().split('T')[0]}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download started",
+        description: "Image download has started",
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: "Failed to download image. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ImageIcon className="w-5 h-5" />
+            Tooth Images - {patient.first_name} {patient.last_name}
+          </DialogTitle>
+          <DialogDescription>
+            View and download your X-rays, photos, and 3D scans.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Images Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Images</h3>
+            </div>
+
+            {/* Filter Tabs */}
+            <Tabs value={filterType} onValueChange={(value) => setFilterType(value as any)}>
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="all">All ({filteredImages.length})</TabsTrigger>
+                <TabsTrigger value="xray">X-Rays ({images.filter(img => img.image_type === 'xray').length})</TabsTrigger>
+                <TabsTrigger value="photo">Photos ({images.filter(img => img.image_type === 'photo').length})</TabsTrigger>
+                <TabsTrigger value="scan">Scans ({images.filter(img => img.image_type === 'scan').length})</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {/* Images Grid */}
+            {filteredImages.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredImages.map((image) => (
+                  <Card key={image.id} className="group relative overflow-hidden">
+                    <div className="relative h-48 bg-gray-100">
+                      <img
+                        src={image.cloudinary_url}
+                        alt={image.description}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setSelectedImage(image)}
+                        loading="lazy"
+                      />
+                      
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setSelectedImage(image)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleDownload(image)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg">{getImageTypeIcon(image.image_type)}</span>
+                          <Badge variant="outline" className="text-xs">
+                            Tooth #{image.tooth_number}
+                          </Badge>
+                        </div>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {getImageTypeLabel(image.image_type)}
+                        </Badge>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600 truncate" title={image.description}>
+                        {image.description}
+                      </p>
+                      
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(image.uploaded_at).toLocaleDateString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center py-8">
+                    <ImageIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-500">
+                      No images found
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Image Modal */}
+        {selectedImage && (
+          <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {getImageTypeIcon(selectedImage.image_type)} 
+                  Tooth #{selectedImage.tooth_number} - {getImageTypeLabel(selectedImage.image_type)}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedImage.description}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="relative">
+                <img
+                  src={selectedImage.cloudinary_url}
+                  alt={selectedImage.description}
+                  className="w-full max-h-96 object-contain rounded-lg"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Uploaded: {new Date(selectedImage.uploaded_at).toLocaleString()}
+                </div>
+                <Button onClick={() => handleDownload(selectedImage)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // Medical History Component
 const MedicalHistory = ({ 
   patient, 
@@ -886,9 +1099,11 @@ const PatientDataAccess = () => {
   const [showDentalChart, setShowDentalChart] = useState(false);
   const [showPrescriptions, setShowPrescriptions] = useState(false);
   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
+  const [showToothImages, setShowToothImages] = useState(false);
   
   // Data states
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [toothImages, setToothImages] = useState<ToothImage[]>([]);
   const [labWork, setLabWork] = useState<any[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
@@ -1103,6 +1318,17 @@ const PatientDataAccess = () => {
       console.log('Tooth conditions error:', toothConditionsError);
       setToothConditions(toothConditionsData || []);
 
+      // Load tooth images
+      console.log('Loading tooth images for patient:', patientId);
+      try {
+        const toothImagesData = await toothImageApi.getByPatient(patientId, effectiveClinicId);
+        console.log('Tooth images data:', toothImagesData);
+        setToothImages(toothImagesData || []);
+      } catch (toothImagesError) {
+        console.error('Error loading tooth images:', toothImagesError);
+        setToothImages([]);
+      }
+
       // Load treatment plans
       const { data: treatmentPlansData } = await supabase
         .from('treatment_plans')
@@ -1190,12 +1416,14 @@ const PatientDataAccess = () => {
     setShowDentalChart(false);
     setShowPrescriptions(false);
     setShowMedicalHistory(false);
+    setShowToothImages(false);
     setAppointments([]);
     setLabWork([]);
     setPrescriptions([]);
     setTreatmentPlans([]);
     setDentalTreatments([]);
     setToothConditions([]);
+    setToothImages([]);
   };
 
   return (
@@ -1304,6 +1532,15 @@ const PatientDataAccess = () => {
           labWork={labWork}
           appointments={appointments}
           onClose={() => setShowMedicalHistory(false)}
+        />
+      )}
+
+      {/* Tooth Images Detail */}
+      {showToothImages && patient && (
+        <ToothImagesDialog
+          patient={patient}
+          images={toothImages}
+          onClose={() => setShowToothImages(false)}
         />
       )}
 
@@ -1449,7 +1686,7 @@ const PatientDataAccess = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* Prescriptions Button */}
                 <Button 
                   onClick={() => setShowPrescriptions(true)}
@@ -1483,6 +1720,19 @@ const PatientDataAccess = () => {
                   <span className="text-sm">Medical History</span>
                   {(dentalTreatments.length + toothConditions.length + prescriptions.length + labWork.length + appointments.length) > 0 && (
                     <Badge className="text-xs">{dentalTreatments.length + toothConditions.length + prescriptions.length + labWork.length + appointments.length}</Badge>
+                  )}
+                </Button>
+
+                {/* Tooth Images Button */}
+                <Button 
+                  onClick={() => setShowToothImages(true)}
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-center gap-2"
+                >
+                  <ImageIcon className="w-6 h-6" />
+                  <span className="text-sm">Tooth Images</span>
+                  {toothImages.length > 0 && (
+                    <Badge className="text-xs">{toothImages.length}</Badge>
                   )}
                 </Button>
               </div>
