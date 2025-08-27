@@ -197,6 +197,9 @@ const Admin = () => {
     canAccessPatientPortal: false
   });
 
+  // Loading states for appointment creation to prevent duplicate submissions
+  const [isCreatingGeneralAppointment, setIsCreatingGeneralAppointment] = useState(false);
+  const [isCreatingClientAppointment, setIsCreatingClientAppointment] = useState(false);
 
   
 
@@ -906,6 +909,13 @@ Jeshna Dental Clinic Team`;
     checkBookedSlotsForNewAppointment(tomorrow);
   };
 
+  // Function to handle closing client appointment dialog
+  const handleCloseClientAppointmentDialog = () => {
+    setShowNewAppointmentForClient(false);
+    // Reset loading state when dialog is closed
+    setIsCreatingClientAppointment(false);
+  };
+
   const checkBookedSlotsForNewAppointment = async (date: Date) => {
     if (!clinic?.id) return;
     
@@ -1023,6 +1033,12 @@ Jeshna Dental Clinic Team`;
   };
 
   const handleCreateNewAppointmentForClient = async () => {
+    // Prevent duplicate submissions
+    if (isCreatingClientAppointment) {
+      toast.error('Please wait, appointment is being created...');
+      return;
+    }
+
     if (!selectedAppointment || !newAppointmentForClient.time || !clinic?.id) {
       toast.error('Please select a time slot');
       return;
@@ -1046,6 +1062,9 @@ Jeshna Dental Clinic Team`;
       toast.error('Clinic is closed on this day of the week. Please choose another date.');
       return;
     }
+
+    // Set loading state to prevent duplicate submissions
+    setIsCreatingClientAppointment(true);
 
     try {
       console.log('🔍 Creating appointment for same client with data:', {
@@ -1114,6 +1133,9 @@ Jeshna Dental Clinic Team`;
         stack: error instanceof Error ? error.stack : 'No stack trace'
       });
       toast.error('Failed to create new appointment');
+    } finally {
+      // Reset loading state regardless of success or failure
+      setIsCreatingClientAppointment(false);
     }
   };
 
@@ -1169,6 +1191,12 @@ Jeshna Dental Clinic Team`;
   };
 
   const handleCreateGeneralAppointment = async () => {
+    // Prevent duplicate submissions
+    if (isCreatingGeneralAppointment) {
+      toast.error('Please wait, appointment is being created...');
+      return;
+    }
+
     // Validation checks (same as appointment page)
     if (!generalNewAppointment.name || !generalNewAppointment.phone || !generalNewAppointment.time || !clinic?.id) {
       toast.error('Please fill in all required fields and select a time slot');
@@ -1199,6 +1227,9 @@ Jeshna Dental Clinic Team`;
       toast.error('Appointments are currently disabled. Please try again later.');
       return;
     }
+
+    // Set loading state to prevent duplicate submissions
+    setIsCreatingGeneralAppointment(true);
 
     try {
       console.log('🔍 Creating appointment with data:', {
@@ -1284,6 +1315,9 @@ Jeshna Dental Clinic Team`;
         stack: error instanceof Error ? error.stack : 'No stack trace'
       });
       toast.error('Failed to create new appointment');
+    } finally {
+      // Reset loading state regardless of success or failure
+      setIsCreatingGeneralAppointment(false);
     }
   };
 
@@ -1307,6 +1341,13 @@ Jeshna Dental Clinic Team`;
     
     // Check booked slots for tomorrow's date when dialog opens
     checkBookedSlotsForGeneral(tomorrow);
+  };
+
+  // Function to handle closing general appointment dialog
+  const handleCloseGeneralAppointmentDialog = () => {
+    setShowNewAppointmentDialog(false);
+    // Reset loading state when dialog is closed
+    setIsCreatingGeneralAppointment(false);
   };
 
   const checkBookedSlotsForGeneral = async (date: Date) => {
@@ -3097,7 +3138,13 @@ Jeshna Dental Clinic Team`;
       </Dialog>
 
       {/* New Appointment for Same Client Dialog */}
-      <Dialog open={showNewAppointmentForClient} onOpenChange={setShowNewAppointmentForClient}>
+      <Dialog open={showNewAppointmentForClient} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseClientAppointmentDialog();
+        } else {
+          setShowNewAppointmentForClient(true);
+        }
+      }}>
         <DialogContent className="sm:max-w-lg w-[95vw] sm:w-auto max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>New Appointment for {selectedAppointment?.name}</DialogTitle>
@@ -3228,15 +3275,26 @@ Jeshna Dental Clinic Team`;
           <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-6">
             <Button
               onClick={handleCreateNewAppointmentForClient}
-              className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 w-full h-12"
+              disabled={isCreatingClientAppointment}
+              className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 w-full h-12 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="h-4 w-4" />
-              Create Appointment
+              {isCreatingClientAppointment ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Create Appointment
+                </>
+              )}
             </Button>
             <Button
               variant="outline"
-              onClick={() => setShowNewAppointmentForClient(false)}
-              className="flex items-center justify-center gap-2 w-full h-12"
+              onClick={handleCloseClientAppointmentDialog}
+              disabled={isCreatingClientAppointment}
+              className="flex items-center justify-center gap-2 w-full h-12 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="h-4 w-4" />
               Cancel
@@ -3246,7 +3304,13 @@ Jeshna Dental Clinic Team`;
       </Dialog>
 
       {/* General New Appointment Dialog */}
-      <Dialog open={showNewAppointmentDialog} onOpenChange={setShowNewAppointmentDialog}>
+      <Dialog open={showNewAppointmentDialog} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseGeneralAppointmentDialog();
+        } else {
+          setShowNewAppointmentDialog(true);
+        }
+      }}>
         <DialogContent className="sm:max-w-lg w-[95vw] sm:w-auto max-h-[95vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Create New Appointment</DialogTitle>
@@ -3541,15 +3605,26 @@ Jeshna Dental Clinic Team`;
           <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-6">
             <Button
               onClick={handleCreateGeneralAppointment}
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white w-full h-12 border-2 border-blue-500 shadow-lg"
+              disabled={isCreatingGeneralAppointment}
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white w-full h-12 border-2 border-blue-500 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="h-4 w-4" />
-              Create Appointment
+              {isCreatingGeneralAppointment ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Create Appointment
+                </>
+              )}
             </Button>
             <Button
               variant="outline"
-              onClick={() => setShowNewAppointmentDialog(false)}
-              className="flex items-center justify-center gap-2 w-full h-12 border-2 border-slate-300 hover:border-slate-400 shadow-sm"
+              onClick={handleCloseGeneralAppointmentDialog}
+              disabled={isCreatingGeneralAppointment}
+              className="flex items-center justify-center gap-2 w-full h-12 border-2 border-slate-300 hover:border-slate-400 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="h-4 w-4" />
               Cancel
