@@ -50,6 +50,9 @@ exports.handler = async (event, context) => {
     // Calculate days based on delete type
     let daysToDelete = null;
     switch (deleteType) {
+      case '1day':
+        daysToDelete = 1;
+        break;
       case '1month':
         daysToDelete = 30;
         break;

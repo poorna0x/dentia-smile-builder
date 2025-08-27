@@ -84,7 +84,7 @@ interface SuperAdminState {
       imagesByType: { [key: string]: number };
     } | null;
     showDeleteDialog: boolean;
-    deleteType: 'all' | 'orphaned' | 'old' | '1month' | '3months' | '6months' | '1year' | null;
+    deleteType: 'all' | 'orphaned' | 'old' | '1day' | '1month' | '3months' | '6months' | '1year' | null;
     deleteProgress: number;
   };
 }
@@ -726,7 +726,7 @@ const SuperAdmin: React.FC = () => {
     }
   };
 
-  const deleteCloudinaryData = async (deleteType: 'all' | 'orphaned' | 'old' | '1month' | '3months' | '6months' | '1year') => {
+  const deleteCloudinaryData = async (deleteType: 'all' | 'orphaned' | 'old' | '1day' | '1month' | '3months' | '6months' | '1year') => {
     try {
       setState(prev => ({
         ...prev,
@@ -1914,11 +1914,11 @@ const SuperAdmin: React.FC = () => {
                   </Button>
                 </div>
 
-                {/* Delete Orphaned Images */}
+                {/* Delete 1 Day Old Images */}
                 <div className="p-4 bg-yellow-50 rounded-lg border">
-                  <h5 className="font-medium text-yellow-900 mb-2">Delete Orphaned Images</h5>
+                  <h5 className="font-medium text-yellow-900 mb-2">Delete 1 Day Old</h5>
                   <p className="text-sm text-yellow-700 mb-3">
-                    Delete images that don't have associated patient records
+                    Delete images older than 24 hours for testing purposes
                   </p>
                   <Button
                     onClick={() => setState(prev => ({
@@ -1926,14 +1926,14 @@ const SuperAdmin: React.FC = () => {
                       cloudinaryManagement: {
                         ...prev.cloudinaryManagement,
                         showDeleteDialog: true,
-                        deleteType: 'orphaned'
+                        deleteType: '1day'
                       }
                     }))}
                     variant="outline"
                     size="sm"
                     className="border-yellow-300 text-yellow-700 hover:bg-yellow-100 w-full sm:w-auto"
                   >
-                    Delete Orphaned
+                    Delete 1 Day
                   </Button>
                 </div>
               </div>
@@ -1967,6 +1967,7 @@ const SuperAdmin: React.FC = () => {
               <div className="p-4 bg-red-50 rounded-lg border border-red-200">
                 <h4 className="font-medium text-red-900 mb-2">
                   {state.cloudinaryManagement.deleteType === 'all' && 'Delete All Images'}
+                  {state.cloudinaryManagement.deleteType === '1day' && 'Delete Images (1+ day old)'}
                   {state.cloudinaryManagement.deleteType === '1month' && 'Delete Images (1+ month old)'}
                   {state.cloudinaryManagement.deleteType === '3months' && 'Delete Images (3+ months old)'}
                   {state.cloudinaryManagement.deleteType === '6months' && 'Delete Images (6+ months old)'}
@@ -1977,6 +1978,8 @@ const SuperAdmin: React.FC = () => {
                 <p className="text-sm text-red-700">
                   {state.cloudinaryManagement.deleteType === 'all' && 
                     `This will delete all ${state.cloudinaryManagement.stats?.totalImages || 0} images from Cloudinary and the database.`}
+                  {state.cloudinaryManagement.deleteType === '1day' && 
+                    'This will delete images older than 24 hours for testing purposes.'}
                   {state.cloudinaryManagement.deleteType === '1month' && 
                     'This will delete images older than 30 days to free up storage space.'}
                   {state.cloudinaryManagement.deleteType === '3months' && 
