@@ -173,7 +173,7 @@ export const simplePaymentApi = {
       .from('payment_transactions')
       .select('*')
       .eq('treatment_payment_id', treatmentPaymentId)
-      .order('payment_date', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (error) {
       throw new Error(`Failed to get payment transactions: ${error.message}`)
