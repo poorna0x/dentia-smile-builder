@@ -274,15 +274,18 @@ const PrescriptionsDetail = ({
 // Detailed Dental Chart Component with 32 Teeth
 const DetailedDentalChart = ({ 
   patient, 
-  onClose 
+  dentalTreatments,
+  toothConditions,
+  onClose
 }: { 
   patient: Patient, 
-  onClose: () => void 
+  dentalTreatments: any[],
+  toothConditions: any[],
+  onClose: () => void
 }) => {
   const [dentalData, setDentalData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
-  const { clinic } = useClinic();
 
   // Define all 32 teeth with their positions and user-friendly names
   const teeth = [
@@ -324,79 +327,44 @@ const DetailedDentalChart = ({
     { number: 32, name: 'Lower Right Third Molar (Wisdom Tooth)', position: 'bottom', side: 'Right' },
   ];
 
+  // Update dental data when props change
   useEffect(() => {
-    loadDentalData();
-  }, [patient.id]);
+    const allData = [
+      ...(dentalTreatments || []),
+      ...(toothConditions || [])
+    ];
+    setDentalData(allData);
+  }, [dentalTreatments, toothConditions]);
 
-  const loadDentalData = async () => {
-    if (!patient.id) return;
-    
-    try {
-      setLoading(true);
-      
-      // Use patient's clinic ID if clinic context is not available
-      const effectiveClinicId = clinic?.id || patient.clinic_id;
-      console.log('Loading dental data for patient:', patient.id, 'clinic:', effectiveClinicId);
-      
-      // Get dental treatments
-      const { data: treatmentsData, error: treatmentsError } = await supabase
-        .from('dental_treatments')
-        .select('*')
-        .eq('clinic_id', effectiveClinicId)
-        .eq('patient_id', patient.id)
-        .order('created_at', { ascending: false });
 
-      console.log('Dental treatments data:', treatmentsData);
-      console.log('Dental treatments error:', treatmentsError);
 
-      // Get tooth conditions
-      const { data: conditionsData, error: conditionsError } = await supabase
-        .from('tooth_conditions')
-        .select('*')
-        .eq('clinic_id', effectiveClinicId)
-        .eq('patient_id', patient.id)
-        .order('created_at', { ascending: false });
 
-      console.log('Tooth conditions data:', conditionsData);
-      console.log('Tooth conditions error:', conditionsError);
-
-      const allData = [
-        ...(treatmentsData || []),
-        ...(conditionsData || [])
-      ];
-
-      console.log('Combined dental data:', allData);
-      
-      // Debug: Check what data exists for each tooth
-      for (let toothNum = 1; toothNum <= 32; toothNum++) {
-        const toothData = allData.filter(item => item.tooth_number === toothNum.toString());
-        if (toothData.length > 0) {
-          console.log(`Tooth ${toothNum} has data:`, toothData);
-        }
-      }
-      
-      setDentalData(allData);
-    } catch (error) {
-      console.error('Error loading dental data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getToothData = (toothNumber: number) => {
-    return dentalData.filter(item => item.tooth_number === toothNumber.toString());
+    return dentalData.filter(item => {
+      const itemToothNumber = item.tooth_number;
+      const searchToothNumber = toothNumber.toString();
+      
+      // Normalize tooth numbers by removing leading zeros
+      const normalizedItemTooth = String(Number(itemToothNumber));
+      const normalizedSearchTooth = String(toothNumber);
+      
+      const exactMatch = itemToothNumber === searchToothNumber;
+      const numberMatch = Number(itemToothNumber) === toothNumber;
+      const stringMatch = String(itemToothNumber) === searchToothNumber;
+      const normalizedMatch = normalizedItemTooth === normalizedSearchTooth;
+      
+      return exactMatch || numberMatch || stringMatch || normalizedMatch;
+    });
   };
 
   const getToothColor = (toothNumber: number) => {
     const toothData = getToothData(toothNumber);
-    console.log(`Tooth ${toothNumber} data:`, toothData);
     
     if (toothData.length === 0) return 'bg-gray-100 border-gray-300';
     
     const hasTreatment = toothData.some(item => item.treatment_type);
     const hasCondition = toothData.some(item => item.condition_type);
-    
-    console.log(`Tooth ${toothNumber} - hasTreatment:`, hasTreatment, 'hasCondition:', hasCondition);
     
     if (hasTreatment && hasCondition) return 'bg-purple-200 border-purple-500';
     if (hasTreatment) return 'bg-green-200 border-green-500';
@@ -421,7 +389,12 @@ const DetailedDentalChart = ({
             <Circle className="w-5 h-5" />
             Dental Chart - {patient.first_name} {patient.last_name}
           </DialogTitle>
+          <DialogDescription>
+            Interactive dental chart showing treatments and conditions for each tooth. Click on teeth to view details.
+          </DialogDescription>
         </DialogHeader>
+        
+
         
         {loading ? (
           <div className="text-center py-8">
@@ -1199,6 +1172,13 @@ const PatientDataAccess = () => {
     }
   };
 
+  // Refresh patient data
+  const handleRefreshPatientData = async () => {
+    if (!patient) return;
+    console.log('Refreshing patient data...');
+    await loadPatientData(patient);
+  };
+
   // Reset everything
   const handleReset = () => {
     setPhone('');
@@ -1300,6 +1280,8 @@ const PatientDataAccess = () => {
       {showDentalChart && patient && (
         <DetailedDentalChart
           patient={patient}
+          dentalTreatments={dentalTreatments}
+          toothConditions={toothConditions}
           onClose={() => setShowDentalChart(false)}
         />
       )}
