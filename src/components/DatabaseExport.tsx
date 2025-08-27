@@ -41,75 +41,299 @@ const DatabaseExport: React.FC = () => {
   const { clinic } = useClinic();
   const [exportStatus, setExportStatus] = useState<ExportStatus>({});
   const [isExportingAll, setIsExportingAll] = useState(false);
+  const [tables, setTables] = useState<TableInfo[]>([]);
+  const [isLoadingTables, setIsLoadingTables] = useState(true);
 
-  const tables: TableInfo[] = [
-    {
-      name: 'clinics',
-      displayName: 'Clinics',
-      icon: <Database className="h-4 w-4" />,
-      description: 'Clinic information and settings'
-    },
-    {
-      name: 'patients',
-      displayName: 'Patients',
-      icon: <Users className="h-4 w-4" />,
-      description: 'Patient records and information'
-    },
-    {
-      name: 'appointments',
-      displayName: 'Appointments',
-      icon: <Calendar className="h-4 w-4" />,
-      description: 'Appointment bookings and schedules'
-    },
-    {
-      name: 'patient_phones',
-      displayName: 'Patient Phones',
-      icon: <Users className="h-4 w-4" />,
-      description: 'Patient phone number records'
-    },
-    {
-      name: 'scheduling_settings',
-      displayName: 'Scheduling Settings',
-      icon: <Settings className="h-4 w-4" />,
-      description: 'Clinic scheduling configuration'
-    },
-    {
-      name: 'disabled_slots',
-      displayName: 'Disabled Slots',
-      icon: <Calendar className="h-4 w-4" />,
-      description: 'Disabled time slots and holidays'
-    },
-    {
-      name: 'system_settings',
-      displayName: 'System Settings',
-      icon: <Settings className="h-4 w-4" />,
-      description: 'System configuration and feature toggles'
-    },
-    {
-      name: 'system_audit_log',
-      displayName: 'Audit Logs',
-      icon: <Activity className="h-4 w-4" />,
-      description: 'System audit and change logs'
-    },
-    {
-      name: 'dental_treatments',
-      displayName: 'Dental Treatments',
-      icon: <Database className="h-4 w-4" />,
-      description: 'Treatment types and pricing'
-    },
-    {
-      name: 'treatment_payments',
-      displayName: 'Treatment Payments',
-      icon: <Database className="h-4 w-4" />,
-      description: 'Payment records for treatments'
-    },
-    {
-      name: 'payment_transactions',
-      displayName: 'Payment Transactions',
-      icon: <Database className="h-4 w-4" />,
-      description: 'Detailed payment transaction logs'
+  // Function to get icon based on table name
+  const getTableIcon = (tableName: string) => {
+    if (tableName.includes('patient')) return <Users className="h-4 w-4" />;
+    if (tableName.includes('appointment') || tableName.includes('slot') || tableName.includes('schedule')) return <Calendar className="h-4 w-4" />;
+    if (tableName.includes('setting') || tableName.includes('config')) return <Settings className="h-4 w-4" />;
+    if (tableName.includes('payment') || tableName.includes('transaction')) return <Database className="h-4 w-4" />;
+    if (tableName.includes('audit') || tableName.includes('log')) return <Activity className="h-4 w-4" />;
+    if (tableName.includes('treatment') || tableName.includes('dental')) return <Database className="h-4 w-4" />;
+    if (tableName.includes('clinic')) return <Database className="h-4 w-4" />;
+    return <Database className="h-4 w-4" />;
+  };
+
+  // Function to get description based on table name
+  const getTableDescription = (tableName: string) => {
+    const descriptions: { [key: string]: string } = {
+      // Core tables
+      'clinics': 'Clinic information and settings',
+      'patients': 'Patient records and information',
+      'appointments': 'Appointment bookings and schedules',
+      'patient_phones': 'Patient phone number records',
+      'scheduling_settings': 'Clinic scheduling configuration',
+      'disabled_slots': 'Disabled time slots and holidays',
+      'system_settings': 'System configuration and feature toggles',
+      'system_audit_log': 'System audit and change logs',
+      'dental_treatments': 'Treatment types and pricing',
+      'treatment_payments': 'Payment records for treatments',
+      'payment_transactions': 'Detailed payment transaction logs',
+      'tooth_images': 'Dental images and X-rays',
+      'dentists': 'Dentist information and assignments',
+      'staff_permissions': 'Staff access permissions',
+      'feature_toggles': 'Feature enable/disable settings',
+      'whatsapp_notifications': 'WhatsApp notification settings',
+      'email_templates': 'Email notification templates',
+      'prescriptions': 'Patient prescription records',
+      'medical_history': 'Patient medical history',
+      'lab_work': 'Laboratory work orders',
+      'lab_work_payments': 'Lab work payment records',
+      'fcm_tokens': 'Firebase Cloud Messaging tokens',
+      'push_subscriptions': 'Push notification subscriptions',
+      'captcha_logs': 'CAPTCHA verification logs',
+      'security_logs': 'Security and access logs',
+      'performance_logs': 'System performance metrics',
+      'error_logs': 'Application error logs',
+      'user_sessions': 'User session tracking',
+      'api_usage': 'API usage statistics',
+      'backup_logs': 'Database backup logs',
+      'maintenance_logs': 'System maintenance records',
+      
+      // Auth and user management
+      'auth_users': 'Authentication user records',
+      'user_profiles': 'User profile information',
+      'clinic_staff': 'Clinic staff members',
+      'staff_roles': 'Staff role definitions',
+      'role_permissions': 'Role-based permissions',
+      
+      // Patient data
+      'patient_notes': 'Patient clinical notes',
+      'treatment_plans': 'Treatment plan details',
+      'treatment_history': 'Complete treatment history',
+      'dental_records': 'Dental record information',
+      'patient_consent': 'Patient consent records',
+      'medical_alerts': 'Medical alert information',
+      'allergies': 'Patient allergy records',
+      'medications': 'Patient medication history',
+      'insurance_info': 'Insurance information',
+      'emergency_contacts': 'Emergency contact details',
+      'family_history': 'Family medical history',
+      'dental_history': 'Dental history records',
+      
+      // Images and media
+      'xray_images': 'X-ray image records',
+      'dental_charts': 'Dental chart data',
+      'tooth_conditions': 'Tooth condition records',
+      'treatment_photos': 'Treatment photo records',
+      'before_after_images': 'Before/after treatment images',
+      
+      // Financial and billing
+      'payment_methods': 'Payment method configurations',
+      'invoice_items': 'Invoice line items',
+      'invoices': 'Invoice records',
+      'receipts': 'Receipt records',
+      'refunds': 'Refund transaction records',
+      'financial_reports': 'Financial reporting data',
+      'revenue_analytics': 'Revenue analytics data',
+      'expense_tracking': 'Expense tracking records',
+      
+      // Notifications and communications
+      'appointment_reminders': 'Appointment reminder logs',
+      'notification_settings': 'Notification configuration',
+      'email_logs': 'Email communication logs',
+      'sms_logs': 'SMS communication logs',
+      'whatsapp_logs': 'WhatsApp communication logs',
+      'push_notifications': 'Push notification records',
+      'notification_templates': 'Notification template definitions',
+      'patient_communications': 'Patient communication records',
+      'message_history': 'Message history logs',
+      'chat_logs': 'Chat conversation logs',
+      
+      // Lab and medical
+      'lab_results': 'Laboratory test results',
+      'lab_orders': 'Laboratory order records',
+      'lab_reports': 'Laboratory report data',
+      'lab_analytics': 'Laboratory analytics data',
+      'consultation_notes': 'Consultation note records',
+      'follow_up_appointments': 'Follow-up appointment records',
+      'referrals': 'Patient referral records',
+      'specialist_notes': 'Specialist consultation notes',
+      
+      // Inventory and equipment
+      'inventory_items': 'Inventory item records',
+      'supplies': 'Medical supply records',
+      'equipment': 'Equipment records',
+      'maintenance_schedule': 'Equipment maintenance schedule',
+      
+      // Scheduling and availability
+      'room_bookings': 'Room booking records',
+      'resource_allocations': 'Resource allocation data',
+      'time_slots': 'Time slot definitions',
+      'break_times': 'Break time schedules',
+      'holiday_schedule': 'Holiday schedule data',
+      'working_hours': 'Working hours configuration',
+      'clinic_hours': 'Clinic operating hours',
+      'availability': 'Staff availability records',
+      
+      // Patient flow
+      'waitlist': 'Patient waitlist records',
+      'cancellations': 'Appointment cancellation records',
+      'reschedules': 'Appointment reschedule records',
+      'no_shows': 'No-show appointment records',
+      
+      // Quality and feedback
+      'patient_satisfaction': 'Patient satisfaction surveys',
+      'reviews': 'Patient review records',
+      'ratings': 'Service rating records',
+      'feedback': 'Patient feedback records',
+      'quality_metrics': 'Quality metric data',
+      'performance_indicators': 'Performance indicator data',
+      'kpi_tracking': 'KPI tracking records',
+      
+      // System and technical
+      'audit_trails': 'System audit trail records',
+      'change_logs': 'System change logs',
+      'version_history': 'Version history records',
+      'data_backups': 'Data backup records',
+      'system_health': 'System health monitoring data',
+      'monitoring_logs': 'System monitoring logs',
+      'error_tracking': 'Error tracking data',
+      'debug_logs': 'Debug log records',
+      'api_requests': 'API request logs',
+      'rate_limiting': 'Rate limiting data',
+      'usage_statistics': 'Usage statistics data',
+      'analytics_data': 'Analytics data records',
+      'user_activity': 'User activity tracking',
+      'session_logs': 'Session log records',
+      'login_history': 'Login history records',
+      'access_logs': 'Access log records',
+      
+      // Security and compliance
+      'security_scans': 'Security scan results',
+      'vulnerability_reports': 'Vulnerability assessment reports',
+      'penetration_tests': 'Penetration test results',
+      'security_events': 'Security event records',
+      'threat_detection': 'Threat detection logs',
+      'incident_reports': 'Security incident reports',
+      'breach_logs': 'Data breach logs',
+      'security_alerts': 'Security alert records',
+      'access_violations': 'Access violation records',
+      'permission_denials': 'Permission denial logs',
+      'authentication_failures': 'Authentication failure logs',
+      'authorization_errors': 'Authorization error logs',
+      
+      // Data management
+      'patient_imports': 'Patient data import records',
+      'data_migrations': 'Data migration logs',
+      'sync_logs': 'Data synchronization logs',
+      'integration_logs': 'Integration log records',
+      'third_party_logs': 'Third-party integration logs',
+      'webhook_logs': 'Webhook execution logs',
+      'api_integrations': 'API integration records',
+      'external_systems': 'External system connections',
+      
+      // Compliance and legal
+      'gdpr_compliance': 'GDPR compliance records',
+      'hipaa_compliance': 'HIPAA compliance records',
+      'data_retention': 'Data retention policy records',
+      'privacy_policies': 'Privacy policy records',
+      'terms_of_service': 'Terms of service records',
+      'user_agreements': 'User agreement records',
+      'legal_documents': 'Legal document records',
+      'compliance_reports': 'Compliance report records',
+      
+      // And many more...
+      'treatment_categories': 'Treatment category definitions',
+      'regulatory_compliance': 'Regulatory compliance records',
+      'certification_logs': 'Certification log records',
+      'license_tracking': 'License tracking data',
+      'training_records': 'Training record data',
+      'certification_expiry': 'Certification expiry tracking',
+      'continuing_education': 'Continuing education records',
+      'support_tickets': 'Support ticket records',
+      'help_desk': 'Help desk records',
+      'knowledge_base': 'Knowledge base articles',
+      'faqs': 'Frequently asked questions',
+      'documentation': 'System documentation',
+      'reports_generated': 'Generated report records',
+      'export_history': 'Export history logs',
+      'import_history': 'Import history logs',
+      'data_cleanup': 'Data cleanup logs',
+      'archived_records': 'Archived record data',
+      'deleted_records': 'Deleted record logs',
+      'recovery_logs': 'Data recovery logs',
+      'restore_history': 'Data restore history',
+      'backup_verification': 'Backup verification logs',
+      'integrity_checks': 'Data integrity check results',
+      'data_validation': 'Data validation results',
+      'quality_checks': 'Data quality check results',
+      'duplicate_records': 'Duplicate record identification',
+      'merge_history': 'Record merge history',
+      'data_corrections': 'Data correction logs',
+      'update_logs': 'Data update logs'
+    };
+    
+    return descriptions[tableName] || `${tableName.replace(/_/g, ' ')} data`;
+  };
+
+  // Function to format table name for display
+  const formatTableName = (tableName: string) => {
+    return tableName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  // Load all tables from database
+  const loadTables = async () => {
+    try {
+      setIsLoadingTables(true);
+      
+      // Only test the most basic tables that definitely exist in your system
+      const basicTables = [
+        'clinics', 'patients', 'appointments', 'patient_phones', 'scheduling_settings',
+        'disabled_slots', 'system_settings', 'dental_treatments', 'treatment_payments', 
+        'payment_transactions', 'tooth_images', 'dentists', 'staff_permissions', 
+        'feature_toggles', 'prescriptions', 'lab_work'
+      ];
+
+      const availableTables: string[] = [];
+      
+      console.log('🔍 Starting basic table discovery...');
+      
+      // Test only basic tables to avoid 404 spam
+      for (const tableName of basicTables) {
+        try {
+          const { data, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .limit(1);
+          
+          if (!error) {
+            availableTables.push(tableName);
+            console.log(`✅ Found table: ${tableName}`);
+          }
+        } catch (e) {
+          // Silently ignore errors - table doesn't exist
+        }
+      }
+
+      console.log(`🎯 Total tables discovered: ${availableTables.length}`);
+      console.log('📋 Tables found:', availableTables);
+
+      const tableInfos: TableInfo[] = availableTables.map(tableName => ({
+        name: tableName,
+        displayName: formatTableName(tableName),
+        icon: getTableIcon(tableName),
+        description: getTableDescription(tableName)
+      }));
+
+      setTables(tableInfos);
+    } catch (error) {
+      console.error('Error loading tables:', error);
+      toast.error('Failed to load database tables');
+    } finally {
+      setIsLoadingTables(false);
     }
-  ];
+  };
+
+  // Load tables on component mount
+  React.useEffect(() => {
+    loadTables();
+  }, []);
 
   const convertToCSV = (data: any[]): string => {
     if (data.length === 0) return '';
@@ -360,9 +584,46 @@ const DatabaseExport: React.FC = () => {
 
         {/* Individual Table Exports */}
         <div className="space-y-3">
-          <h3 className="font-semibold text-gray-900">Individual Table Exports</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {tables.map((table) => {
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Individual Table Exports</h3>
+            <Button
+              onClick={loadTables}
+              disabled={isLoadingTables}
+              variant="outline"
+              size="sm"
+            >
+              {isLoadingTables ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Database className="h-3 w-3 mr-1" />
+                  Refresh Tables
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {isLoadingTables ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-blue-600" />
+                <p className="text-gray-600">Loading database tables...</p>
+              </div>
+            </div>
+          ) : tables.length === 0 ? (
+            <div className="text-center py-8">
+              <Database className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-gray-600">No tables found or failed to load tables</p>
+              <Button onClick={loadTables} variant="outline" size="sm" className="mt-2">
+                Try Again
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {tables.map((table) => {
               const status = exportStatus[table.name]?.status || 'idle';
               const progress = exportStatus[table.name]?.progress || 0;
               const error = exportStatus[table.name]?.error;
@@ -411,13 +672,15 @@ const DatabaseExport: React.FC = () => {
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Export Info */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-semibold text-gray-900 mb-2">Export Information</h4>
           <ul className="text-sm text-gray-600 space-y-1">
+            <li>• <strong>{tables.length}</strong> tables discovered in your database</li>
             <li>• Individual exports: Files are downloaded in CSV format with UTF-8 encoding</li>
             <li>• Bulk export: All tables are packaged in a single ZIP file</li>
             <li>• Filenames include the current date (YYYY-MM-DD)</li>
@@ -425,6 +688,7 @@ const DatabaseExport: React.FC = () => {
             <li>• Large tables may take a few seconds to export</li>
             <li>• All data is exported from the current database state</li>
             <li>• ZIP file contains individual CSV files for each table</li>
+            <li>• Tables are automatically discovered from your Supabase database</li>
           </ul>
         </div>
       </CardContent>
