@@ -545,6 +545,16 @@ const ToothChart: React.FC<ToothChartProps> = ({
           // Create payment records for all treatments in the multi-tooth procedure
           for (const treatment of createdTreatments) {
             try {
+              // Calculate payment status correctly
+              let paymentStatus: 'Pending' | 'Partial' | 'Completed'
+              if (paymentAmount === 0) {
+                paymentStatus = 'Pending'
+              } else if (remainingBalance > 0) {
+                paymentStatus = 'Partial'
+              } else {
+                paymentStatus = 'Completed'
+              }
+
               // Create the treatment payment record
               const paymentData = {
                 clinic_id: clinicId,
@@ -552,7 +562,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 treatment_id: treatment.id,
                 total_amount: totalCost,
                 paid_amount: paymentAmount,
-                payment_status: remainingBalance > 0 ? 'Partial' : 'Completed'
+                payment_status: paymentStatus
               }
               
               const treatmentPayment = await simplePaymentApi.createTreatmentPayment(paymentData)

@@ -152,13 +152,33 @@ export const simplePaymentApi = {
 
     const totalPaid = transactions.reduce((sum, t) => sum + t.amount, 0)
 
+    // Get the treatment payment record to get total_amount
+    const { data: paymentRecord, error: paymentError } = await supabase
+      .from('treatment_payments')
+      .select('total_amount')
+      .eq('id', treatmentPaymentId)
+      .single()
+
+    if (paymentError) {
+      throw new Error(`Failed to get treatment payment record: ${paymentError.message}`)
+    }
+
+    // Calculate payment status correctly
+    let paymentStatus: PaymentStatus
+    if (totalPaid === 0) {
+      paymentStatus = 'Pending'
+    } else if (totalPaid >= paymentRecord.total_amount) {
+      paymentStatus = 'Completed'
+    } else {
+      paymentStatus = 'Partial'
+    }
+
     // Update the treatment payment record
     const { error: updateError } = await supabase
       .from('treatment_payments')
       .update({ 
         paid_amount: totalPaid,
-        payment_status: totalPaid === 0 ? 'Pending' : 
-                       totalPaid < 0 ? 'Partial' : 'Completed'
+        payment_status: paymentStatus
       })
       .eq('id', treatmentPaymentId)
 
