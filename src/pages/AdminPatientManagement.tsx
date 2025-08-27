@@ -1523,13 +1523,13 @@ export default function AdminPatientManagement() {
       // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
       
-              // Get appointments for today (excluding completed ones)
+              // Get appointments for today (only confirmed ones)
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
           .select('id, patient_id, name, phone, email, date, time, status')
           .eq('clinic_id', clinic.id)
           .eq('date', today)
-          .neq('status', 'Completed')
+          .eq('status', 'Confirmed')
           .order('time', { ascending: true });
 
       if (appointmentsError) throw appointmentsError;
