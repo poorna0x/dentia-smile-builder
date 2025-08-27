@@ -804,6 +804,29 @@ const SuperAdmin: React.FC = () => {
     }
   };
 
+  // Function to test basic Netlify function
+  const testNetlifyFunction = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/test-function');
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          toast.success('Netlify function is working!');
+          console.log('Function test result:', result);
+        } else {
+          toast.error(`Function test failed: ${result.error}`);
+          console.error('Function test error:', result);
+        }
+      } else {
+        toast.error(`Netlify function not available (status: ${response.status})`);
+      }
+    } catch (error) {
+      console.error('Error testing function:', error);
+      toast.error('Failed to test Netlify function');
+    }
+  };
+
   // Function to test Cloudinary connection
   const testCloudinaryConnection = async () => {
     try {
@@ -1720,12 +1743,20 @@ const SuperAdmin: React.FC = () => {
                 <h4 className="font-semibold">Data Management Actions</h4>
                 <div className="flex gap-2">
                   <Button
+                    onClick={testNetlifyFunction}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Database className="mr-2 h-4 w-4" />
+                    Test Function
+                  </Button>
+                  <Button
                     onClick={testCloudinaryConnection}
                     variant="outline"
                     size="sm"
                   >
                     <Globe className="mr-2 h-4 w-4" />
-                    Test Connection
+                    Test Cloudinary
                   </Button>
                   <Button
                     onClick={loadCloudinaryStats}

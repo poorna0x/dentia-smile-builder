@@ -28,10 +28,12 @@ exports.handler = async (event, context) => {
     // Check if Cloudinary credentials are configured
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
         body: JSON.stringify({ 
+          success: false,
           error: 'Cloudinary not configured',
+          message: 'Please set Cloudinary environment variables in Netlify',
           missing: {
             cloud_name: !process.env.CLOUDINARY_CLOUD_NAME,
             api_key: !process.env.CLOUDINARY_API_KEY,
