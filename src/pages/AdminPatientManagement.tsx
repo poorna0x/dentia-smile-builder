@@ -168,6 +168,7 @@ export default function AdminPatientManagement() {
   // Dental chart state
   const [showDentalChart, setShowDentalChart] = useState(false);
   const [selectedPatientForDental, setSelectedPatientForDental] = useState<Patient | null>(null);
+  const [dentalNumberingSystem, setDentalNumberingSystem] = useState<'universal' | 'fdi'>('universal');
   const [dentalTreatments, setDentalTreatments] = useState<any[]>([]);
   const [toothConditions, setToothConditions] = useState<any[]>([]);
   const [dentalNotes, setDentalNotes] = useState<any[]>([]);
@@ -1511,6 +1512,40 @@ export default function AdminPatientManagement() {
     return () => clearTimeout(timer);
   }, [isStaff, navigate, toast, hasPermission]);
 
+  // Load dental numbering system when clinic is available
+  useEffect(() => {
+    if (clinic?.id) {
+      loadDentalNumberingSystem();
+    }
+  }, [clinic?.id]);
+
+  // Subscribe to settings changes for real-time updates
+  useEffect(() => {
+    if (!clinic?.id) return;
+
+    const channel = supabase
+      .channel('dental_numbering_system_changes')
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'scheduling_settings',
+          filter: `clinic_id=eq.${clinic.id}`
+        }, 
+        (payload) => {
+          console.log('🦷 Dental numbering system changed:', payload);
+          if (payload.new?.dental_numbering_system) {
+            setDentalNumberingSystem(payload.new.dental_numbering_system);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clinic?.id]);
+
   // Auto-search when navigating from Admin page
   useEffect(() => {
     if (location.state?.autoSearch && location.state?.searchTerm) {
@@ -1528,6 +1563,30 @@ export default function AdminPatientManagement() {
       return () => clearTimeout(timer);
     }
   }, [location.state, navigate]);
+
+  const loadDentalNumberingSystem = async () => {
+    if (!clinic?.id) return;
+    
+    try {
+      const { data: settings, error } = await supabase
+        .from('scheduling_settings')
+        .select('dental_numbering_system')
+        .eq('clinic_id', clinic.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading dental numbering system:', error);
+        return;
+      }
+      
+      if (settings?.dental_numbering_system) {
+        setDentalNumberingSystem(settings.dental_numbering_system as 'universal' | 'fdi');
+        console.log(`🦷 Loaded dental numbering system: ${settings.dental_numbering_system}`);
+      }
+    } catch (error) {
+      console.error('Error loading dental numbering system:', error);
+    }
+  };
 
   const loadPatients = async () => {
     if (!clinic?.id) return;
@@ -3235,6 +3294,7 @@ export default function AdminPatientManagement() {
                     clinicId={clinic?.id || ''}
                     onTreatmentAdded={handleDentalDataUpdated}
                     onConditionUpdated={handleDentalDataUpdated}
+                    numberingSystem={dentalNumberingSystem}
                   />
                 </div>
 

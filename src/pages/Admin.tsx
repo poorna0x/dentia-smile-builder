@@ -89,6 +89,7 @@ interface SchedulingSettings {
   customHolidays: string[];
   showStatsCards: boolean;
   minimumAdvanceNotice: number; // Hours in advance required for booking
+  dentalNumberingSystem: 'universal' | 'fdi'; // Dental numbering system
   daySchedules: {
     [key: string]: DaySchedule;
   };
@@ -296,6 +297,7 @@ const Admin = () => {
     customHolidays: [],
     showStatsCards: true,
     minimumAdvanceNotice: 24, // Default: 24 hours advance notice
+    dentalNumberingSystem: 'universal', // Default: Universal numbering system
     daySchedules: {
       Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
       Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -306,6 +308,8 @@ const Admin = () => {
       Sun: { enabled: false, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 }
     }
   });
+
+
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   
@@ -364,6 +368,7 @@ const Admin = () => {
         customHolidays: settings.custom_holidays || [],
         showStatsCards: settings.show_stats_cards !== false, // Default to true if not set
         minimumAdvanceNotice: settings.minimum_advance_notice !== null && settings.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24, // Default: 24 hours
+        dentalNumberingSystem: settings.dental_numbering_system || 'universal', // Default: universal
         daySchedules: {
           Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
           Tue: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -1554,6 +1559,7 @@ Jeshna Dental Clinic Team`;
             disabled_slots: [],
             show_stats_cards: settingsToSave.showStatsCards,
             minimum_advance_notice: settingsToSave.minimumAdvanceNotice,
+            dental_numbering_system: settingsToSave.dentalNumberingSystem,
             day_schedules: daySchedules,
             notification_settings: {
               email_notifications: true,
@@ -1796,11 +1802,12 @@ Jeshna Dental Clinic Team`;
         return;
       }
       
-      // Navigate to AdminPatientManagement with search term
+      // Navigate to AdminPatientManagement with search term and dental numbering system
       navigate('/admin/patients', { 
         state: { 
           searchTerm: patientToView.name,
-          autoSearch: true 
+          autoSearch: true,
+          dentalNumberingSystem: schedulingSettings.dentalNumberingSystem
         }
       });
       setShowPatientViewDialog(false);
@@ -2603,6 +2610,54 @@ Jeshna Dental Clinic Team`;
                       `Patients must book at least ${schedulingSettings.minimumAdvanceNotice} hour${schedulingSettings.minimumAdvanceNotice === 1 ? '' : 's'} in advance`
                     ) : (
                       `Patients must book at least ${Math.floor(schedulingSettings.minimumAdvanceNotice / 24)} day${Math.floor(schedulingSettings.minimumAdvanceNotice / 24) === 1 ? '' : 's'} and ${schedulingSettings.minimumAdvanceNotice % 24} hour${schedulingSettings.minimumAdvanceNotice % 24 === 1 ? '' : 's'} in advance`
+                    )}
+                  </div>
+                </div>
+
+                {/* Dental Numbering System */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-medium">Dental Numbering System</Label>
+                    <p className="text-sm text-gray-600">Choose the tooth numbering system used in dental charts</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <Select
+                        value={schedulingSettings.dentalNumberingSystem}
+                        onValueChange={(value: 'universal' | 'fdi') => {
+                          const updatedSettings = {
+                            ...schedulingSettings,
+                            dentalNumberingSystem: value
+                          };
+                          setSchedulingSettings(updatedSettings);
+                          debouncedAutoSave(updatedSettings);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select numbering system" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="universal">
+                            <div className="flex items-center gap-2">
+                              <span>🌍 Universal Numbering System (UNS)</span>
+                              <span className="text-xs text-gray-500">1-32 (International)</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="fdi">
+                            <div className="flex items-center gap-2">
+                              <span>🦷 FDI World Dental Federation</span>
+                              <span className="text-xs text-gray-500">18-11, 21-28, 48-41, 31-38 (Indian Standard)</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {schedulingSettings.dentalNumberingSystem === 'universal' ? (
+                      "Using Universal Numbering System (1-32) - International standard"
+                    ) : (
+                      "Using FDI Numbering System - Common in Indian dental practices"
                     )}
                   </div>
                 </div>
