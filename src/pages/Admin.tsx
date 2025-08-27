@@ -7,7 +7,7 @@ import { useOptimizedAppointments } from '@/hooks/useOptimizedAppointments'
 import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
-import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot } from '@/lib/supabase';
+import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
@@ -174,6 +174,13 @@ const Admin = () => {
   const [isSearchingPatients, setIsSearchingPatients] = useState(false);
   const [selectedPatientForBooking, setSelectedPatientForBooking] = useState<any>(null);
   const [showPatientSearchDialog, setShowPatientSearchDialog] = useState(false);
+
+  // Multi-dentist support states
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [appointmentToComplete, setAppointmentToComplete] = useState<Appointment | null>(null);
+  const [dentists, setDentists] = useState<Dentist[]>([]);
+  const [selectedDentistId, setSelectedDentistId] = useState<string>('');
+  const [isLoadingDentists, setIsLoadingDentists] = useState(false);
   
 
 
@@ -649,10 +656,48 @@ Jeshna Dental Clinic Team`;
 
 
 
+  const loadDentists = async () => {
+    if (!clinic?.id) return;
+    
+    try {
+      setIsLoadingDentists(true);
+      const dentistsList = await dentistsApi.getAll(clinic.id);
+      setDentists(dentistsList);
+    } catch (error) {
+      console.error('Failed to load dentists:', error);
+      toast.error('Failed to load dentists');
+    } finally {
+      setIsLoadingDentists(false);
+    }
+  };
+
   const handleCompleteAppointment = async (appointmentId: string) => {
+    // Find the appointment to complete
+    const appointment = appointments?.find(apt => apt.id === appointmentId);
+    if (!appointment) {
+      toast.error('Appointment not found');
+      return;
+    }
+
+    // Load dentists and show complete dialog
+    setAppointmentToComplete(appointment);
+    await loadDentists();
+    setShowCompleteDialog(true);
+    setShowEditDialog(false); // Close the edit dialog
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!appointmentToComplete || !selectedDentistId) {
+      toast.error('Please select a dentist');
+      return;
+    }
+
     try {
       if (updateAppointment) {
-        await updateAppointment(appointmentId, { status: 'Completed' });
+        await updateAppointment(appointmentToComplete.id, { 
+          status: 'Completed',
+          dentist_id: selectedDentistId
+        });
       }
       
       // Force refresh appointments to get immediate update
@@ -662,8 +707,10 @@ Jeshna Dental Clinic Team`;
       
       toast.success('Appointment marked as completed');
       
-      // Auto-close the edit dialog
-      setShowEditDialog(false);
+      // Reset and close dialogs
+      setShowCompleteDialog(false);
+      setAppointmentToComplete(null);
+      setSelectedDentistId('');
     } catch (error) {
       toast.error('Failed to complete appointment');
     }
@@ -1531,6 +1578,23 @@ Jeshna Dental Clinic Team`;
       }
     };
   }, [autoSaveTimeout]);
+
+  // Listen for appointment completion events from other pages
+  useEffect(() => {
+    const handleAppointmentCompleted = (event: CustomEvent) => {
+      console.log('🔄 Admin page received appointment completion event:', event.detail);
+      // Trigger refresh to update appointments list
+      if (refreshAppointments) {
+        refreshAppointments();
+      }
+    };
+
+    window.addEventListener('appointmentCompleted', handleAppointmentCompleted as EventListener);
+
+    return () => {
+      window.removeEventListener('appointmentCompleted', handleAppointmentCompleted as EventListener);
+    };
+  }, [refreshAppointments]);
 
   const handleDisableAppointmentsToggle = (checked: boolean) => {
     const updatedSettings = {
@@ -3428,6 +3492,98 @@ Jeshna Dental Clinic Team`;
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               Continue with New Patient
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Appointment with Dentist Selection Dialog */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Complete Appointment
+            </DialogTitle>
+            <DialogDescription>
+              Select which dentist attended this appointment
+            </DialogDescription>
+          </DialogHeader>
+          
+          {appointmentToComplete && (
+            <div className="space-y-4 py-4">
+              {/* Appointment Info */}
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium">Patient:</span> {appointmentToComplete.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Date:</span> {format(new Date(appointmentToComplete.date), 'PPP')}
+                  </div>
+                  <div>
+                    <span className="font-medium">Time:</span> {appointmentToComplete.time}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dentist Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="dentist-select" className="font-medium">Who attended this appointment? *</Label>
+                {isLoadingDentists ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    <span className="text-sm text-gray-600">Loading dentists...</span>
+                  </div>
+                ) : dentists.length === 0 ? (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+                    <AlertCircle className="h-4 w-4 inline mr-1" />
+                    No dentists found for this clinic. Please add dentists in SuperAdmin first.
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedDentistId}
+                    onValueChange={setSelectedDentistId}
+                  >
+                    <SelectTrigger id="dentist-select">
+                      <SelectValue placeholder="Select a dentist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dentists.map((dentist) => (
+                        <SelectItem key={dentist.id} value={dentist.id}>
+                          {dentist.name}
+                          {dentist.specialization && ` (${dentist.specialization})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-gray-500">
+                  This information will be used for analytics and reporting
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCompleteDialog(false);
+                setAppointmentToComplete(null);
+                setSelectedDentistId('');
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmComplete}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              disabled={!selectedDentistId || isLoadingDentists}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Complete Appointment
             </Button>
           </DialogFooter>
         </DialogContent>

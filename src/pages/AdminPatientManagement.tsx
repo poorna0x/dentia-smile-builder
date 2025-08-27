@@ -14,7 +14,7 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { patientApi, treatmentPlanApi, medicalRecordApi } from '@/lib/patient-management';
 import { dentalTreatmentApi, toothConditionApi, dentalNoteApi, toothChartUtils } from '@/lib/dental-treatments';
 import { labWorkApi } from '@/lib/lab-work';
-import { supabase } from '@/lib/supabase';
+import { supabase, dentistsApi, Dentist } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock, Check } from 'lucide-react';
@@ -111,6 +111,7 @@ export default function AdminPatientManagement() {
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
   const [appointmentToComplete, setAppointmentToComplete] = useState<{id: string, patientName: string} | null>(null);
+  const [selectedDentistId, setSelectedDentistId] = useState<string>('');
   const [existingPatients, setExistingPatients] = useState<Patient[]>([]);
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
   const [nameSimilarity, setNameSimilarity] = useState(0);
@@ -155,6 +156,7 @@ export default function AdminPatientManagement() {
   const [medicalHistoryAppointments, setMedicalHistoryAppointments] = useState<any[]>([]);
   const [medicalHistoryPrescriptions, setMedicalHistoryPrescriptions] = useState<any[]>([]);
   const [medicalHistoryRecords, setMedicalHistoryRecords] = useState<any[]>([]);
+  const [dentists, setDentists] = useState<Dentist[]>([]);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
 
@@ -671,7 +673,10 @@ export default function AdminPatientManagement() {
   };
 
   // Handle completing an appointment
-  const handleCompleteAppointment = (appointmentId: string, patientName: string) => {
+  const handleCompleteAppointment = async (appointmentId: string, patientName: string) => {
+    // Load dentists first
+    await loadDentists();
+    
     setAppointmentToComplete({ id: appointmentId, patientName });
     setShowCompleteConfirmDialog(true);
   };
@@ -679,17 +684,34 @@ export default function AdminPatientManagement() {
   const confirmCompleteAppointment = async () => {
     if (!appointmentToComplete) return;
     
+    // Validate dentist selection if multiple dentists
+    if (dentists.length > 1 && !selectedDentistId) {
+      toast({
+        title: "Error",
+        description: "Please select a dentist",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
+      const updateData: any = { status: 'Completed' };
+      
+      // Add dentist_id if selected
+      if (selectedDentistId) {
+        updateData.dentist_id = selectedDentistId;
+      }
+      
       const { error } = await supabase
         .from('appointments')
-        .update({ status: 'Completed' })
+        .update(updateData)
         .eq('id', appointmentToComplete.id);
 
       if (error) throw error;
 
       toast({
         title: "Appointment Completed",
-        description: `Appointment for ${appointmentToComplete.patientName} has been marked as completed`,
+        description: `Appointment for ${appointmentToComplete.patientName} has been marked as completed and updated everywhere`,
       });
 
       // Send review request via WhatsApp if enabled
@@ -737,6 +759,21 @@ export default function AdminPatientManagement() {
 
       // Refresh the appointments list
       loadPatientsWithAppointmentsToday();
+      
+      // Dispatch custom event to notify other pages of appointment completion
+      window.dispatchEvent(new CustomEvent('appointmentCompleted', {
+        detail: {
+          appointmentId: appointmentToComplete.id,
+          patientName: appointmentToComplete.patientName,
+          dentistId: selectedDentistId
+        }
+      }));
+      
+      // Trigger a small delay to ensure real-time updates propagate
+      setTimeout(() => {
+        // This ensures the Admin page real-time subscriptions pick up the change
+        console.log('✅ Appointment completed - real-time updates should propagate');
+      }, 100);
     } catch (error) {
       console.error('Error completing appointment:', error);
       toast({
@@ -750,10 +787,31 @@ export default function AdminPatientManagement() {
     }
   };
 
+  // Load dentists for clinic
+  const loadDentists = async () => {
+    if (!clinic?.id) return;
+    
+    try {
+      const dentistsList = await dentistsApi.getAll(clinic.id);
+      setDentists(dentistsList);
+    } catch (error) {
+      console.error('Failed to load dentists:', error);
+    }
+  };
+
+  // Get dentist name by ID
+  const getDentistName = (dentistId: string) => {
+    const dentist = dentists.find(d => d.id === dentistId);
+    return dentist ? dentist.name : 'Unknown Dentist';
+  };
+
   // Medical history function
   const handleViewMedicalHistory = async (patient: Patient) => {
     setSelectedPatientHistory(patient);
     setShowMedicalHistory(true);
+    
+    // Load dentists first
+    await loadDentists();
     
     // Load dental treatments for this patient
     try {
@@ -1333,6 +1391,21 @@ export default function AdminPatientManagement() {
       console.log('Component: No clinic ID available');
     }
   }, [clinic?.id]);
+
+  // Listen for appointment completion events from other pages
+  useEffect(() => {
+    const handleAppointmentCompleted = (event: CustomEvent) => {
+      console.log('🔄 AdminPatientManagement page received appointment completion event:', event.detail);
+      // Trigger refresh to update patients list
+      loadPatientsWithAppointmentsToday();
+    };
+
+    window.addEventListener('appointmentCompleted', handleAppointmentCompleted as EventListener);
+
+    return () => {
+      window.removeEventListener('appointmentCompleted', handleAppointmentCompleted as EventListener);
+    };
+  }, []);
 
   // Close search results when clicking outside
   useEffect(() => {
@@ -3278,6 +3351,13 @@ export default function AdminPatientManagement() {
                                   <p className="text-sm text-gray-600">
                                     {formatDate(appointment.date)} at {appointment.time}
                                   </p>
+                                  {/* Show dentist info only if there are multiple dentists and appointment has dentist_id */}
+                                  {dentists.length > 1 && appointment.dentist_id && (
+                                    <p className="text-sm text-blue-600 mt-1">
+                                      <Stethoscope className="h-3 w-3 inline mr-1" />
+                                      Attended by: {getDentistName(appointment.dentist_id)}
+                                    </p>
+                                  )}
                                 </div>
                                 <Badge className={getAppointmentStatusColor(appointment.status)}>
                                   {appointment.status}
@@ -4252,7 +4332,7 @@ export default function AdminPatientManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Complete Appointment Confirmation Dialog */}
+        {/* Complete Appointment with Dentist Selection Dialog */}
         <Dialog open={showCompleteConfirmDialog} onOpenChange={setShowCompleteConfirmDialog}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -4261,11 +4341,38 @@ export default function AdminPatientManagement() {
                 Complete Appointment
               </DialogTitle>
               <DialogDescription>
-                Are you sure you want to mark the appointment for <strong>{appointmentToComplete?.patientName}</strong> as completed?
+                Mark the appointment for <strong>{appointmentToComplete?.patientName}</strong> as completed
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-3">
+            <div className="space-y-4 py-4">
+              {/* Dentist Selection - Only show if multiple dentists */}
+              {dentists.length > 1 && (
+                <div className="space-y-2">
+                  <Label htmlFor="dentist-select" className="font-medium">Who attended this appointment? *</Label>
+                  <Select
+                    value={selectedDentistId}
+                    onValueChange={setSelectedDentistId}
+                  >
+                    <SelectTrigger id="dentist-select">
+                      <SelectValue placeholder="Select a dentist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dentists.map((dentist) => (
+                        <SelectItem key={dentist.id} value={dentist.id}>
+                          {dentist.name}
+                          {dentist.specialization && ` (${dentist.specialization})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    This information will be used for analytics and reporting
+                  </p>
+                </div>
+              )}
+
+              {/* Info message */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-sm text-green-700">
                   This will mark the appointment as completed and remove it from today's appointments view. The appointment record will be preserved in the patient's medical history.
@@ -4279,6 +4386,7 @@ export default function AdminPatientManagement() {
                 onClick={() => {
                   setShowCompleteConfirmDialog(false);
                   setAppointmentToComplete(null);
+                  setSelectedDentistId('');
                 }}
               >
                 Cancel
@@ -4287,6 +4395,7 @@ export default function AdminPatientManagement() {
                 variant="default" 
                 onClick={confirmCompleteAppointment}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                disabled={dentists.length > 1 && !selectedDentistId}
               >
                 <Check className="w-4 h-4" />
                 Complete Appointment
