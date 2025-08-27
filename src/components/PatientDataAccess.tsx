@@ -107,7 +107,7 @@ const MathCaptcha = ({ onVerify }: { onVerify: (success: boolean) => void }) => 
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
             placeholder="Enter your answer"
-            className="max-w-xs mx-auto border-2 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+            className="w-full max-w-xs mx-auto text-center border-2 border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
           />
           {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
@@ -1448,7 +1448,7 @@ const PatientDataAccess = () => {
                 Enter Your Phone Number
               </CardTitle>
               <CardDescription>
-                We'll send you a verification code to access your records
+                Enter your phone number to access your medical records
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1581,7 +1581,7 @@ const PatientDataAccess = () => {
 
           {/* Upcoming Appointments - Only show if exists */}
           {appointments.length > 0 && (
-            <Card className="border-blue-200 bg-blue-50">
+            <Card className="shadow-lg border-2 border-blue-200 bg-blue-50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2 text-blue-800">
                   <Calendar className="w-4 h-4" />
@@ -1593,7 +1593,7 @@ const PatientDataAccess = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 {appointments.map((appointment) => (
-                  <div key={appointment.id} className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div key={appointment.id} className="bg-white rounded-lg p-3 border-2 border-blue-200">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <h4 className="font-semibold text-sm">

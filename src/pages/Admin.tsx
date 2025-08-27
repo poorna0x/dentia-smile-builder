@@ -1997,6 +1997,7 @@ Jeshna Dental Clinic Team`;
               <Button 
                 onClick={() => {
                   setShowSettings(!showSettings);
+                  
                   // Scroll to settings section after a short delay to ensure it's rendered
                   setTimeout(() => {
                     const settingsSection = document.getElementById('settings-section');
@@ -2014,9 +2015,12 @@ Jeshna Dental Clinic Team`;
                     ? 'border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 hover:border-emerald-500 shadow-md' 
                     : 'border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-500 shadow-sm'
                 }`}
+                disabled={settingsLoading}
               >
                 <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Settings</span>
+                <span className="hidden sm:inline">
+                  {settingsLoading ? 'Loading...' : 'Settings'}
+                </span>
               </Button>
               <LogoutButton />
             </div>
@@ -2523,16 +2527,27 @@ Jeshna Dental Clinic Team`;
             )}
           </Card>
 
-          {/* Settings Section - Only visible to dentists or staff with settings access */}
-          {showSettings && (isDentist || hasPermission('change_settings')) && (
+          {/* Settings Section - Always render when showSettings is true */}
+          {console.log('🔧 Settings Section Debug:', {
+            showSettings,
+            isDentist,
+            isStaff,
+            hasPermissionChangeSettings: hasPermission('change_settings'),
+            userRole,
+            shouldRender: showSettings && (isDentist || hasPermission('change_settings'))
+          })}
+          {showSettings && (
             <Card id="settings-section" className="mt-6 md:mt-8 bg-gradient-to-br from-emerald-50 to-teal-100 border-emerald-200 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-emerald-800">Scheduling Settings</CardTitle>
-                <CardDescription className="text-emerald-700">Control the appointment window and slot generation</CardDescription>
+              <CardTitle className="text-emerald-800">Settings</CardTitle>
+                <CardDescription className="text-emerald-700">Manage clinic settings and preferences</CardDescription>
             </CardHeader>
               <CardContent className="space-y-6">
-                {/* Disable Appointments */}
-                <div className="space-y-4">
+                {/* Show settings content only if user has permission */}
+                {(isDentist || hasPermission('change_settings')) ? (
+                  <>
+                    {/* Disable Appointments */}
+                    <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <Label className="text-base font-medium">Disable All Appointments</Label>
@@ -2913,12 +2928,24 @@ Jeshna Dental Clinic Team`;
                     </CardContent>
                   </Card>
                 </div>
-
-                
-
+                  </>
+                ) : (
+                  /* Show access denied message inside the settings card */
+                  <div className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <Lock className="h-8 w-8 text-red-500" />
+                      <h3 className="text-lg font-semibold text-red-800">Access Restricted</h3>
+                    </div>
+                    <p className="text-red-600">
+                      Settings access is limited to dentists only. Please contact your dentist for any settings changes.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
+
+
 
           {/* Staff Permissions Section - Only visible to dentists */}
           {showSettings && isDentist && (
@@ -3015,26 +3042,7 @@ Jeshna Dental Clinic Team`;
           
 
           
-          {/* Staff Access Denied Message */}
-          {showSettings && isStaff && !hasPermission('change_settings') && (
-            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-red-50 to-pink-100 border-red-200 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-red-800 flex items-center gap-2">
-                  <Lock className="h-5 w-5" />
-                  Access Restricted
-                </CardTitle>
-                <CardDescription className="text-red-700">
-                  Settings access is limited to dentists only
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-red-600">
-                  As a staff member, you can view and manage appointments but cannot modify system settings. 
-                  Please contact your dentist for any settings changes.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+
 
           {/* Status Notice */}
           <Card className="mt-6">

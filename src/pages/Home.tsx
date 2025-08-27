@@ -89,7 +89,7 @@ const Home = () => {
         
         {/* Patient Data Access Section */}
         <section id="patient-data-access" className="py-16 bg-gradient-to-br from-green-50 to-emerald-100">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
                 Access Your Medical Information
@@ -98,13 +98,15 @@ const Home = () => {
                 View your appointments, treatments, prescriptions, and medical records. Simply enter your phone number to access your complete medical history.
               </p>
             </div>
-            <PatientDataAccess />
+            <div className="max-w-4xl mx-auto">
+              <PatientDataAccess />
+            </div>
           </div>
         </section>
 
         {/* Check Appointment Status Section */}
         <section id="check-appointment-status" className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
                 Check Your Appointment Status
@@ -113,7 +115,9 @@ const Home = () => {
                 Already have an appointment? Enter your details below to view your upcoming appointment details and get directions to our clinic.
               </p>
             </div>
-            <CheckAppointmentStatus />
+            <div className="max-w-4xl mx-auto">
+              <CheckAppointmentStatus />
+            </div>
           </div>
         </section>
       </main>

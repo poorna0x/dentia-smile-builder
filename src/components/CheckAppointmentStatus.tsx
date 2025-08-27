@@ -191,8 +191,8 @@ const CheckAppointmentStatus = () => {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <Card className="shadow-lg border-2 border-blue-200">
+    <div className="w-full max-w-4xl mx-auto">
+      <Card className="shadow-lg border-2 border-blue-200 max-w-md mx-auto">
         <CardHeader className="text-center pb-4">
           <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <Search className="h-8 w-8 text-blue-600" />
