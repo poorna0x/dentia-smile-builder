@@ -34,6 +34,7 @@ import { featureToggleEvents } from '@/lib/feature-toggle-events';
 import DatabaseExport from '@/components/DatabaseExport';
 import { getNotificationSettings } from '@/lib/whatsapp';
 import { dentistsApi, type Dentist } from '@/lib/supabase';
+import { toothImageApi } from '@/lib/tooth-images';
 
 interface SuperAdminState {
   isAuthenticated: boolean;
@@ -74,6 +75,17 @@ interface SuperAdminState {
       name: string;
       specialization: string;
     };
+  };
+  cloudinaryManagement: {
+    isLoading: boolean;
+    stats: {
+      totalImages: number;
+      totalSizeBytes: number;
+      imagesByType: { [key: string]: number };
+    } | null;
+    showDeleteDialog: boolean;
+    deleteType: 'all' | 'orphaned' | 'old' | null;
+    deleteProgress: number;
   };
 }
 
@@ -117,6 +129,13 @@ const SuperAdmin: React.FC = () => {
         name: '',
         specialization: ''
       }
+    },
+    cloudinaryManagement: {
+      isLoading: false,
+      stats: null,
+      showDeleteDialog: false,
+      deleteType: null,
+      deleteProgress: 0
     }
   });
 
@@ -131,6 +150,7 @@ const SuperAdmin: React.FC = () => {
       loadFeatureToggles();
       loadNotificationSettings();
       loadClinics();
+      loadCloudinaryStats();
     }
   }, [state.isAuthenticated]);
 
@@ -574,6 +594,281 @@ const SuperAdmin: React.FC = () => {
     } catch (error) {
       console.error('Failed to delete dentist:', error);
       toast.error('Failed to delete dentist');
+    }
+  };
+
+  // Cloudinary Management Functions
+  const loadCloudinaryStats = async () => {
+    try {
+      setState(prev => ({
+        ...prev,
+        cloudinaryManagement: {
+          ...prev.cloudinaryManagement,
+          isLoading: true
+        }
+      }));
+
+      // First try to get stats directly from Cloudinary
+      try {
+        const response = await fetch('/.netlify/functions/list-cloudinary-images?max_results=1000');
+        
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const result = await response.json();
+            
+            if (result.success && result.resources) {
+              const totalImages = result.resources.length;
+              const totalSizeBytes = result.resources.reduce((sum: number, img: any) => sum + (img.bytes || 0), 0);
+              
+              // Group by format (image type)
+              const imagesByType: { [key: string]: number } = {};
+              result.resources.forEach((img: any) => {
+                const format = img.format || 'unknown';
+                imagesByType[format] = (imagesByType[format] || 0) + 1;
+              });
+
+              setState(prev => ({
+                ...prev,
+                cloudinaryManagement: {
+                  ...prev.cloudinaryManagement,
+                  isLoading: false,
+                  stats: {
+                    totalImages,
+                    totalSizeBytes,
+                    imagesByType
+                  }
+                }
+              }));
+              return;
+            }
+          } else {
+            console.warn('Cloudinary function returned non-JSON response, falling back to database stats');
+          }
+        } else {
+          console.warn(`Cloudinary function returned status ${response.status}, falling back to database stats`);
+        }
+      } catch (error) {
+        console.error('Failed to get Cloudinary stats directly:', error);
+        console.log('This is expected if Netlify functions are not deployed yet. Using database stats as fallback.');
+      }
+
+      // Fallback to database stats
+      const { data: clinics } = await supabase
+        .from('clinics')
+        .select('id')
+        .eq('is_active', true);
+
+      if (!clinics || clinics.length === 0) {
+        setState(prev => ({
+          ...prev,
+          cloudinaryManagement: {
+            ...prev.cloudinaryManagement,
+            isLoading: false,
+            stats: {
+              totalImages: 0,
+              totalSizeBytes: 0,
+              imagesByType: {}
+            }
+          }
+        }));
+        return;
+      }
+
+      // Aggregate stats from all clinics
+      let totalImages = 0;
+      let totalSizeBytes = 0;
+      const imagesByType: { [key: string]: number } = {};
+
+      for (const clinic of clinics) {
+        try {
+          const { data: images } = await supabase
+            .from('tooth_images')
+            .select('image_type, file_size_bytes')
+            .eq('clinic_id', clinic.id);
+
+          if (images) {
+            totalImages += images.length;
+            totalSizeBytes += images.reduce((sum, img) => sum + (img.file_size_bytes || 0), 0);
+            
+            images.forEach(img => {
+              imagesByType[img.image_type] = (imagesByType[img.image_type] || 0) + 1;
+            });
+          }
+        } catch (error) {
+          console.error(`Error loading stats for clinic ${clinic.id}:`, error);
+        }
+      }
+
+      setState(prev => ({
+        ...prev,
+        cloudinaryManagement: {
+          ...prev.cloudinaryManagement,
+          isLoading: false,
+          stats: {
+            totalImages,
+            totalSizeBytes,
+            imagesByType
+          }
+        }
+      }));
+
+    } catch (error) {
+      console.error('Failed to load Cloudinary stats:', error);
+      toast.error('Failed to load Cloudinary statistics');
+      setState(prev => ({
+        ...prev,
+        cloudinaryManagement: {
+          ...prev.cloudinaryManagement,
+          isLoading: false
+        }
+      }));
+    }
+  };
+
+  const deleteCloudinaryData = async (deleteType: 'all' | 'orphaned' | 'old') => {
+    try {
+      setState(prev => ({
+        ...prev,
+        cloudinaryManagement: {
+          ...prev.cloudinaryManagement,
+          deleteProgress: 0,
+          deleteType
+        }
+      }));
+
+      // Use the new bulk delete function for direct Cloudinary deletion
+      const response = await fetch('/.netlify/functions/delete-all-cloudinary-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deleteType
+        })
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete from Cloudinary');
+        } else {
+          throw new Error(`Netlify function not available (status: ${response.status}). Please deploy the functions first.`);
+        }
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Netlify function returned invalid response. Please check function deployment.');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(`Cloudinary cleanup completed! Deleted ${result.deletedCount} images${result.errorCount > 0 ? `, ${result.errorCount} errors` : ''}`);
+        
+        // Also clean up database records for deleted images
+        if (deleteType === 'all') {
+          await cleanupDatabaseRecords();
+        }
+      } else {
+        throw new Error(result.error || 'Unknown error occurred');
+      }
+      
+      // Reload stats
+      await loadCloudinaryStats();
+
+      setState(prev => ({
+        ...prev,
+        cloudinaryManagement: {
+          ...prev.cloudinaryManagement,
+          showDeleteDialog: false,
+          deleteType: null,
+          deleteProgress: 0
+        }
+      }));
+
+    } catch (error) {
+      console.error('Failed to delete Cloudinary data:', error);
+      toast.error(`Failed to delete Cloudinary data: ${error.message}`);
+      setState(prev => ({
+        ...prev,
+        cloudinaryManagement: {
+          ...prev.cloudinaryManagement,
+          showDeleteDialog: false,
+          deleteType: null,
+          deleteProgress: 0
+        }
+      }));
+    }
+  };
+
+  // Function to test Cloudinary connection
+  const testCloudinaryConnection = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/test-cloudinary');
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          toast.success('Cloudinary connection successful!');
+          console.log('Cloudinary test result:', result);
+        } else {
+          toast.error(`Cloudinary test failed: ${result.error}`);
+          console.error('Cloudinary test error:', result);
+        }
+      } else {
+        toast.error(`Netlify function not available (status: ${response.status})`);
+      }
+    } catch (error) {
+      console.error('Error testing Cloudinary:', error);
+      toast.error('Failed to test Cloudinary connection');
+    }
+  };
+
+  // Function to clean up database records after Cloudinary deletion
+  const cleanupDatabaseRecords = async () => {
+    try {
+      // Get all clinics
+      const { data: clinics } = await supabase
+        .from('clinics')
+        .select('id')
+        .eq('is_active', true);
+
+      if (!clinics || clinics.length === 0) {
+        return;
+      }
+
+      let totalDeleted = 0;
+
+      for (const clinic of clinics) {
+        try {
+          // Get all tooth images for this clinic
+          const { data: images } = await supabase
+            .from('tooth_images')
+            .select('*')
+            .eq('clinic_id', clinic.id);
+
+          if (images && images.length > 0) {
+            // Delete all images from database
+            for (const image of images) {
+              try {
+                await toothImageApi.delete(image.id, clinic.id);
+                totalDeleted++;
+              } catch (error) {
+                console.error(`Error deleting database record ${image.id}:`, error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing clinic ${clinic.id}:`, error);
+        }
+      }
+
+      console.log(`Cleaned up ${totalDeleted} database records`);
+    } catch (error) {
+      console.error('Error cleaning up database records:', error);
     }
   };
 
@@ -1157,7 +1452,7 @@ const SuperAdmin: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {state.dentistManagement.clinics.length === 0 ? (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="no-clinics" disabled>
                           No clinics available
                         </SelectItem>
                       ) : (
@@ -1340,6 +1635,278 @@ const SuperAdmin: React.FC = () => {
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Dentist
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cloudinary Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Cloudinary Data Management
+            </CardTitle>
+            <CardDescription>
+              Manage uploaded images and files stored in Cloudinary
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Stats Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-blue-50 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Total Images</p>
+                    <p className="text-2xl font-bold text-blue-700">
+                      {state.cloudinaryManagement.stats?.totalImages || 0}
+                    </p>
+                  </div>
+                  <Globe className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+              
+              <div className="p-4 bg-green-50 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-900">Total Size</p>
+                    <p className="text-2xl font-bold text-green-700">
+                      {state.cloudinaryManagement.stats?.totalSizeBytes 
+                        ? `${(state.cloudinaryManagement.stats.totalSizeBytes / 1024 / 1024).toFixed(2)} MB`
+                        : '0 MB'
+                      }
+                    </p>
+                  </div>
+                  <Database className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              
+              <div className="p-4 bg-purple-50 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-900">Image Types</p>
+                    <p className="text-2xl font-bold text-purple-700">
+                      {state.cloudinaryManagement.stats?.imagesByType 
+                        ? Object.keys(state.cloudinaryManagement.stats.imagesByType).length
+                        : 0
+                      }
+                    </p>
+                  </div>
+                  <Activity className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Image Type Breakdown */}
+            {state.cloudinaryManagement.stats?.imagesByType && Object.keys(state.cloudinaryManagement.stats.imagesByType).length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-semibold">Image Type Breakdown</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {Object.entries(state.cloudinaryManagement.stats.imagesByType).map(([type, count]) => (
+                    <div key={type} className="p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">{type}</span>
+                        <Badge variant="outline">{count}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Data Management Actions</h4>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={testCloudinaryConnection}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Globe className="mr-2 h-4 w-4" />
+                    Test Connection
+                  </Button>
+                  <Button
+                    onClick={loadCloudinaryStats}
+                    disabled={state.cloudinaryManagement.isLoading}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {state.cloudinaryManagement.isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="mr-2 h-4 w-4" />
+                        Refresh Stats
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Delete All Images */}
+                <div className="p-4 bg-red-50 rounded-lg border">
+                  <h5 className="font-medium text-red-900 mb-2">Delete All Images</h5>
+                  <p className="text-sm text-red-700 mb-3">
+                    Permanently delete all uploaded images from Cloudinary and database
+                  </p>
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      cloudinaryManagement: {
+                        ...prev.cloudinaryManagement,
+                        showDeleteDialog: true,
+                        deleteType: 'all'
+                      }
+                    }))}
+                    variant="destructive"
+                    size="sm"
+                    disabled={!state.cloudinaryManagement.stats?.totalImages}
+                  >
+                    Delete All
+                  </Button>
+                </div>
+
+                {/* Delete Old Images */}
+                <div className="p-4 bg-orange-50 rounded-lg border">
+                  <h5 className="font-medium text-orange-900 mb-2">Delete Old Images</h5>
+                  <p className="text-sm text-orange-700 mb-3">
+                    Delete images older than 2 years to free up storage
+                  </p>
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      cloudinaryManagement: {
+                        ...prev.cloudinaryManagement,
+                        showDeleteDialog: true,
+                        deleteType: 'old'
+                      }
+                    }))}
+                    variant="outline"
+                    size="sm"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                  >
+                    Delete Old
+                  </Button>
+                </div>
+
+                {/* Delete Orphaned Images */}
+                <div className="p-4 bg-yellow-50 rounded-lg border">
+                  <h5 className="font-medium text-yellow-900 mb-2">Delete Orphaned Images</h5>
+                  <p className="text-sm text-yellow-700 mb-3">
+                    Delete images that don't have associated patient records
+                  </p>
+                  <Button
+                    onClick={() => setState(prev => ({
+                      ...prev,
+                      cloudinaryManagement: {
+                        ...prev.cloudinaryManagement,
+                        showDeleteDialog: true,
+                        deleteType: 'orphaned'
+                      }
+                    }))}
+                    variant="outline"
+                    size="sm"
+                    className="border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                  >
+                    Delete Orphaned
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cloudinary Delete Confirmation Dialog */}
+        <Dialog 
+          open={state.cloudinaryManagement.showDeleteDialog} 
+          onOpenChange={(open) => setState(prev => ({
+            ...prev,
+            cloudinaryManagement: {
+              ...prev.cloudinaryManagement,
+              showDeleteDialog: open
+            }
+          }))}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                Confirm Cloudinary Deletion
+              </DialogTitle>
+              <DialogDescription>
+                This action will permanently delete images from Cloudinary and the database. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="font-medium text-red-900 mb-2">
+                  {state.cloudinaryManagement.deleteType === 'all' && 'Delete All Images'}
+                  {state.cloudinaryManagement.deleteType === 'old' && 'Delete Old Images (2+ years)'}
+                  {state.cloudinaryManagement.deleteType === 'orphaned' && 'Delete Orphaned Images'}
+                </h4>
+                <p className="text-sm text-red-700">
+                  {state.cloudinaryManagement.deleteType === 'all' && 
+                    `This will delete all ${state.cloudinaryManagement.stats?.totalImages || 0} images from Cloudinary and the database.`}
+                  {state.cloudinaryManagement.deleteType === 'old' && 
+                    'This will delete images older than 2 years to free up storage space.'}
+                  {state.cloudinaryManagement.deleteType === 'orphaned' && 
+                    'This will delete images that don\'t have associated patient records.'}
+                </p>
+              </div>
+
+              {state.cloudinaryManagement.deleteProgress > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress</span>
+                    <span>{state.cloudinaryManagement.deleteProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${state.cloudinaryManagement.deleteProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setState(prev => ({
+                  ...prev,
+                  cloudinaryManagement: {
+                    ...prev.cloudinaryManagement,
+                    showDeleteDialog: false,
+                    deleteType: null
+                  }
+                }))}
+                className="flex-1"
+                disabled={state.cloudinaryManagement.deleteProgress > 0}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => deleteCloudinaryData(state.cloudinaryManagement.deleteType!)}
+                variant="destructive"
+                className="flex-1"
+                disabled={state.cloudinaryManagement.deleteProgress > 0}
+              >
+                {state.cloudinaryManagement.deleteProgress > 0 ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Confirm Delete'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
