@@ -53,36 +53,87 @@ export interface DentalNote {
 }
 
 // =====================================================
-// 🦷 TOOTH CHART UTILITIES
+// 🦷 TOOTH CHART UTILITIES - CORRECT IMPLEMENTATION
 // =====================================================
 
 export const toothChartUtils = {
-  // Universal tooth numbering system (1-32)
+  // Get all teeth in FDI numbering system
   getAllTeeth: () => {
     const teeth = []
-    for (let i = 1; i <= 32; i++) {
-      teeth.push(i.toString().padStart(2, '0'))
-    }
+    // Upper Right Quadrant: 18 17 16 15 14 13 12 11
+    teeth.push('18', '17', '16', '15', '14', '13', '12', '11')
+    // Upper Left Quadrant: 21 22 23 24 25 26 27 28
+    teeth.push('21', '22', '23', '24', '25', '26', '27', '28')
+    // Lower Left Quadrant: 31 32 33 34 35 36 37 38
+    teeth.push('31', '32', '33', '34', '35', '36', '37', '38')
+    // Lower Right Quadrant: 48 47 46 45 44 43 42 41
+    teeth.push('48', '47', '46', '45', '44', '43', '42', '41')
     return teeth
   },
 
-  // Get tooth position based on number
+  // Get tooth position based on FDI number
   getToothPosition: (toothNumber: string): string => {
-    const num = parseInt(toothNumber)
-    if (num >= 1 && num <= 8) return 'Upper Right'
-    if (num >= 9 && num <= 16) return 'Upper Left'
-    if (num >= 17 && num <= 24) return 'Lower Left'
-    if (num >= 25 && num <= 32) return 'Lower Right'
+    const quadrant = parseInt(toothNumber.charAt(0))
+    switch (quadrant) {
+      case 1: return 'Maxillary Right'
+      case 2: return 'Maxillary Left'
+      case 3: return 'Mandibular Left'
+      case 4: return 'Mandibular Right'
+      default: return 'Unknown'
+    }
+  },
+
+  // Get tooth name based on FDI position
+  getToothName: (toothNumber: string): string => {
+    const position = parseInt(toothNumber.charAt(1))
+
+    // Tooth names based on position (from mesial to distal)
+    const toothNames = [
+      'Central Incisor',    // Position 1
+      'Lateral Incisor',    // Position 2
+      'Canine',            // Position 3
+      'First Premolar',    // Position 4
+      'Second Premolar',   // Position 5
+      'First Molar',       // Position 6
+      'Second Molar',      // Position 7
+      'Third Molar'        // Position 8
+    ]
+
+    return toothNames[position - 1] || 'Unknown'
+  },
+
+  // Get quadrant number
+  getQuadrant: (toothNumber: string): number => {
+    return parseInt(toothNumber.charAt(0))
+  },
+
+  // No conversion needed - only FDI system
+  convertNumbering: (toothNumber: string): string => {
+    return toothNumber
+  },
+
+  // Get tooth type (anterior/posterior)
+  getToothType: (toothNumber: string): string => {
+    const position = parseInt(toothNumber.charAt(1))
+
+    if (position <= 3) return 'Anterior'  // Incisors and Canines
+    return 'Posterior'                    // Premolars and Molars
+  },
+
+  // Get arch (maxillary/mandibular)
+  getArch: (toothNumber: string): string => {
+    const position = toothChartUtils.getToothPosition(toothNumber)
+    if (position.includes('Maxillary')) return 'Maxillary'
+    if (position.includes('Mandibular')) return 'Mandibular'
     return 'Unknown'
   },
 
-  // Get tooth name (common names)
-  getToothName: (toothNumber: string): string => {
-    const num = parseInt(toothNumber)
-    const positions = ['Central Incisor', 'Lateral Incisor', 'Canine', 'First Premolar', 'Second Premolar', 'First Molar', 'Second Molar', 'Third Molar']
-    const position = positions[(num - 1) % 8]
-    const quadrant = Math.ceil(num / 8)
-    return `${position} (Quadrant ${quadrant})`
+  // Get side (left/right)
+  getSide: (toothNumber: string): string => {
+    const position = toothChartUtils.getToothPosition(toothNumber)
+    if (position.includes('Right')) return 'Right'
+    if (position.includes('Left')) return 'Left'
+    return 'Unknown'
   },
 
   // Treatment types

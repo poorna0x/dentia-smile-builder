@@ -56,6 +56,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     total_amount: 0,
     payment_type: 'full',
     payment_date: new Date().toISOString().split('T')[0],
+    payment_mode: 'Cash',
     notes: ''
   })
 
@@ -97,6 +98,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         total_amount: 0,
         payment_type: 'partial',
         payment_date: new Date().toISOString().split('T')[0],
+        payment_mode: 'Cash',
         notes: ''
       })
 
@@ -243,6 +245,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           treatment_payment_id: treatmentPayment.id,
           amount: paymentAmount,
           payment_date: formData.payment_date,
+          payment_mode: formData.payment_mode,
           notes: formData.notes || undefined
         })
       }
@@ -253,6 +256,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           treatment_payment_id: treatmentPayment.id,
           amount: miscPaymentAmount,
           payment_date: formData.payment_date,
+          payment_mode: formData.payment_mode,
           notes: `Miscellaneous: ${miscCost.description} (₹${miscPaymentAmount})`
         })
       }
@@ -268,6 +272,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         total_amount: 0,
         payment_type: 'partial', // Default to partial for subsequent payments
         payment_date: new Date().toISOString().split('T')[0],
+        payment_mode: 'Cash',
         notes: ''
       })
 
@@ -482,6 +487,21 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                      <Progress value={(paymentSummary.paid_amount / paymentSummary.total_amount) * 100} className="h-3" />
                    </div>
 
+                   {/* Payment Mode Summary */}
+                   {paymentSummary.payment_modes && Object.keys(paymentSummary.payment_modes).length > 0 && (
+                     <div className="space-y-2">
+                       <h4 className="font-semibold text-sm">Payment Modes Used:</h4>
+                       <div className="grid grid-cols-2 gap-2">
+                         {Object.entries(paymentSummary.payment_modes).map(([mode, amount]) => (
+                           <div key={mode} className="flex justify-between items-center p-2 bg-gray-50 rounded text-xs">
+                             <span className="font-medium">{mode}:</span>
+                             <span className="text-blue-600">₹{amount.toLocaleString('en-IN')}</span>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
                    {/* Edit Cost Button */}
                    <div className="flex justify-end pt-2">
                      <Button
@@ -529,6 +549,9 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                           </div>
                           <div className="text-sm text-gray-600">
                             {new Date(transaction.payment_date).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-blue-600 font-medium">
+                            {transaction.payment_mode}
                           </div>
                           {transaction.notes && (
                             <div className="text-xs text-gray-500 mt-1">
@@ -724,6 +747,28 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 />
               </div>
               <p className="text-xs text-gray-500">Can be added independently of main treatment payment</p>
+            </div>
+
+            {/* Payment Mode */}
+            <div>
+              <Label htmlFor="payment_mode">Payment Mode</Label>
+              <Select 
+                value={formData.payment_mode} 
+                onValueChange={(value: any) => handleInputChange('payment_mode', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                  <SelectItem value="Insurance">Insurance</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Payment Date */}

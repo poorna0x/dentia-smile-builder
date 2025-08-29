@@ -19,11 +19,14 @@ export interface TreatmentPayment {
   updated_at: string
 }
 
+export type PaymentMode = 'Cash' | 'Card' | 'UPI' | 'Bank Transfer' | 'Cheque' | 'Insurance' | 'Other'
+
 export interface PaymentTransaction {
   id: string
   treatment_payment_id: string
   amount: number
   payment_date: string
+  payment_mode: PaymentMode
   notes?: string
   created_at: string
 }
@@ -34,6 +37,7 @@ export interface PaymentSummary {
   remaining_amount: number
   payment_status: PaymentStatus
   transaction_count: number
+  payment_modes?: { [key: string]: number }
 }
 
 export interface PaymentFormData {
@@ -41,6 +45,7 @@ export interface PaymentFormData {
   payment_type: 'full' | 'partial'
   partial_amount?: number
   payment_date: string
+  payment_mode: PaymentMode
   notes?: string
 }
 
@@ -235,5 +240,51 @@ export const simplePaymentApi = {
     if (error) {
       throw new Error(`Failed to update treatment payment total: ${error.message}`)
     }
+  },
+
+  // Get clinic payment analytics
+  getClinicPaymentAnalytics: async (clinicId: string, startDate?: string, endDate?: string): Promise<any[]> => {
+    const { data, error } = await supabase
+      .rpc('get_clinic_payment_analytics', {
+        clinic_uuid: clinicId,
+        start_date: startDate,
+        end_date: endDate
+      })
+
+    if (error) {
+      throw new Error(`Failed to get clinic payment analytics: ${error.message}`)
+    }
+
+    return data || []
+  },
+
+  // Get patient payment analytics
+  getPatientPaymentAnalytics: async (patientId: string, clinicId: string): Promise<any[]> => {
+    const { data, error } = await supabase
+      .rpc('get_patient_payment_analytics', {
+        patient_uuid: patientId,
+        clinic_uuid: clinicId
+      })
+
+    if (error) {
+      throw new Error(`Failed to get patient payment analytics: ${error.message}`)
+    }
+
+    return data || []
+  },
+
+  // Get daily payment analytics
+  getDailyPaymentAnalytics: async (clinicId: string, daysBack: number = 30): Promise<any[]> => {
+    const { data, error } = await supabase
+      .rpc('get_daily_payment_analytics', {
+        clinic_uuid: clinicId,
+        days_back: daysBack
+      })
+
+    if (error) {
+      throw new Error(`Failed to get daily payment analytics: ${error.message}`)
+    }
+
+    return data || []
   }
 }

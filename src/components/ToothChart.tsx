@@ -36,6 +36,7 @@ import {
   dentalTreatmentApi,
   toothConditionApi
 } from '@/lib/dental-treatments'
+import { testToothNumbering } from '@/lib/test-tooth-numbering'
 import { toothImageApi, ToothImage as DbToothImage } from '@/lib/tooth-images'
 import { compressImage, validateImageFile, formatFileSize } from '@/lib/image-compression'
 import { toast } from '@/hooks/use-toast'
@@ -53,7 +54,6 @@ interface ToothChartProps {
   clinicId: string
   onTreatmentAdded?: () => void
   onConditionUpdated?: () => void
-  numberingSystem?: 'universal' | 'fdi'
 }
 
 interface ToothData {
@@ -70,8 +70,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
   patientId, 
   clinicId, 
   onTreatmentAdded, 
-  onConditionUpdated,
-  numberingSystem = 'universal'
+  onConditionUpdated
 }) => {
   const [teeth, setTeeth] = useState<ToothData[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,42 +100,18 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
 
-  // FDI Numbering System conversion functions
-  const universalToFDI = (universalNumber: number): string => {
-    const fdiMap: { [key: number]: string } = {
-      1: '18', 2: '17', 3: '16', 4: '15', 5: '14', 6: '13', 7: '12', 8: '11',
-      9: '21', 10: '22', 11: '23', 12: '24', 13: '25', 14: '26', 15: '27', 16: '28',
-      17: '48', 18: '47', 19: '46', 20: '45', 21: '44', 22: '43', 23: '42', 24: '41',
-      25: '31', 26: '32', 27: '33', 28: '34', 29: '35', 30: '36', 31: '37', 32: '38'
-    }
-    return fdiMap[universalNumber] || universalNumber.toString()
+  // Use FDI tooth chart utilities
+  const getDisplayNumber = (index: number): string => {
+    const allTeeth = toothChartUtils.getAllTeeth()
+    return allTeeth[index] || index.toString()
   }
 
-  const fdiToUniversal = (fdiNumber: string): number => {
-    const universalMap: { [key: string]: number } = {
-      '18': 1, '17': 2, '16': 3, '15': 4, '14': 5, '13': 6, '12': 7, '11': 8,
-      '21': 9, '22': 10, '23': 11, '24': 12, '25': 13, '26': 14, '27': 15, '28': 16,
-      '48': 17, '47': 18, '46': 19, '45': 20, '44': 21, '43': 22, '42': 23, '41': 24,
-      '31': 25, '32': 26, '33': 27, '34': 28, '35': 29, '36': 30, '37': 31, '38': 32
-    }
-    return universalMap[fdiNumber] || parseInt(fdiNumber)
+  const getToothPosition = (toothNumber: string): string => {
+    return toothChartUtils.getToothPosition(toothNumber)
   }
 
-  const getDisplayNumber = (universalNumber: number): string => {
-    if (numberingSystem === 'fdi') {
-      const fdiNumber = universalToFDI(universalNumber)
-      console.log(`Converting Universal ${universalNumber} to FDI ${fdiNumber}`)
-      return fdiNumber
-    }
-    return universalNumber.toString()
-  }
-
-  const getToothPosition = (universalNumber: number): string => {
-    if (universalNumber >= 1 && universalNumber <= 8) return 'Upper Right'
-    else if (universalNumber >= 9 && universalNumber <= 16) return 'Upper Left'
-    else if (universalNumber >= 17 && universalNumber <= 24) return 'Lower Left'
-    else if (universalNumber >= 25 && universalNumber <= 32) return 'Lower Right'
-    return 'Unknown'
+  const getToothName = (toothNumber: string): string => {
+    return toothChartUtils.getToothName(toothNumber)
   }
   
   // Image loading states
@@ -186,18 +161,19 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
   // Load tooth data
   useEffect(() => {
+    console.log(`🦷 ToothChart: Loading FDI dental chart`)
+    // Run test to verify FDI system is working
+    testToothNumbering()
     loadToothData()
   }, [patientId, clinicId])
 
   const loadToothData = async () => {
     setLoading(true)
     try {
-      console.log(`🦷 Loading dental chart with numbering system: ${numberingSystem}`)
-      // Get all teeth (1-32)
-      const allTeeth = []
-      for (let i = 1; i <= 32; i++) {
-        allTeeth.push(i.toString().padStart(2, '0'))
-      }
+      console.log(`🦷 Loading FDI dental chart`)
+      // Get all teeth in FDI system
+      const allTeeth = toothChartUtils.getAllTeeth()
+      console.log(`🦷 All teeth in FDI system:`, allTeeth)
       
       // Load real data from database (images will be loaded lazily)
       const [treatments, conditions] = await Promise.all([
@@ -207,26 +183,17 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
 
 
-      // Debug: Check if images are being assigned to teeth correctly
-      const teethWithImages = allTeeth.map(toothNumber => {
-        const num = parseInt(toothNumber)
-        const position = getToothPosition(num)
+      // Create teeth data with treatments and conditions
+      const teethWithImages = allTeeth.map((toothNumber, index) => {
+        const position = getToothPosition(toothNumber)
+        const name = getToothName(toothNumber)
         
-        const positions = ['Central Incisor', 'Lateral Incisor', 'Canine', 'First Premolar', 'Second Premolar', 'First Molar', 'Second Molar', 'Third Molar']
-        const positionName = positions[(num - 1) % 8]
-        const quadrant = Math.ceil(num / 8)
-        const name = `${positionName} (Quadrant ${quadrant})`
-
         // Get treatments and condition for this tooth (images loaded lazily)
-        // Convert display number back to universal for database lookup
-        const universalNumber = numberingSystem === 'fdi' ? fdiToUniversal(getDisplayNumber(num)) : num
-        const universalToothNumber = universalNumber.toString().padStart(2, '0')
-        
-        const toothTreatments = treatments.filter(t => t.tooth_number === universalToothNumber)
-        const toothCondition = conditions.find(c => c.tooth_number === universalToothNumber)
+        const toothTreatments = treatments.filter(t => t.tooth_number === toothNumber)
+        const toothCondition = conditions.find(c => c.tooth_number === toothNumber)
 
         return {
-          number: getDisplayNumber(num),
+          number: toothNumber,
           position,
           name,
           condition: toothCondition || null,
@@ -235,6 +202,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
           isSelected: false
         }
       })
+
+      console.log('🦷 Created teeth data:', teethWithImages.map(t => t.number))
 
       setTeeth(teethWithImages)
     } catch (error) {
@@ -249,11 +218,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
     try {
       const images = await toothImageApi.getByPatient(patientId, clinicId)
       
-      // Convert display number back to universal for database lookup
-      const universalNumber = numberingSystem === 'fdi' ? fdiToUniversal(toothNumber) : parseInt(toothNumber)
-      const universalToothNumber = universalNumber.toString().padStart(2, '0')
-      
-      const toothImages = images.filter(img => img.tooth_number === universalToothNumber)
+      // Filter images for this tooth number
+      const toothImages = images.filter(img => img.tooth_number === toothNumber)
       
       // Convert database images to component format
       const componentImages = toothImages.map(dbImage => ({
@@ -1105,11 +1071,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
           {/* Upper Jaw */}
           <div className="text-center mb-2">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">
-              Upper Jaw (Maxilla) - {numberingSystem === 'fdi' ? 'FDI Numbers 18-11, 21-28' : 'Universal Numbers 1-16'}
+              Upper Jaw (Maxilla) - FDI Numbers 18-11, 21-28
             </h3>
             <div className="flex items-center justify-center flex-wrap gap-1">
-              {/* Upper Right Quadrant (1-8) */}
-              {teeth.slice(0, 8).reverse().map((tooth) => (
+              {/* Upper Right Quadrant (18-11) */}
+              {teeth.slice(0, 8).map((tooth) => (
                 <div
                   key={tooth.number}
                   className={`
@@ -1139,7 +1105,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   </div>
                 ))}
               
-              {/* Upper Left Quadrant (9-16) */}
+              {/* Upper Left Quadrant (21-28) */}
               {teeth.slice(8, 16).map((tooth) => (
                 <div
                   key={tooth.number}
@@ -1175,11 +1141,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
           {/* Lower Jaw */}
           <div className="text-center">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">
-              Lower Jaw (Mandible) - {numberingSystem === 'fdi' ? 'FDI Numbers 48-41, 31-38' : 'Universal Numbers 17-32'}
+              Lower Jaw (Mandible) - FDI Numbers 48-41, 31-38
             </h3>
             <div className="flex items-center justify-center flex-wrap gap-1">
-              {/* Lower Right Quadrant (25-32) */}
-              {teeth.slice(24, 32).reverse().map((tooth) => (
+              {/* Lower Right Quadrant (48-41) - Right side */}
+              {teeth.slice(24, 32).map((tooth) => (
                 <div
                   key={tooth.number}
                   className={`
@@ -1209,7 +1175,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   </div>
                 ))}
               
-              {/* Lower Left Quadrant (17-24) */}
+              {/* Lower Left Quadrant (31-38) - Left side */}
               {teeth.slice(16, 24).map((tooth) => (
                 <div
                   key={tooth.number}
@@ -1245,31 +1211,31 @@ const ToothChart: React.FC<ToothChartProps> = ({
           {/* Center Line Indicator */}
           <div className="text-xs text-gray-500 mt-2">
             <div className="flex items-center justify-center space-x-8">
-              <span>Patient's Right</span>
-              <div className="w-8 h-px bg-gray-300"></div>
               <span>Patient's Left</span>
+              <div className="w-8 h-px bg-gray-300"></div>
+              <span>Patient's Right</span>
             </div>
           </div>
         </div>
 
         {/* Legend */}
         <div className="mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold mb-2 text-sm sm:text-base">Universal Numbering System (1-32)</h4>
+          <h4 className="font-semibold mb-2 text-sm sm:text-base">FDI Numbering System</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs sm:text-sm mb-4">
             <div className="flex items-center gap-2">
-              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">1-8</div>
+              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">18-11</div>
               <span>Upper Right</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">9-16</div>
+              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">21-28</div>
               <span>Upper Left</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">17-24</div>
+              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">31-38</div>
               <span>Lower Left</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">25-32</div>
+              <div className="text-xs font-bold text-gray-600 bg-gray-100 px-1 rounded">48-41</div>
               <span>Lower Right</span>
             </div>
           </div>

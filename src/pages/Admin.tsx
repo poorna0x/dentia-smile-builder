@@ -2629,51 +2629,22 @@ Jeshna Dental Clinic Team`;
                   </div>
                 </div>
 
-                {/* Dental Numbering System */}
+                {/* Dental Numbering System - Fixed to FDI */}
                 <div className="space-y-4">
                   <div>
                     <Label className="text-base font-medium">Dental Numbering System</Label>
-                    <p className="text-sm text-gray-600">Choose the tooth numbering system used in dental charts</p>
+                    <p className="text-sm text-gray-600">FDI numbering system is used for all dental charts</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
-                      <Select
-                        value={schedulingSettings.dentalNumberingSystem}
-                        onValueChange={(value: 'universal' | 'fdi') => {
-                          const updatedSettings = {
-                            ...schedulingSettings,
-                            dentalNumberingSystem: value
-                          };
-                          setSchedulingSettings(updatedSettings);
-                          debouncedAutoSave(updatedSettings);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select numbering system" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="universal">
-                            <div className="flex items-center gap-2">
-                              <span>🌍 Universal Numbering System (UNS)</span>
-                              <span className="text-xs text-gray-500">1-32 (International)</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="fdi">
-                            <div className="flex items-center gap-2">
-                              <span>🦷 FDI World Dental Federation</span>
-                              <span className="text-xs text-gray-500">18-11, 21-28, 48-41, 31-38 (Indian Standard)</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <span>🦷 FDI World Dental Federation</span>
+                          <span className="text-xs text-blue-600">18-11, 21-28, 48-41, 31-38</span>
+                        </div>
+                        <p className="text-xs text-blue-700 mt-1">Standard dental numbering system used worldwide</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {schedulingSettings.dentalNumberingSystem === 'universal' ? (
-                      "Using Universal Numbering System (1-32) - International standard"
-                    ) : (
-                      "Using FDI Numbering System - Common in Indian dental practices"
-                    )}
                   </div>
                 </div>
 
