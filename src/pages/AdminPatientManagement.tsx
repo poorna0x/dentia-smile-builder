@@ -3432,6 +3432,12 @@ export default function AdminPatientManagement() {
                               </div>
                               <div className="text-sm text-gray-500">
                                 <p>Date: {treatment.treatment_date ? formatDate(treatment.treatment_date) : 'Not specified'}</p>
+                                {treatment.created_by && (
+                                  <p className="text-blue-600 mt-1">
+                                    <User className="h-3 w-3 inline mr-1" />
+                                    Doctor: {treatment.created_by}
+                                  </p>
+                                )}
                                 {treatment.notes && (
                                   <p className="mt-2 text-gray-600">{treatment.notes}</p>
                                 )}

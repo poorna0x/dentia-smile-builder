@@ -41,3 +41,4 @@ SELECT
   'Now run: VACUUM ANALYZE patient_phones; in a new query' as next_step;
 
 
+

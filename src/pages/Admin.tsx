@@ -100,6 +100,15 @@ const Admin = () => {
   // - Database trigger automatically finds existing patients by phone/name or creates new ones
   // - No manual search needed - works exactly like the public booking page
   // - Both "General New Appointment" and "New Appointment for Same Client" work seamlessly
+
+  // Dentist Management State
+  const [dentists, setDentists] = useState<Dentist[]>([]);
+  const [showAddDentistDialog, setShowAddDentistDialog] = useState(false);
+  const [newDentist, setNewDentist] = useState({
+    name: '',
+    specialization: ''
+  });
+  const [loadingDentists, setLoadingDentists] = useState(false);
   
   const navigate = useNavigate();
   
@@ -184,9 +193,7 @@ const Admin = () => {
   // Multi-dentist support states
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [appointmentToComplete, setAppointmentToComplete] = useState<Appointment | null>(null);
-  const [dentists, setDentists] = useState<Dentist[]>([]);
   const [selectedDentistId, setSelectedDentistId] = useState<string>('');
-  const [isLoadingDentists, setIsLoadingDentists] = useState(false);
 
   // Patient view confirmation dialog state
   const [showPatientViewDialog, setShowPatientViewDialog] = useState(false);
@@ -227,6 +234,13 @@ const Admin = () => {
     }
   }, [clinic, isDentist]);
 
+  // Load dentists when clinic is available
+  useEffect(() => {
+    if (clinic && clinic.id) {
+      loadDentists();
+    }
+  }, [clinic]);
+
   // Load staff permissions from database
   const loadStaffPermissions = async () => {
     if (!clinic || !clinic.id) return;
@@ -241,6 +255,63 @@ const Admin = () => {
       }
     } catch (error) {
       console.error('Error loading staff permissions:', error);
+    }
+  };
+
+  // Load dentists for the clinic
+  const loadDentists = async () => {
+    if (!clinic || !clinic.id) return;
+    
+    try {
+      setLoadingDentists(true);
+      const dentistsData = await dentistsApi.getAll(clinic.id);
+      setDentists(dentistsData);
+    } catch (error) {
+      console.error('Error loading dentists:', error);
+      toast.error('Failed to load dentists');
+    } finally {
+      setLoadingDentists(false);
+    }
+  };
+
+  // Add new dentist
+  const handleAddDentist = async () => {
+    if (!clinic || !clinic.id) return;
+    
+    if (!newDentist.name.trim()) {
+      toast.error('Please enter dentist name');
+      return;
+    }
+    
+    try {
+      await dentistsApi.create({
+        clinic_id: clinic.id,
+        name: newDentist.name.trim(),
+        specialization: newDentist.specialization.trim() || 'General Dentistry',
+        is_active: true
+      });
+      
+      toast.success('Dentist added successfully');
+      setNewDentist({ name: '', specialization: '' });
+      setShowAddDentistDialog(false);
+      loadDentists(); // Refresh the list
+    } catch (error) {
+      console.error('Error adding dentist:', error);
+      toast.error('Failed to add dentist');
+    }
+  };
+
+  // Delete dentist
+  const handleDeleteDentist = async (dentistId: string) => {
+    if (!clinic || !clinic.id) return;
+    
+    try {
+      await dentistsApi.delete(dentistId);
+      toast.success('Dentist removed successfully');
+      loadDentists(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting dentist:', error);
+      toast.error('Failed to remove dentist');
     }
   };
 
@@ -745,20 +816,7 @@ Jeshna Dental Clinic Team`;
 
 
 
-  const loadDentists = async () => {
-    if (!clinic?.id) return;
-    
-    try {
-      setIsLoadingDentists(true);
-      const dentistsList = await dentistsApi.getAll(clinic.id);
-      setDentists(dentistsList);
-    } catch (error) {
-      console.error('Failed to load dentists:', error);
-      toast.error('Failed to load dentists');
-    } finally {
-      setIsLoadingDentists(false);
-    }
-  };
+
 
   const handleCompleteAppointment = async (appointmentId: string) => {
     // Find the appointment to complete
@@ -768,9 +826,8 @@ Jeshna Dental Clinic Team`;
       return;
     }
 
-    // Load dentists and show complete dialog
+    // Show complete dialog
     setAppointmentToComplete(appointment);
-    await loadDentists();
     setShowCompleteDialog(true);
     setShowEditDialog(false); // Close the edit dialog
   };
@@ -3010,10 +3067,70 @@ Jeshna Dental Clinic Team`;
               </CardContent>
             </Card>
           )}
-          
 
-          
+          {/* Dentist Management Section */}
+          <Card className="mt-6 md:mt-8 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-blue-800">Dentist Management</CardTitle>
+              <CardDescription className="text-blue-700">Add and manage dentists for this clinic</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Add Dentist Button */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-medium">Manage Dentists</Label>
+                  <p className="text-sm text-gray-600">Add or remove dentists for this clinic</p>
+                </div>
+                <Button
+                  onClick={() => setShowAddDentistDialog(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Dentist
+                </Button>
+              </div>
 
+              {/* Dentists List */}
+              <div className="space-y-4">
+                {loadingDentists ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                    <span className="text-gray-600">Loading dentists...</span>
+                  </div>
+                ) : dentists.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                    <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="font-medium">No dentists found for this clinic</p>
+                    <p className="text-sm mt-1">Click "Add Dentist" to get started</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {dentists.map((dentist) => (
+                      <div
+                        key={dentist.id}
+                        className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{dentist.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {dentist.specialization || 'General Dentistry'}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteDentist(dentist.id)}
+                          className="h-8 w-8 p-0 text-red-600 hover:bg-red-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Status Notice */}
           <Card className="mt-6">
@@ -3880,7 +3997,7 @@ Jeshna Dental Clinic Team`;
                 ) : dentists.length === 0 ? (
                   <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
                     <AlertCircle className="h-4 w-4 inline mr-1" />
-                    No dentists found for this clinic. Please add dentists in SuperAdmin first.
+                    No dentists found for this clinic. Please add dentists in the Dentist Management section below.
                   </div>
                 ) : (
                   <Select
@@ -3983,6 +4100,64 @@ Jeshna Dental Clinic Team`;
             >
               <User className="h-4 w-4 mr-2" />
               View Patient
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Dentist Dialog */}
+      <Dialog open={showAddDentistDialog} onOpenChange={setShowAddDentistDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              Add New Dentist
+            </DialogTitle>
+            <DialogDescription>
+              Add a new dentist to this clinic. The dentist will be available for appointment assignments.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="dentist-name">Dentist Name *</Label>
+              <Input
+                id="dentist-name"
+                placeholder="e.g., Dr. Sarah Bennett"
+                value={newDentist.name}
+                onChange={(e) => setNewDentist({ ...newDentist, name: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="dentist-specialization">Specialization</Label>
+              <Input
+                id="dentist-specialization"
+                placeholder="e.g., General Dentistry, Orthodontics"
+                value={newDentist.specialization}
+                onChange={(e) => setNewDentist({ ...newDentist, specialization: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddDentistDialog(false);
+                setNewDentist({ name: '', specialization: '' });
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddDentist}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={!newDentist.name.trim()}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Dentist
             </Button>
           </DialogFooter>
         </DialogContent>

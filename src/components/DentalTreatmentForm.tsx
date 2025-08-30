@@ -7,12 +7,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Calendar, DollarSign, FileText, Circle, CreditCard } from 'lucide-react'
+import { Calendar, DollarSign, FileText, Circle, CreditCard, User } from 'lucide-react'
 import { 
   DentalTreatment, 
   toothChartUtils,
   dentalTreatmentApi
 } from '@/lib/dental-treatments'
+import { dentistsApi, Dentist } from '@/lib/supabase'
 import PaymentManagementSimple from './PaymentManagementSimple'
 
 interface DentalTreatmentFormProps {
@@ -43,11 +44,71 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
     treatment_date: '',
     notes: ''
   })
+  
+  // Doctor selection state
+  const [dentists, setDentists] = useState<Dentist[]>([])
+  const [selectedDoctor, setSelectedDoctor] = useState('')
+  const [otherDoctorName, setOtherDoctorName] = useState('')
+  const [showOtherDoctorInput, setShowOtherDoctorInput] = useState(false)
+  const [loadingDentists, setLoadingDentists] = useState(true)
+  
   const [loading, setLoading] = useState(false)
   const [availableTeeth] = useState(toothChartUtils.getAllTeeth())
   const [treatmentTypes] = useState(toothChartUtils.getTreatmentTypes())
   const [createdTreatmentId, setCreatedTreatmentId] = useState<string | null>(null)
   const [showPaymentManagement, setShowPaymentManagement] = useState(false)
+
+  // Load dentists for the clinic
+  useEffect(() => {
+    const loadDentists = async () => {
+      try {
+        console.log('🦷 Loading dentists for clinic:', clinicId)
+        setLoadingDentists(true)
+        const dentistsData = await dentistsApi.getAll(clinicId)
+        console.log('✅ Dentists loaded:', dentistsData)
+        setDentists(dentistsData)
+        
+        // Auto-select if only one dentist
+        if (dentistsData.length === 1) {
+          setSelectedDoctor(dentistsData[0].name)
+        }
+      } catch (error) {
+        console.error('❌ Error loading dentists:', error)
+        toast.error('Failed to load dentists')
+      } finally {
+        setLoadingDentists(false)
+      }
+    }
+    
+    loadDentists()
+  }, [clinicId])
+
+  // Handle doctor selection change
+  const handleDoctorChange = (value: string) => {
+    setSelectedDoctor(value)
+    if (value === 'other') {
+      setShowOtherDoctorInput(true)
+      setOtherDoctorName('')
+    } else {
+      setShowOtherDoctorInput(false)
+      setOtherDoctorName('')
+    }
+  }
+
+  // Get final doctor name
+  const getFinalDoctorName = () => {
+    if (selectedDoctor === 'other') {
+      return otherDoctorName.trim() || 'Unknown Doctor'
+    }
+    return selectedDoctor || 'Unknown Doctor'
+  }
+
+  // Get doctor options for dropdown
+  const getDoctorOptions = () => {
+    const options = dentists.map(d => ({ value: d.name, label: d.name }))
+    options.push({ value: 'other', label: 'Other (specify name)' })
+    return options
+  }
 
   // Update tooth position when tooth number changes
   useEffect(() => {
@@ -56,8 +117,6 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
       setFormData(prev => ({ ...prev, tooth_position: position }))
     }
   }, [formData.tooth_number])
-
-
 
   // Initialize form with initial data
   useEffect(() => {
@@ -69,9 +128,13 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         treatment_description: initialData.treatment_description || '',
         treatment_status: (initialData.treatment_status as 'Planned' | 'In Progress' | 'Completed' | 'Cancelled') || 'Planned',
         treatment_date: initialData.treatment_date || '',
-
         notes: initialData.notes || ''
       })
+      
+      // Set doctor if available in initial data
+      if (initialData.created_by) {
+        setSelectedDoctor(initialData.created_by)
+      }
     }
   }, [initialData])
 
@@ -90,9 +153,8 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         treatment_description: formData.treatment_description || undefined,
         treatment_status: formData.treatment_status,
         treatment_date: formData.treatment_date || undefined,
-
         notes: formData.notes || undefined,
-        created_by: 'Doctor' // TODO: Get from auth context
+        created_by: getFinalDoctorName()
       }
 
       if (initialData?.id) {
@@ -195,6 +257,71 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
               className="text-base"
             />
           </div>
+
+          {/* Doctor Selection */}
+          {console.log('🩺 Doctor Selection Debug:', { loadingDentists, dentistsCount: dentists.length, selectedDoctor })}
+          {!loadingDentists ? (
+            <div>
+              <Label htmlFor="doctor">Doctor *</Label>
+              {dentists.length === 1 ? (
+                // Single dentist - show as read-only
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium">{dentists[0].name}</span>
+                </div>
+              ) : dentists.length > 1 ? (
+                // Multiple dentists - show dropdown
+                <div className="space-y-2">
+                  <Select 
+                    value={selectedDoctor} 
+                    onValueChange={handleDoctorChange}
+                  >
+                    <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
+                      <SelectValue placeholder="Select doctor" className="text-base truncate" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getDoctorOptions().map((option) => (
+                        <SelectItem key={option.value} value={option.value} className="text-sm">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Other doctor name input */}
+                  {showOtherDoctorInput && (
+                    <div className="mt-2">
+                      <Input
+                        placeholder="Enter doctor name (e.g., Dr. Specialist Name)"
+                        value={otherDoctorName}
+                        onChange={(e) => setOtherDoctorName(e.target.value)}
+                        className="h-12 text-base"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // No dentists configured - show other input
+                <div>
+                  <Input
+                    placeholder="Enter doctor name (e.g., Dr. Specialist Name)"
+                    value={otherDoctorName}
+                    onChange={(e) => setOtherDoctorName(e.target.value)}
+                    className="h-12 text-base"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            // Show loading state
+            <div>
+              <Label htmlFor="doctor">Doctor *</Label>
+              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600">Loading dentists...</span>
+              </div>
+            </div>
+          )}
 
           {/* Treatment Status and Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

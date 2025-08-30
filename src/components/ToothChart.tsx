@@ -27,7 +27,8 @@ import {
   Loader2,
   Image as ImageIcon,
   FileImage,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react'
 import { 
   DentalTreatment, 
@@ -36,6 +37,7 @@ import {
   dentalTreatmentApi,
   toothConditionApi
 } from '@/lib/dental-treatments'
+import { dentistsApi, Dentist } from '@/lib/supabase'
 import { testToothNumbering } from '@/lib/test-tooth-numbering'
 import { toothImageApi, ToothImage as DbToothImage } from '@/lib/tooth-images'
 import { compressImage, validateImageFile, formatFileSize } from '@/lib/image-compression'
@@ -99,6 +101,13 @@ const ToothChart: React.FC<ToothChartProps> = ({
   // State for loading during API calls
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
+  
+  // Dentist selection state
+  const [dentists, setDentists] = useState<Dentist[]>([])
+  const [selectedDoctor, setSelectedDoctor] = useState('')
+  const [otherDoctorName, setOtherDoctorName] = useState('')
+  const [showOtherDoctorInput, setShowOtherDoctorInput] = useState(false)
+  const [loadingDentists, setLoadingDentists] = useState(true)
 
   // Use FDI tooth chart utilities
   const getDisplayNumber = (index: number): string => {
@@ -165,7 +174,55 @@ const ToothChart: React.FC<ToothChartProps> = ({
     // Run test to verify FDI system is working
     testToothNumbering()
     loadToothData()
+    loadDentists()
   }, [patientId, clinicId])
+  
+  // Load dentists for the clinic
+  const loadDentists = async () => {
+    try {
+      console.log('🦷 Loading dentists for clinic:', clinicId)
+      setLoadingDentists(true)
+      const dentistsData = await dentistsApi.getAll(clinicId)
+      console.log('✅ Dentists loaded:', dentistsData)
+      setDentists(dentistsData)
+      
+      // Auto-select if only one dentist
+      if (dentistsData.length === 1) {
+        setSelectedDoctor(dentistsData[0].name)
+      }
+    } catch (error) {
+      console.error('❌ Error loading dentists:', error)
+    } finally {
+      setLoadingDentists(false)
+    }
+  }
+  
+  // Handle doctor selection change
+  const handleDoctorChange = (value: string) => {
+    setSelectedDoctor(value)
+    if (value === 'other') {
+      setShowOtherDoctorInput(true)
+      setOtherDoctorName('')
+    } else {
+      setShowOtherDoctorInput(false)
+      setOtherDoctorName('')
+    }
+  }
+  
+  // Get final doctor name
+  const getFinalDoctorName = () => {
+    if (selectedDoctor === 'other') {
+      return otherDoctorName.trim() || 'Unknown Doctor'
+    }
+    return selectedDoctor || 'Unknown Doctor'
+  }
+  
+  // Get doctor options for dropdown
+  const getDoctorOptions = () => {
+    const options = dentists.map(d => ({ value: d.name, label: d.name }))
+    options.push({ value: 'other', label: 'Other (specify name)' })
+    return options
+  }
 
   const loadToothData = async () => {
     setLoading(true)
@@ -732,7 +789,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_description: treatmentForm.treatment_description,
         treatment_status: treatmentForm.treatment_status,
         treatment_date: treatmentForm.treatment_date,
-        notes: treatmentForm.notes
+        notes: treatmentForm.notes,
+        created_by: getFinalDoctorName()
       })
       
       setProcessingMessage('Finalizing...')
@@ -746,6 +804,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_date: new Date().toISOString().split('T')[0],
         notes: ''
       })
+      setSelectedDoctor('')
+      setOtherDoctorName('')
+      setShowOtherDoctorInput(false)
       setShowAddTreatmentDialog(false)
       
       // Reload data
@@ -1654,6 +1715,59 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   onChange={(e) => setTreatmentForm(prev => ({ ...prev, treatment_date: e.target.value }))}
                 />
               </div>
+
+              {/* Doctor Selection */}
+              {!loadingDentists && (
+                <div>
+                  <Label htmlFor="doctor">Doctor *</Label>
+                  {dentists.length === 1 ? (
+                    // Single dentist - show as read-only
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">{dentists[0].name}</span>
+                    </div>
+                  ) : dentists.length > 1 ? (
+                    // Multiple dentists - show dropdown
+                    <div className="space-y-2">
+                      <Select 
+                        value={selectedDoctor} 
+                        onValueChange={handleDoctorChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select doctor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getDoctorOptions().map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Other doctor name input */}
+                      {showOtherDoctorInput && (
+                        <div className="mt-2">
+                          <Input
+                            placeholder="Enter doctor name (e.g., Dr. Specialist Name)"
+                            value={otherDoctorName}
+                            onChange={(e) => setOtherDoctorName(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // No dentists configured - show other input
+                    <div>
+                      <Input
+                        placeholder="Enter doctor name (e.g., Dr. Specialist Name)"
+                        value={otherDoctorName}
+                        onChange={(e) => setOtherDoctorName(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="treatment_description">Description</Label>

@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useClinic } from '@/contexts/ClinicContext';
 import { patientApi, treatmentPlanApi, medicalRecordApi, patientUtils, Patient } from '@/lib/patient-management';
 import { dentistsApi, Dentist, appointmentsApi } from '@/lib/supabase';
+import { dentalTreatmentApi } from '@/lib/dental-treatments';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ const PatientDashboard = () => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
+  const [dentalTreatments, setDentalTreatments] = useState<any[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -74,6 +76,10 @@ const PatientDashboard = () => {
         // Load treatment plans
         const treatmentPlansData = await treatmentPlanApi.getByPatient(patientInfo.id, clinic.id);
         setTreatmentPlans(treatmentPlansData);
+
+        // Load dental treatments
+        const dentalTreatmentsData = await dentalTreatmentApi.getByPatient(patientInfo.id, clinic.id);
+        setDentalTreatments(dentalTreatmentsData);
 
         // Load medical records
         const medicalRecordsData = await medicalRecordApi.getByPatient(patientInfo.id, clinic.id);
@@ -211,14 +217,18 @@ const PatientDashboard = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="appointments" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="appointments" className="flex items-center">
               <Calendar className="w-4 h-4 mr-2" />
               Appointments
             </TabsTrigger>
             <TabsTrigger value="treatments" className="flex items-center">
               <Stethoscope className="w-4 h-4 mr-2" />
-              Treatments
+              Treatment Plans
+            </TabsTrigger>
+            <TabsTrigger value="dental" className="flex items-center">
+              <Stethoscope className="w-4 h-4 mr-2" />
+              Dental Treatments
             </TabsTrigger>
             <TabsTrigger value="records" className="flex items-center">
               <FileText className="w-4 h-4 mr-2" />
@@ -303,6 +313,58 @@ const PatientDashboard = () => {
                           </div>
                           <Badge className={getTreatmentStatusColor(plan.status)}>
                             {plan.status}
+                          </Badge>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Dental Treatments Tab */}
+          <TabsContent value="dental">
+            <Card>
+              <CardHeader>
+                <CardTitle>Dental Treatments</CardTitle>
+                <CardDescription>
+                  Your dental treatment history by tooth
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dentalTreatments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Stethoscope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No dental treatments found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {dentalTreatments.map((treatment) => (
+                      <Card key={treatment.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{treatment.treatment_type}</h3>
+                            <p className="text-gray-600 mt-1">
+                              Tooth: {treatment.tooth_number} • {treatment.treatment_status}
+                            </p>
+                            {treatment.treatment_description && (
+                              <p className="text-gray-600 mt-1">{treatment.treatment_description}</p>
+                            )}
+                            {treatment.created_by && (
+                              <p className="text-blue-600 mt-1">
+                                <User className="h-3 w-3 inline mr-1" />
+                                Doctor: {treatment.created_by}
+                              </p>
+                            )}
+                            {treatment.treatment_date && (
+                              <p className="text-gray-500 mt-1">
+                                Date: {formatDate(treatment.treatment_date)}
+                              </p>
+                            )}
+                          </div>
+                          <Badge className={getTreatmentStatusColor(treatment.treatment_status)}>
+                            {treatment.treatment_status}
                           </Badge>
                         </div>
                       </Card>
