@@ -72,6 +72,8 @@ export const usePermissions = () => {
             return staffPermissions.canAccessPatientPortal;
           case 'change_settings':
             return staffPermissions.canAccessSettings;
+          case 'canAccessAnalytics':
+            return false; // Only dentists can access analytics
           default:
             return false;
         }

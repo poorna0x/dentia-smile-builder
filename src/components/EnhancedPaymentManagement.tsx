@@ -85,27 +85,32 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     try {
       setLoading(true)
       
-      console.log('🦷 Loading payment data for treatment:', treatment.id)
-      console.log('🦷 Treatment object:', treatment)
-      console.log('🦷 Treatment cost:', treatment.cost)
-      
-      // Skip payment API calls for now - just set the cost
-      setPaymentSummary(null)
-      setTransactions([])
+      // Get payment summary (this includes transaction count)
+      const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
+      setPaymentSummary(summary)
 
-      // Reset form data with treatment cost
-      console.log('🦷 Setting form data with treatment cost:', treatment.cost)
-      setFormData(prev => {
-        const newFormData = {
-          ...prev,
-          total_amount: treatment.cost || 0, // Always use treatment cost
-          payment_type: 'partial',
-          payment_date: new Date().toISOString().split('T')[0],
-          payment_mode: 'Cash',
-          notes: ''
+      // Only load transactions if we have a payment record
+      if (summary) {
+        const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
+
+        if (treatmentPayment) {
+          const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
+
+          setTransactions(transactions)
+        } else {
+          setTransactions([])
         }
-        console.log('🦷 New form data:', newFormData)
-        return newFormData
+      } else {
+        setTransactions([])
+      }
+
+      // Reset form data when payment data changes
+      setFormData({
+        total_amount: treatment.cost || 0,
+        payment_type: 'partial',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_mode: 'Cash',
+        notes: ''
       })
 
       // Reset misc cost
@@ -113,8 +118,19 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         amount: 0,
         description: ''
       })
+
+      // Reset edit cost data
+      setEditCostData({
+        total_amount: 0,
+        partial_amount: 0
+      })
+
     } catch (error) {
       console.error('Error loading payment data:', error)
+      // Don't show error toast for missing payment records
+      if (!error.message?.includes('No payment record')) {
+        toast.error('Failed to load payment data')
+      }
     } finally {
       setLoading(false)
     }

@@ -459,6 +459,17 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
             >
               Cancel
             </Button>
+            {initialData?.id && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowPaymentManagement(true)}
+                disabled={loading}
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                Manage Payments
+              </Button>
+            )}
             <Button
               type="submit"
               disabled={loading || !formData.tooth_number || !formData.treatment_type}
@@ -491,9 +502,9 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
             </CardHeader>
           </Card>
           
-          {createdTreatmentId && (
+          {(createdTreatmentId || initialData?.id) && (
             <PaymentManagementSimple
-              treatmentId={createdTreatmentId}
+              treatmentId={createdTreatmentId || initialData?.id!}
               clinicId={clinicId}
               patientId={patientId}
               treatmentType={formData.treatment_type}

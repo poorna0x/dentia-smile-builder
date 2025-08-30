@@ -24,6 +24,7 @@ import CheckAppointmentStatus from './components/CheckAppointmentStatus'
 import PatientLogin from './pages/PatientLogin'
 import PatientDashboard from './pages/PatientDashboard'
 import AdminPatientManagement from './pages/AdminPatientManagement'
+import Analytics from './pages/Analytics'
 import SuperAdmin from './pages/SuperAdmin'
 import WebsiteDisabled from './components/WebsiteDisabled'
 import RoleBasedLogin from './pages/RoleBasedLogin'
@@ -126,6 +127,11 @@ function App() {
                     <Route path="/admin/patients" element={
                       <ProtectedRoute>
                         <AdminPatientManagement />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/admin/analytics" element={
+                      <ProtectedRoute>
+                        <Analytics />
                       </ProtectedRoute>
                     } />
                     <Route path="/patient/dashboard" element={

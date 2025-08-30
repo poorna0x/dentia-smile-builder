@@ -26,7 +26,7 @@ export interface PaymentTransaction {
   treatment_payment_id: string
   amount: number
   payment_date: string
-  payment_mode: PaymentMode
+  payment_method: PaymentMode
   notes?: string
   created_at: string
 }
@@ -69,39 +69,32 @@ export const simplePaymentApi = {
     return data
   },
 
-  // Get payment summary for a treatment (simplified - no database function)
+  // Get payment summary for a treatment using database function
   getPaymentSummary: async (treatmentId: string): Promise<PaymentSummary | null> => {
-    // Get the treatment payment record
-    const { data: paymentData, error: paymentError } = await supabase
-      .from('treatment_payments')
-      .select('*')
-      .eq('treatment_id', treatmentId)
-      .single()
+    const { data, error } = await supabase
+      .rpc('get_treatment_payment_summary', {
+        treatment_uuid: treatmentId
+      })
 
-    if (paymentError) {
-      if (paymentError.code === 'PGRST116') {
+    if (error) {
+      if (error.code === 'PGRST116') {
         // No payment record found
         return null
       }
-      throw new Error(`Failed to get treatment payment: ${paymentError.message}`)
+      throw new Error(`Failed to get payment summary: ${error.message}`)
     }
 
-    // Get transaction count
-    const { count: transactionCount, error: countError } = await supabase
-      .from('payment_transactions')
-      .select('*', { count: 'exact', head: true })
-      .eq('treatment_payment_id', paymentData.id)
-
-    if (countError) {
-      throw new Error(`Failed to get transaction count: ${countError.message}`)
+    if (!data || data.length === 0) {
+      return null
     }
 
+    const summaryData = data[0]
     const summary: PaymentSummary = {
-      total_amount: paymentData.total_amount,
-      paid_amount: paymentData.paid_amount,
-      remaining_amount: paymentData.remaining_amount,
-      payment_status: paymentData.payment_status,
-      transaction_count: transactionCount || 0
+      total_amount: summaryData.total_amount,
+      paid_amount: summaryData.paid_amount,
+      remaining_amount: summaryData.remaining_amount,
+      payment_status: summaryData.payment_status,
+      transaction_count: summaryData.transaction_count
     }
 
     return summary

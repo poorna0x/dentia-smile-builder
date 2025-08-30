@@ -24,8 +24,16 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
       setLoading(true)
       const summaries: {[key: string]: PaymentSummary} = {}
       
-      // Skip payment API calls for now to avoid 406 errors
-      console.log('🦷 Skipping payment API calls to avoid 406 errors')
+      for (const treatment of treatments) {
+        try {
+          const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
+          if (summary) {
+            summaries[treatment.id] = summary
+          }
+        } catch (error) {
+          console.error(`Error loading payment summary for treatment ${treatment.id}:`, error)
+        }
+      }
       
       setPaymentSummaries(summaries)
       setLoading(false)

@@ -124,12 +124,30 @@ DROP POLICY IF EXISTS "Enable update access for authenticated users" ON payment_
 DROP POLICY IF EXISTS "Enable delete access for authenticated users" ON payment_transactions;
 
 -- Step 9: Create new, permissive RLS policies for treatment_payments
-CREATE POLICY "Enable all access for authenticated users" ON treatment_payments
-FOR ALL USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'treatment_payments' 
+    AND policyname = 'Enable all access for authenticated users'
+  ) THEN
+    CREATE POLICY "Enable all access for authenticated users" ON treatment_payments
+    FOR ALL USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
 -- Step 10: Create new, permissive RLS policies for payment_transactions
-CREATE POLICY "Enable all access for authenticated users" ON payment_transactions
-FOR ALL USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'payment_transactions' 
+    AND policyname = 'Enable all access for authenticated users'
+  ) THEN
+    CREATE POLICY "Enable all access for authenticated users" ON payment_transactions
+    FOR ALL USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
 -- Step 11: Grant necessary permissions
 GRANT ALL ON treatment_payments TO authenticated;

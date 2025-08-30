@@ -36,6 +36,7 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
     total_amount: 0,
     payment_type: 'full',
     payment_date: new Date().toISOString().split('T')[0],
+    payment_method: 'Cash',
     notes: ''
   })
 
@@ -108,6 +109,7 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
         treatment_payment_id: treatmentPayment.id,
         amount: paymentAmount,
         payment_date: formData.payment_date,
+        payment_method: formData.payment_method,
         notes: formData.notes || undefined
       })
 
@@ -119,6 +121,7 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
         total_amount: 0,
         payment_type: 'full',
         payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'Cash',
         notes: ''
       })
       
@@ -240,11 +243,14 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="text-2xl">💰</div>
                     <div>
-                                              <div className="font-medium">
-                          ₹{transaction.amount.toLocaleString('en-IN')}
-                        </div>
+                      <div className="font-medium">
+                        ₹{transaction.amount.toLocaleString('en-IN')}
+                      </div>
                       <div className="text-sm text-gray-600">
                         {new Date(transaction.payment_date).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-blue-600 font-medium">
+                        {transaction.payment_method}
                       </div>
                     </div>
                   </div>
@@ -300,6 +306,25 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
                 <SelectContent>
                   <SelectItem value="full">Full Payment</SelectItem>
                   <SelectItem value="partial">Partial Payment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Payment Method */}
+            <div>
+              <Label htmlFor="payment_method">Payment Method</Label>
+              <Select 
+                value={formData.payment_method} 
+                onValueChange={(value: 'Cash' | 'UPI' | 'Card' | 'Other') => handleInputChange('payment_method', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="Card">Card</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
