@@ -3286,6 +3286,12 @@ export default function AdminPatientManagement() {
                                   <p className="text-sm text-gray-500">
                                     {new Date(treatment.treatment_date).toLocaleDateString()}
                                   </p>
+                                  {treatment.created_by && (
+                                    <p className="text-sm text-blue-600 mt-1">
+                                      <User className="h-3 w-3 inline mr-1" />
+                                      {treatment.created_by.includes(',') ? 'Doctors: ' : 'Doctor: '}{treatment.created_by}
+                                    </p>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Badge className={getTreatmentStatusColor(treatment.treatment_status)}>

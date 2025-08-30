@@ -1469,6 +1469,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
                                     {new Date(treatment.treatment_date).toLocaleDateString()}
                                   </div>
                                 )}
+                                {treatment.created_by && (
+                                  <div className="flex items-center gap-1 text-xs sm:text-sm text-blue-600 mt-1">
+                                    <User className="h-3 w-3 flex-shrink-0" />
+                                    {treatment.created_by.includes(',') ? 'Doctors: ' : 'Doctor: '}{treatment.created_by}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <Badge className={`text-xs ${getTreatmentStatusColor(treatment.treatment_status)}`}>
