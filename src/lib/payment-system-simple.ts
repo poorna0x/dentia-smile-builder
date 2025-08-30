@@ -72,6 +72,8 @@ export const simplePaymentApi = {
   // Get payment summary for a treatment (direct database queries)
   getPaymentSummary: async (treatmentId: string): Promise<PaymentSummary | null> => {
     try {
+      console.log('🔍 Getting payment summary for treatment:', treatmentId)
+      
       // Get the treatment payment record
       const { data: paymentData, error: paymentError } = await supabase
         .from('treatment_payments')
@@ -80,10 +82,20 @@ export const simplePaymentApi = {
         .single()
 
       if (paymentError) {
-        if (paymentError.code === 'PGRST116') {
-          // No payment record found
+        // Handle 406 errors gracefully - just return null instead of throwing
+        if (paymentError.code === '406') {
+          console.log('ℹ️ 406 error for treatment:', treatmentId, '- Payment tables not accessible, returning null')
           return null
         }
+        
+        if (paymentError.code === 'PGRST116') {
+          // No payment record found - this is normal for new treatments
+          console.log('ℹ️ No payment record found for treatment:', treatmentId, '- This is normal for new treatments')
+          return null
+        }
+        
+        // For other errors, still throw
+        console.error('❌ Payment error:', paymentError)
         throw new Error(`Failed to get treatment payment: ${paymentError.message}`)
       }
 
@@ -105,6 +117,7 @@ export const simplePaymentApi = {
         transaction_count: transactionCount || 0
       }
 
+      console.log('✅ Payment summary retrieved:', summary)
       return summary
     } catch (error) {
       console.error('Error in getPaymentSummary:', error)
@@ -121,6 +134,12 @@ export const simplePaymentApi = {
       .single()
 
     if (error) {
+      // Handle 406 errors gracefully
+      if (error.code === '406') {
+        console.log('ℹ️ 406 error for treatment payment:', treatmentId, '- Payment tables not accessible, returning null')
+        return null
+      }
+      
       if (error.code === 'PGRST116') {
         return null
       }
@@ -206,6 +225,12 @@ export const simplePaymentApi = {
       .order('created_at', { ascending: false })
 
     if (error) {
+      // Handle 406 errors gracefully
+      if (error.code === '406') {
+        console.log('ℹ️ 406 error for payment transactions:', treatmentPaymentId, '- Payment tables not accessible, returning empty array')
+        return []
+      }
+      
       throw new Error(`Failed to get payment transactions: ${error.message}`)
     }
 

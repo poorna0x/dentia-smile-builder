@@ -342,7 +342,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           treatment_payment_id: treatmentPayment.id,
           amount: paymentAmount,
           payment_date: formData.payment_date,
-          payment_mode: formData.payment_mode,
+          payment_method: formData.payment_mode,
           notes: formData.notes || undefined
         })
       }
@@ -353,7 +353,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           treatment_payment_id: treatmentPayment.id,
           amount: miscPaymentAmount,
           payment_date: formData.payment_date,
-          payment_mode: formData.payment_mode,
+          payment_method: formData.payment_mode,
           notes: `Miscellaneous: ${miscCost.description} (₹${miscPaymentAmount})`
         })
       }
