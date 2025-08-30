@@ -58,6 +58,22 @@ interface DoctorPerformance {
   treatments_assisted: number;
   total_revenue: number;
   attribution_details: any[];
+  treatment_breakdown: {
+    [treatment_type: string]: {
+      count: number;
+      revenue: number;
+      percentage: number;
+    };
+  };
+  recent_treatments: {
+    id: string;
+    treatment_type: string;
+    patient_name: string;
+    treatment_date: string;
+    status: string;
+    cost: number;
+    attribution_type: string;
+  }[];
 }
 
 interface AppointmentAnalytics {
@@ -177,8 +193,8 @@ const Analytics = () => {
         setIncomeData(incomeResult[0]);
       }
 
-      // Fetch doctor performance
-      const { data: doctorResult } = await supabase.rpc('get_doctor_performance', {
+      // Fetch enhanced doctor performance
+      const { data: doctorResult } = await supabase.rpc('get_enhanced_doctor_analytics', {
         clinic_uuid: clinic.id,
         start_date: dateRange.start,
         end_date: dateRange.end
@@ -499,43 +515,144 @@ const Analytics = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Stethoscope className="w-5 h-5 text-indigo-600" />
-                  <span>Doctor Performance</span>
+                  <span>Doctor Performance & Treatment Details</span>
                 </CardTitle>
                 <CardDescription>
-                  Treatment attribution and revenue by doctor
+                  Comprehensive treatment attribution and revenue by doctor
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {doctorData.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {doctorData.map((doctor) => (
-                      <div key={doctor.doctor_id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-lg">{doctor.doctor_name}</h3>
-                          <Badge variant="secondary">
+                      <div key={doctor.doctor_id} className="border rounded-lg p-6 bg-white">
+                        {/* Doctor Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold text-xl text-gray-900">{doctor.doctor_name}</h3>
+                            <p className="text-sm text-gray-600">Doctor ID: {doctor.doctor_id}</p>
+                          </div>
+                          <Badge variant="secondary" className="text-lg px-4 py-2">
                             ₹{doctor.total_revenue.toLocaleString()}
                           </Badge>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="text-center p-3 bg-blue-50 rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">{doctor.treatments_started}</div>
-                            <div className="text-sm text-gray-600">Started</div>
+
+                        {/* Treatment Summary Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                          <div className="text-center p-4 bg-blue-50 rounded-lg border">
+                            <div className="text-3xl font-bold text-blue-600">{doctor.treatments_started}</div>
+                            <div className="text-sm text-gray-600 font-medium">Started</div>
+                            <div className="text-xs text-gray-500 mt-1">Treatments Initiated</div>
                           </div>
-                          <div className="text-center p-3 bg-green-50 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">{doctor.treatments_completed}</div>
-                            <div className="text-sm text-gray-600">Completed</div>
+                          <div className="text-center p-4 bg-green-50 rounded-lg border">
+                            <div className="text-3xl font-bold text-green-600">{doctor.treatments_completed}</div>
+                            <div className="text-sm text-gray-600 font-medium">Completed</div>
+                            <div className="text-xs text-gray-500 mt-1">Successfully Finished</div>
                           </div>
-                          <div className="text-center p-3 bg-purple-50 rounded-lg">
-                            <div className="text-2xl font-bold text-purple-600">{doctor.treatments_assisted}</div>
-                            <div className="text-sm text-gray-600">Assisted</div>
+                          <div className="text-center p-4 bg-purple-50 rounded-lg border">
+                            <div className="text-3xl font-bold text-purple-600">{doctor.treatments_assisted}</div>
+                            <div className="text-sm text-gray-600 font-medium">Assisted</div>
+                            <div className="text-xs text-gray-500 mt-1">Support Provided</div>
+                          </div>
+                          <div className="text-center p-4 bg-orange-50 rounded-lg border">
+                            <div className="text-3xl font-bold text-orange-600">
+                              {doctor.treatments_started + doctor.treatments_completed + doctor.treatments_assisted}
+                            </div>
+                            <div className="text-sm text-gray-600 font-medium">Total</div>
+                            <div className="text-xs text-gray-500 mt-1">All Involvements</div>
                           </div>
                         </div>
+
+                        {/* Treatment Type Breakdown */}
+                        {doctor.treatment_breakdown && Object.keys(doctor.treatment_breakdown).length > 0 && (
+                          <div className="mb-6">
+                            <h4 className="font-semibold text-lg mb-3 text-gray-800">Treatment Type Breakdown</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {Object.entries(doctor.treatment_breakdown).map(([treatmentType, data]) => (
+                                <div key={treatmentType} className="p-3 bg-gray-50 rounded-lg border">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-gray-900">{treatmentType}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {data.percentage}%
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">{data.count} treatments</span>
+                                    <span className="text-sm font-semibold text-green-600">
+                                      ₹{data.revenue.toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recent Treatments */}
+                        {doctor.recent_treatments && doctor.recent_treatments.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-lg mb-3 text-gray-800">Recent Treatments</h4>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {doctor.recent_treatments.map((treatment) => (
+                                <div key={treatment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="font-medium text-gray-900">{treatment.treatment_type}</span>
+                                      <Badge 
+                                        variant={treatment.status === 'Completed' ? 'default' : 'secondary'}
+                                        className="text-xs"
+                                      >
+                                        {treatment.status}
+                                      </Badge>
+                                      <Badge variant="outline" className="text-xs">
+                                        {treatment.attribution_type}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-sm text-gray-600 mt-1">
+                                      Patient: {treatment.patient_name} • Date: {new Date(treatment.treatment_date).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-green-600">₹{treatment.cost.toLocaleString()}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Attribution Details */}
+                        {doctor.attribution_details && doctor.attribution_details.length > 0 && (
+                          <div className="mt-4">
+                            <h4 className="font-semibold text-lg mb-3 text-gray-800">Attribution Details</h4>
+                            <div className="space-y-2">
+                              {doctor.attribution_details.map((attribution, index) => (
+                                <div key={index} className="p-3 bg-blue-50 rounded-lg border">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <span className="font-medium">{attribution.treatment_type}</span>
+                                      <span className="text-sm text-gray-600 ml-2">
+                                        ({attribution.attribution_type})
+                                      </span>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-semibold">₹{attribution.revenue?.toLocaleString() || 0}</div>
+                                      <div className="text-sm text-gray-600">{attribution.percentage || 0}%</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    No doctor performance data available for this period
+                    <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No doctor performance data available</p>
+                    <p className="text-sm">Data will appear here once doctors start treatments</p>
                   </div>
                 )}
               </CardContent>
