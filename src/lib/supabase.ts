@@ -73,6 +73,22 @@ export interface Appointment {
   updated_at: string
 }
 
+export interface FollowUp {
+  id: string
+  clinic_id: string
+  patient_id: string
+  reason: string
+  notes?: string
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled'
+  priority: 'Low' | 'Normal' | 'High' | 'Urgent'
+  created_at: string
+  updated_at: string
+  created_by?: string
+  due_date?: string
+  completed_at?: string
+  completed_by?: string
+}
+
 export interface SchedulingSettings {
   id: string
   clinic_id: string
@@ -601,6 +617,105 @@ export const subscribeToStaffPermissions = (callback: (payload: any) => void) =>
     .channel('staff_permissions_changes')
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'staff_permissions' }, 
+      callback
+    )
+    .subscribe()
+}
+
+// Follow-ups API
+export const followUpsApi = {
+  // Get all follow-ups for a clinic
+  async getByClinic(clinicId: string) {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .select(`
+        *,
+        patients!inner(
+          id,
+          first_name,
+          last_name,
+          phone,
+          email
+        )
+      `)
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get follow-ups for a specific patient
+  async getByPatient(patientId: string, clinicId: string) {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .select('*')
+      .eq('patient_id', patientId)
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Create a new follow-up
+  async create(followUp: Omit<FollowUp, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .insert(followUp)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Update a follow-up
+  async update(id: string, updates: Partial<FollowUp>) {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Delete a follow-up
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('follow_ups')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+  },
+
+  // Mark follow-up as completed
+  async markCompleted(id: string, completedBy: string) {
+    const { data, error } = await supabase
+      .from('follow_ups')
+      .update({
+        status: 'Completed',
+        completed_at: new Date().toISOString(),
+        completed_by: completedBy
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  }
+}
+
+export const subscribeToFollowUps = (callback: (payload: any) => void) => {
+  return supabase
+    .channel('follow_ups_changes')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'follow_ups' }, 
       callback
     )
     .subscribe()

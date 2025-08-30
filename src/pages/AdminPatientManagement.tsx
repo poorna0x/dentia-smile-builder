@@ -15,7 +15,7 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { patientApi, treatmentPlanApi, medicalRecordApi } from '@/lib/patient-management';
 import { dentalTreatmentApi, toothConditionApi, dentalNoteApi, toothChartUtils } from '@/lib/dental-treatments';
 import { labWorkApi } from '@/lib/lab-work';
-import { supabase, dentistsApi, Dentist } from '@/lib/supabase';
+import { supabase, dentistsApi, Dentist, followUpsApi } from '@/lib/supabase';
 import ToothChart from '@/components/ToothChart';
 import DentalTreatmentForm from '@/components/DentalTreatmentForm';
 import { Plus, Search, Edit, Trash2, User, Calendar, FileText, Activity, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Circle, Phone, MessageCircle, Stethoscope, X, Pill, Clock, Check, MoreHorizontal } from 'lucide-react';
@@ -96,6 +96,9 @@ export default function AdminPatientManagement() {
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   
+  // State for in-progress treatments
+  const [patientsInProgressTreatments, setPatientsInProgressTreatments] = useState<{[key: string]: any[]}>({});
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage] = useState(50);
@@ -112,11 +115,12 @@ export default function AdminPatientManagement() {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
-  const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
   const [showAppointmentActionsDialog, setShowAppointmentActionsDialog] = useState(false);
   const [appointmentToComplete, setAppointmentToComplete] = useState<{id: string, patientName: string} | null>(null);
-  const [selectedDentistId, setSelectedDentistId] = useState<string>('');
+  const [selectedTreatmentToContinue, setSelectedTreatmentToContinue] = useState<any>(null);
   const [existingPatients, setExistingPatients] = useState<Patient[]>([]);
+  const [followUpPatients, setFollowUpPatients] = useState<any[]>([]);
+  const [showFollowUps, setShowFollowUps] = useState(false);
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
   const [nameSimilarity, setNameSimilarity] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -516,6 +520,25 @@ export default function AdminPatientManagement() {
     if (selectedPatientForDental) {
       await handleOpenDentalChart(selectedPatientForDental);
     }
+    // Refresh in-progress treatments for all patients
+    if (patients.length > 0) {
+      await loadInProgressTreatmentsForPatients(patients);
+    }
+  };
+
+  // Handle continue treatment - opens dental chart and navigates to specific tooth
+  const handleContinueTreatment = async (patient: Patient, treatment: any) => {
+    // First open the dental chart for this patient
+    await handleOpenDentalChart(patient);
+    
+    // Store the treatment info to auto-open the treatment form
+    setSelectedTreatmentToContinue(treatment);
+    
+    // Show a toast to guide the user
+    toast({
+      title: "Dental Chart Opened",
+      description: `Navigate to Tooth ${treatment.tooth_number} to continue the ${treatment.treatment_type} treatment`,
+    });
   };
 
   // Edit patient function
@@ -680,12 +703,89 @@ export default function AdminPatientManagement() {
 
   // Handle completing an appointment
   const handleCompleteAppointment = async (appointmentId: string, patientName: string) => {
-    // Load dentists first
-    await loadDentists();
-    
-    setAppointmentToComplete({ id: appointmentId, patientName });
-    setShowCompleteConfirmDialog(true);
-    setShowAppointmentActionsDialog(false); // Close the actions dialog
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'Completed' })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appointment Completed",
+        description: `Appointment for ${patientName} has been marked as completed`,
+      });
+
+      // Send review request via WhatsApp if enabled
+      try {
+        console.log('🔍 Starting review request process...');
+        
+        // Get patient phone number from the appointment
+        const { data: appointmentData } = await supabase
+          .from('appointments')
+          .select('phone')
+          .eq('id', appointmentId)
+          .single();
+
+        console.log('📱 Appointment data:', appointmentData);
+        console.log('📱 Patient phone:', appointmentData?.phone);
+
+        if (appointmentData?.phone) {
+          const reviewLink = `${window.location.origin}/review?patient=${patientName}`;
+          console.log('🔗 Review link:', reviewLink);
+          
+          console.log('📱 Sending review request...');
+          const reviewSent = await sendWhatsAppReviewRequest(
+            appointmentData.phone,
+            patientName,
+            reviewLink
+          );
+
+          console.log('📱 Review request result:', reviewSent);
+
+          if (reviewSent) {
+            toast({
+              title: "Review Request Sent",
+              description: `Review request sent to ${patientName} via WhatsApp`,
+            });
+          } else {
+            console.log('⚠️ Review request failed or disabled');
+          }
+        } else {
+          console.log('❌ No patient phone number found in appointment data');
+        }
+      } catch (reviewError) {
+        console.error('❌ Error sending review request:', reviewError);
+        // Don't fail the completion if review request fails
+      }
+
+      // Refresh the appointments list
+      loadPatientsWithAppointmentsToday();
+      
+      // Dispatch custom event to notify other pages of appointment completion
+      window.dispatchEvent(new CustomEvent('appointmentCompleted', {
+        detail: {
+          appointmentId: appointmentId,
+          patientName: patientName,
+          action: 'completed'
+        }
+      }));
+      
+      // Trigger a small delay to ensure real-time updates propagate
+      setTimeout(() => {
+        // This ensures the Admin page real-time updates pick up the change
+        console.log('✅ Appointment completed - real-time updates should propagate');
+      }, 100);
+
+      setShowAppointmentActionsDialog(false);
+    } catch (error) {
+      console.error('Error completing appointment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete appointment",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCancelAppointment = async (appointmentId: string, patientName: string) => {
@@ -750,112 +850,82 @@ export default function AdminPatientManagement() {
     }
   };
 
-  const confirmCompleteAppointment = async () => {
-    if (!appointmentToComplete) return;
-    
-    // Validate dentist selection if multiple dentists
-    if (dentists.length > 1 && !selectedDentistId) {
-      toast({
-        title: "Error",
-        description: "Please select a dentist",
-        variant: "destructive"
-      });
-      return;
-    }
-    
+  const handleFollowUpAppointment = async (appointmentId: string, patientName: string) => {
     try {
-      const updateData: any = { status: 'Completed' };
-      
-      // Add dentist_id if selected
-      if (selectedDentistId) {
-        updateData.dentist_id = selectedDentistId;
+      // Find the patient data
+      const patient = patients.find(p => p.first_name === patientName);
+      if (!patient || !clinic?.id) {
+        throw new Error('Patient or clinic not found');
       }
-      
-      const { error } = await supabase
-        .from('appointments')
-        .update(updateData)
-        .eq('id', appointmentToComplete.id);
 
-      if (error) throw error;
-
-      toast({
-        title: "Appointment Completed",
-        description: `Appointment for ${appointmentToComplete.patientName} has been marked as completed and updated everywhere`,
+      // Create follow-up in database
+      const newFollowUp = await followUpsApi.create({
+        clinic_id: clinic.id,
+        patient_id: patient.id,
+        reason: 'Patient follow-up required',
+        status: 'Pending',
+        priority: 'Normal',
+        created_by: 'Admin'
       });
 
-      // Send review request via WhatsApp if enabled
-      try {
-        console.log('🔍 Starting review request process...');
-        
-        // Get patient phone number from the appointment
-        const { data: appointmentData } = await supabase
-          .from('appointments')
-          .select('phone')
-          .eq('id', appointmentToComplete.id)
-          .single();
+      // Refresh follow-up list
+      await loadFollowUpAppointments();
 
-        console.log('📱 Appointment data:', appointmentData);
-        console.log('📱 Patient phone:', appointmentData?.phone);
+      toast({
+        title: "Added to Follow-up List",
+        description: `${patientName} has been added to the follow-up list for patient care`,
+      });
 
-        if (appointmentData?.phone) {
-          const reviewLink = `${window.location.origin}/review?patient=${appointmentToComplete.patientName}`;
-          console.log('🔗 Review link:', reviewLink);
-          
-          console.log('📱 Sending review request...');
-          const reviewSent = await sendWhatsAppReviewRequest(
-            appointmentData.phone,
-            appointmentToComplete.patientName,
-            reviewLink
-          );
-
-          console.log('📱 Review request result:', reviewSent);
-
-          if (reviewSent) {
-            toast({
-              title: "Review Request Sent",
-              description: `Review request sent to ${appointmentToComplete.patientName} via WhatsApp`,
-            });
-          } else {
-            console.log('⚠️ Review request failed or disabled');
-          }
-        } else {
-          console.log('❌ No patient phone number found in appointment data');
-        }
-      } catch (reviewError) {
-        console.error('❌ Error sending review request:', reviewError);
-        // Don't fail the completion if review request fails
-      }
-
-      // Refresh the appointments list
-      loadPatientsWithAppointmentsToday();
-      
-      // Dispatch custom event to notify other pages of appointment completion
-      window.dispatchEvent(new CustomEvent('appointmentCompleted', {
-        detail: {
-          appointmentId: appointmentToComplete.id,
-          patientName: appointmentToComplete.patientName,
-          dentistId: selectedDentistId,
-          action: 'completed'
-        }
-      }));
-      
-      // Trigger a small delay to ensure real-time updates propagate
-      setTimeout(() => {
-        // This ensures the Admin page real-time subscriptions pick up the change
-        console.log('✅ Appointment completed - real-time updates should propagate');
-      }, 100);
+      setShowAppointmentActionsDialog(false);
     } catch (error) {
-      console.error('Error completing appointment:', error);
+      console.error('Error adding to follow-up:', error);
       toast({
         title: "Error",
-        description: "Failed to complete appointment",
+        description: "Failed to add to follow-up",
         variant: "destructive"
       });
-    } finally {
-      setShowCompleteConfirmDialog(false);
-      setAppointmentToComplete(null);
     }
   };
+
+  const handleRemoveFromFollowUp = async (followUpId: string, patientName: string) => {
+    try {
+      // Delete follow-up from database
+      await followUpsApi.delete(followUpId);
+
+      // Get the patient ID of the deleted follow-up
+      const deletedFollowUp = followUpPatients.find(fu => fu.id === followUpId);
+      const patientId = deletedFollowUp?.patient_id;
+
+      // Immediately update local state to remove the follow-up
+      setFollowUpPatients(prev => prev.filter(fu => fu.id !== followUpId));
+
+      // If we're in follow-ups filter, update the filtered patients
+      if (activeFilter === 'follow-ups' && patientId) {
+        // Check if this patient has any other follow-ups
+        const remainingFollowUps = followUpPatients.filter(fu => fu.id !== followUpId && fu.patient_id === patientId);
+        
+        if (remainingFollowUps.length === 0) {
+          // Patient has no more follow-ups, remove from filtered list
+          setFilteredPatients(prev => prev.filter(p => p.id !== patientId));
+          setDisplayedPatients(prev => prev.filter(p => p.id !== patientId));
+        }
+      }
+
+      toast({
+        title: "Follow-up Deleted",
+        description: `${patientName} has been removed from the follow-up list`,
+      });
+    } catch (error) {
+      console.error('Error removing from follow-up:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove from follow-up",
+        variant: "destructive"
+      });
+    }
+  };
+
+
 
   // Load dentists for clinic
   const loadDentists = async () => {
@@ -1455,6 +1525,8 @@ export default function AdminPatientManagement() {
       console.log('Component: Ready to load patients with appointments today for clinic:', clinic.id);
       // Load patients with appointments today by default
       loadPatientsWithAppointmentsToday();
+      // Load follow-up appointments
+      loadFollowUpAppointments();
       // Load last searched patient
       loadLastSearchedPatient();
     } else {
@@ -1552,6 +1624,10 @@ export default function AdminPatientManagement() {
       setFilteredPatients(data);
       setTotalPatients(data.length);
       setDataLoaded(true);
+      
+      // Load in-progress treatments for all patients
+      await loadInProgressTreatmentsForPatients(data);
+      
       toast({
         title: "Success",
         description: `Loaded ${data.length} patients`,
@@ -1564,6 +1640,53 @@ export default function AdminPatientManagement() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load in-progress treatments for all patients
+  const loadInProgressTreatmentsForPatients = async (patientsData: Patient[]) => {
+    if (!clinic?.id) return;
+    
+    try {
+      // Get all patient IDs
+      const patientIds = patientsData.map(patient => patient.id);
+      
+      // Get in-progress treatments for all patients
+      const { data: treatmentsData, error } = await supabase
+        .from('dental_treatments')
+        .select('*')
+        .eq('clinic_id', clinic.id)
+        .in('patient_id', patientIds)
+        .in('treatment_status', ['In Progress', 'Planned'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Group treatments by patient ID
+      const treatmentsByPatient: {[key: string]: any[]} = {};
+      
+      treatmentsData?.forEach(treatment => {
+        if (!treatmentsByPatient[treatment.patient_id]) {
+          treatmentsByPatient[treatment.patient_id] = [];
+        }
+        treatmentsByPatient[treatment.patient_id].push(treatment);
+      });
+
+      setPatientsInProgressTreatments(treatmentsByPatient);
+    } catch (error) {
+      console.error('Error loading in-progress treatments:', error);
+    }
+  };
+
+  // Load follow-up patients from database
+  const loadFollowUpAppointments = async () => {
+    if (!clinic?.id) return;
+    
+    try {
+      const data = await followUpsApi.getByClinic(clinic.id);
+      setFollowUpPatients(data || []);
+    } catch (error) {
+      console.error('Error loading follow-up appointments:', error);
     }
   };
 
@@ -1614,20 +1737,28 @@ export default function AdminPatientManagement() {
         setTotalPatients(patientsWithAppointments.length);
         setDataLoaded(true);
         
+        // Load in-progress treatments for these patients
+        await loadInProgressTreatmentsForPatients(patientsWithAppointments);
+        
         toast({
           title: "Today's Appointments",
           description: `Loaded ${patientsWithAppointments.length} patients with appointments today`,
         });
       } else {
-        // No appointments today, show empty state
-        setPatients([]);
-        setFilteredPatients([]);
-        setTotalPatients(0);
+        // No appointments today, load all patients to show in-progress treatments
+        console.log('🔍 No appointments today, loading all patients to check for in-progress treatments...');
+        const allPatients = await patientApi.getAll(clinic.id);
+        setPatients(allPatients);
+        setFilteredPatients(allPatients);
+        setTotalPatients(allPatients.length);
         setDataLoaded(true);
+        
+        // Load in-progress treatments for all patients
+        await loadInProgressTreatmentsForPatients(allPatients);
         
         toast({
           title: "No Appointments Today",
-          description: "No patients have appointments scheduled for today",
+          description: "Showing all patients with in-progress treatments",
         });
       }
     } catch (error) {
@@ -1866,6 +1997,47 @@ export default function AdminPatientManagement() {
       toast({
         title: "Lab Orders Feature",
         description: "Lab orders functionality will be available soon",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle filter for follow-up patients
+  const handleFollowUpsFilter = async () => {
+    setLoading(true);
+    setActiveFilter('follow-ups');
+    try {
+      // Load fresh follow-up data
+      await loadFollowUpAppointments();
+      
+      if (followUpPatients.length > 0) {
+        // Get patient data for follow-up patients
+        const followUpPatientIds = followUpPatients.map(fu => fu.patient_id);
+        const followUpPatientData = patients.filter(p => followUpPatientIds.includes(p.id));
+        
+        setFilteredPatients(followUpPatientData);
+        setDisplayedPatients(followUpPatientData);
+        setDataLoaded(true);
+        
+        toast({
+          title: "Follow-up Patients",
+          description: `Showing ${followUpPatientData.length} patients with follow-ups`,
+        });
+      } else {
+        setFilteredPatients([]);
+        setDisplayedPatients([]);
+        setDataLoaded(true);
+        toast({
+          title: "No Follow-ups",
+          description: "No patients in follow-up list",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load follow-up patients",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
@@ -2188,6 +2360,10 @@ export default function AdminPatientManagement() {
     if (selectedPatientForDental) {
       await loadDentalData(selectedPatientForDental.id);
     }
+    // Refresh in-progress treatments for all patients
+    if (patients.length > 0) {
+      await loadInProgressTreatmentsForPatients(patients);
+    }
   };
 
   // Handle delete treatment
@@ -2208,6 +2384,10 @@ export default function AdminPatientManagement() {
       // Refresh dental treatments data
       if (selectedPatientForDental) {
         await handleOpenDentalChart(selectedPatientForDental);
+      }
+      // Refresh in-progress treatments for all patients
+      if (patients.length > 0) {
+        await loadInProgressTreatmentsForPatients(patients);
       }
       
       toast({
@@ -2466,6 +2646,19 @@ export default function AdminPatientManagement() {
                     <Stethoscope className="w-4 h-4" />
                   )}
                   Lab Orders
+                </Button>
+                <Button 
+                  onClick={handleFollowUpsFilter}
+                  variant={activeFilter === 'follow-ups' ? 'default' : 'outline'}
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  {loading && activeFilter === 'follow-ups' ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Clock className="w-4 h-4" />
+                  )}
+                  Follow-ups ({followUpPatients.length})
                 </Button>
 
 
@@ -2855,10 +3048,66 @@ export default function AdminPatientManagement() {
                       </div>
                     </div>
                     
+
+                    
+                    {/* In-Progress Treatments */}
+                    {patientsInProgressTreatments[patient.id] && patientsInProgressTreatments[patient.id].length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-300 bg-gray-25 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Stethoscope className="w-4 h-4 text-gray-700" />
+                            <span className="font-medium text-gray-700">In-Progress Treatments</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenDentalChart(patient)}
+                            className="h-6 px-2 text-xs border-gray-300 text-gray-700 hover:bg-gray-50"
+                          >
+                            View All ({patientsInProgressTreatments[patient.id].length})
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {patientsInProgressTreatments[patient.id].slice(0, 2).map((treatment) => (
+                            <div key={treatment.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-sm">
+                                <span className="font-medium text-gray-800">{treatment.treatment_type}</span>
+                                <span className="text-gray-600">• Tooth {treatment.tooth_number}</span>
+                                {treatment.created_by && (
+                                  <span className="text-gray-600">• {treatment.created_by}</span>
+                                )}
+                                {treatment.treatment_date && (
+                                  <span className="text-gray-600">• 📅 {new Date(treatment.treatment_date).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 mt-1 sm:mt-0">
+                                <Badge className="text-xs bg-gray-100 text-gray-700 border-gray-300">
+                                  {treatment.treatment_status}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleContinueTreatment(patient, treatment)}
+                                  className="h-6 px-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                                >
+                                  Continue
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          {patientsInProgressTreatments[patient.id].length > 2 && (
+                            <div className="text-xs text-gray-500 text-center">
+                              +{patientsInProgressTreatments[patient.id].length - 2} more treatments
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Upcoming Appointments */}
                     {patientsWithAppointments[patient.id] && 
                      patientsWithAppointments[patient.id].filter((appointment: any) => appointment.status === 'Confirmed').length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="mt-4 pt-4 border-t border-gray-300 bg-gray-25 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-3">
                           <Calendar className="w-4 h-4 text-gray-700" />
                           <span className="font-medium text-gray-700">Upcoming Appointments</span>
@@ -2882,6 +3131,28 @@ export default function AdminPatientManagement() {
                               +{patientsWithAppointments[patient.id].filter((appointment: any) => appointment.status === 'Confirmed').length - 3} more appointments
                             </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Follow-ups Display (only when follow-ups filter is active) */}
+                    {activeFilter === 'follow-ups' && followUpPatients.filter((fu) => fu.patient_id === patient.id).length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-300 bg-gray-25 rounded-lg p-3">
+                        <div className="space-y-2">
+                          {followUpPatients
+                            .filter((fu) => fu.patient_id === patient.id)
+                            .map((followUp) => (
+                            <div key={followUp.id} className="flex items-center justify-end p-2 bg-white border border-gray-200 rounded-lg">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRemoveFromFollowUp(followUp.id, patient.first_name)}
+                                className="h-6 px-2 text-xs border-red-300 text-red-700 hover:bg-red-50"
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -3249,6 +3520,8 @@ export default function AdminPatientManagement() {
                     onTreatmentAdded={handleDentalDataUpdated}
                     onConditionUpdated={handleDentalDataUpdated}
                     numberingSystem={dentalNumberingSystem}
+                    selectedTreatmentToContinue={selectedTreatmentToContinue}
+                    onTreatmentContinued={() => setSelectedTreatmentToContinue(null)}
                   />
                 </div>
 
@@ -4462,77 +4735,7 @@ export default function AdminPatientManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Complete Appointment with Dentist Selection Dialog */}
-        <Dialog open={showCompleteConfirmDialog} onOpenChange={setShowCompleteConfirmDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-green-600">
-                <Check className="h-5 w-5" />
-                Complete Appointment
-              </DialogTitle>
-              <DialogDescription>
-                Mark the appointment for <strong>{appointmentToComplete?.patientName}</strong> as completed
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              {/* Dentist Selection - Only show if multiple dentists */}
-              {dentists.length > 1 && (
-                <div className="space-y-2">
-                  <Label htmlFor="dentist-select" className="font-medium">Who attended this appointment? *</Label>
-                  <Select
-                    value={selectedDentistId}
-                    onValueChange={setSelectedDentistId}
-                  >
-                    <SelectTrigger id="dentist-select">
-                      <SelectValue placeholder="Select a dentist" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dentists.map((dentist) => (
-                        <SelectItem key={dentist.id} value={dentist.id}>
-                          {dentist.name}
-                          {dentist.specialization && ` (${dentist.specialization})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">
-                    This information will be used for analytics and reporting
-                  </p>
-                </div>
-              )}
 
-              {/* Info message */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-sm text-green-700">
-                  This will mark the appointment as completed and remove it from today's appointments view. The appointment record will be preserved in the patient's medical history.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-2 justify-end pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setShowCompleteConfirmDialog(false);
-                  setAppointmentToComplete(null);
-                  setSelectedDentistId('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default" 
-                onClick={confirmCompleteAppointment}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                disabled={dentists.length > 1 && !selectedDentistId}
-              >
-                <Check className="w-4 h-4" />
-                Complete Appointment
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* Appointment Actions Dialog */}
         <Dialog open={showAppointmentActionsDialog} onOpenChange={setShowAppointmentActionsDialog}>
@@ -4550,19 +4753,24 @@ export default function AdminPatientManagement() {
             <div className="space-y-3 py-4">
               {/* Complete Option */}
               <Button
-                onClick={() => appointmentToComplete && handleCompleteAppointment(appointmentToComplete.id, appointmentToComplete.patientName)}
+                onClick={() => {
+                  if (appointmentToComplete) {
+                    handleCompleteAppointment(appointmentToComplete.id, appointmentToComplete.patientName);
+                  }
+                }}
                 className="w-full justify-start bg-green-600 hover:bg-green-700 text-white"
               >
                 <Check className="h-4 w-4 mr-2" />
                 Complete Appointment
-                {dentists.length > 1 && (
-                  <span className="ml-auto text-xs opacity-75">(Select dentist)</span>
-                )}
               </Button>
 
               {/* Cancel Option */}
               <Button
-                onClick={() => appointmentToComplete && handleCancelAppointment(appointmentToComplete.id, appointmentToComplete.patientName)}
+                onClick={() => {
+                  if (appointmentToComplete) {
+                    handleCancelAppointment(appointmentToComplete.id, appointmentToComplete.patientName);
+                  }
+                }}
                 variant="destructive"
                 className="w-full justify-start"
               >
@@ -4572,12 +4780,30 @@ export default function AdminPatientManagement() {
 
               {/* Reschedule Option */}
               <Button
-                onClick={() => appointmentToComplete && handleRescheduleAppointment(appointmentToComplete.id, appointmentToComplete.patientName)}
+                onClick={() => {
+                  if (appointmentToComplete) {
+                    handleRescheduleAppointment(appointmentToComplete.id, appointmentToComplete.patientName);
+                  }
+                }}
                 variant="outline"
                 className="w-full justify-start"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Reschedule Appointment
+              </Button>
+
+              {/* Follow Up Option */}
+              <Button
+                onClick={() => {
+                  if (appointmentToComplete) {
+                    handleFollowUpAppointment(appointmentToComplete.id, appointmentToComplete.patientName);
+                  }
+                }}
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Add to Follow-up List
               </Button>
             </div>
 

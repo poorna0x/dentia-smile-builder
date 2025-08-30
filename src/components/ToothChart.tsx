@@ -56,6 +56,8 @@ interface ToothChartProps {
   clinicId: string
   onTreatmentAdded?: () => void
   onConditionUpdated?: () => void
+  selectedTreatmentToContinue?: any
+  onTreatmentContinued?: () => void
 }
 
 interface ToothData {
@@ -72,7 +74,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
   patientId, 
   clinicId, 
   onTreatmentAdded, 
-  onConditionUpdated
+  onConditionUpdated,
+  selectedTreatmentToContinue,
+  onTreatmentContinued
 }) => {
   const [teeth, setTeeth] = useState<ToothData[]>([])
   const [loading, setLoading] = useState(true)
@@ -176,6 +180,39 @@ const ToothChart: React.FC<ToothChartProps> = ({
     loadToothData()
     loadDentists()
   }, [patientId, clinicId])
+
+  // Auto-select tooth when continuing a treatment
+  useEffect(() => {
+    if (selectedTreatmentToContinue && teeth.length > 0) {
+      const targetTooth = teeth.find(tooth => tooth.number === selectedTreatmentToContinue.tooth_number)
+      if (targetTooth) {
+        console.log(`🦷 Auto-selecting tooth ${selectedTreatmentToContinue.tooth_number} for continuing treatment`)
+        setSelectedTooth(targetTooth)
+        setShowAddTreatmentDialog(true)
+        
+        // Pre-fill the treatment form with existing data
+        setTreatmentForm({
+          ...treatmentForm,
+          treatment_type: selectedTreatmentToContinue.treatment_type,
+          treatment_description: selectedTreatmentToContinue.treatment_description || '',
+          treatment_status: selectedTreatmentToContinue.treatment_status, // Keep original status
+          treatment_date: selectedTreatmentToContinue.treatment_date || new Date().toISOString().split('T')[0],
+          notes: selectedTreatmentToContinue.notes || ''
+        })
+        
+        // Set the doctors if available
+        if (selectedTreatmentToContinue.created_by) {
+          const doctors = selectedTreatmentToContinue.created_by.split(', ').map((d: string) => d.trim())
+          setSelectedDoctors(doctors)
+        }
+        
+        // Notify parent that we've handled the continue treatment
+        if (onTreatmentContinued) {
+          onTreatmentContinued()
+        }
+      }
+    }
+  }, [selectedTreatmentToContinue, teeth])
   
   // Load dentists for the clinic
   const loadDentists = async () => {
@@ -1636,9 +1673,14 @@ const ToothChart: React.FC<ToothChartProps> = ({
         <Dialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
             <DialogHeader>
-              <DialogTitle>Add Treatment - Tooth {selectedTooth?.number}</DialogTitle>
+              <DialogTitle>
+                {selectedTreatmentToContinue ? 'Continue Treatment' : 'Add Treatment'} - Tooth {selectedTooth?.number}
+              </DialogTitle>
               <DialogDescription>
-                Add a new treatment record for this tooth. Fill in the details below.
+                {selectedTreatmentToContinue 
+                  ? `Continue the ${selectedTreatmentToContinue.treatment_type} treatment for this tooth. Update the details below.`
+                  : 'Add a new treatment record for this tooth. Fill in the details below.'
+                }
               </DialogDescription>
             </DialogHeader>
             
@@ -1867,7 +1909,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 }
                 className="w-full sm:w-auto"
               >
-                Add Treatment
+                {selectedTreatmentToContinue ? 'Update Treatment' : 'Add Treatment'}
               </Button>
             </div>
           </DialogContent>
