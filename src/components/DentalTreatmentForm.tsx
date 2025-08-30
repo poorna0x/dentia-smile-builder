@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Calendar, DollarSign, FileText, Circle, CreditCard, User } from 'lucide-react'
+import { Calendar, DollarSign, FileText, Circle, CreditCard, User, X } from 'lucide-react'
 import { 
   DentalTreatment, 
   toothChartUtils,
@@ -47,7 +47,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
   
   // Doctor selection state
   const [dentists, setDentists] = useState<Dentist[]>([])
-  const [selectedDoctor, setSelectedDoctor] = useState('')
+  const [selectedDoctors, setSelectedDoctors] = useState<string[]>([])
   const [otherDoctorName, setOtherDoctorName] = useState('')
   const [showOtherDoctorInput, setShowOtherDoctorInput] = useState(false)
   const [loadingDentists, setLoadingDentists] = useState(true)
@@ -70,7 +70,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         
         // Auto-select if only one dentist
         if (dentistsData.length === 1) {
-          setSelectedDoctor(dentistsData[0].name)
+          setSelectedDoctors([dentistsData[0].name])
         }
       } catch (error) {
         console.error('❌ Error loading dentists:', error)
@@ -85,22 +85,35 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
 
   // Handle doctor selection change
   const handleDoctorChange = (value: string) => {
-    setSelectedDoctor(value)
     if (value === 'other') {
       setShowOtherDoctorInput(true)
       setOtherDoctorName('')
     } else {
       setShowOtherDoctorInput(false)
       setOtherDoctorName('')
+      
+      // Add doctor to selected doctors (avoid duplicates)
+      if (!selectedDoctors.includes(value)) {
+        setSelectedDoctors(prev => [...prev, value])
+      }
     }
   }
 
-  // Get final doctor name
-  const getFinalDoctorName = () => {
-    if (selectedDoctor === 'other') {
-      return otherDoctorName.trim() || 'Unknown Doctor'
+  // Remove doctor from selection
+  const removeDoctor = (doctorName: string) => {
+    setSelectedDoctors(prev => prev.filter(doc => doc !== doctorName))
+  }
+
+  // Get final doctor names as comma-separated string
+  const getFinalDoctorNames = () => {
+    const allDoctors = [...selectedDoctors]
+    
+    // Add other doctor name if provided
+    if (otherDoctorName.trim()) {
+      allDoctors.push(otherDoctorName.trim())
     }
-    return selectedDoctor || 'Unknown Doctor'
+    
+    return allDoctors.length > 0 ? allDoctors.join(', ') : 'Unknown Doctor'
   }
 
   // Get doctor options for dropdown
@@ -133,7 +146,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
       
       // Set doctor if available in initial data
       if (initialData.created_by) {
-        setSelectedDoctor(initialData.created_by)
+        setSelectedDoctors(initialData.created_by ? initialData.created_by.split(', ') : [])
       }
     }
   }, [initialData])
@@ -154,7 +167,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         treatment_status: formData.treatment_status,
         treatment_date: formData.treatment_date || undefined,
         notes: formData.notes || undefined,
-        created_by: getFinalDoctorName()
+        created_by: getFinalDoctorNames()
       }
 
       if (initialData?.id) {
@@ -259,10 +272,9 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
           </div>
 
           {/* Doctor Selection */}
-          {console.log('🩺 Doctor Selection Debug:', { loadingDentists, dentistsCount: dentists.length, selectedDoctor })}
           {!loadingDentists ? (
             <div>
-              <Label htmlFor="doctor">Doctor *</Label>
+              <Label htmlFor="doctor">Doctor(s) *</Label>
               {dentists.length === 1 ? (
                 // Single dentist - show as read-only
                 <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border">
@@ -270,14 +282,37 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
                   <span className="text-sm font-medium">{dentists[0].name}</span>
                 </div>
               ) : dentists.length > 1 ? (
-                // Multiple dentists - show dropdown
-                <div className="space-y-2">
+                // Multiple dentists - show dropdown and selected doctors
+                <div className="space-y-3">
+                  {/* Selected Doctors Display */}
+                  {selectedDoctors.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">Selected Doctors:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedDoctors.map((doctor) => (
+                          <div key={doctor} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                            <User className="h-3 w-3" />
+                            <span>{doctor}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeDoctor(doctor)}
+                              className="text-blue-500 hover:text-blue-700"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Doctor Selection Dropdown */}
                   <Select 
-                    value={selectedDoctor} 
+                    value="" 
                     onValueChange={handleDoctorChange}
                   >
                     <SelectTrigger className="h-12 text-base min-h-[48px]" style={{ width: '300px', minWidth: '300px', maxWidth: '300px' }}>
-                      <SelectValue placeholder="Select doctor" className="text-base truncate" />
+                      <SelectValue placeholder="Add doctor" className="text-base truncate" />
                     </SelectTrigger>
                     <SelectContent>
                       {getDoctorOptions().map((option) => (
@@ -290,24 +325,45 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
                   
                   {/* Other doctor name input */}
                   {showOtherDoctorInput && (
-                    <div className="mt-2">
+                    <div className="mt-2 p-3 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                      <p className="text-sm font-medium text-blue-800 mb-2">Enter Custom Doctor Name:</p>
                       <Input
                         placeholder="Enter doctor name (e.g., Dr. Specialist Name)"
                         value={otherDoctorName}
                         onChange={(e) => setOtherDoctorName(e.target.value)}
-                        className="h-12 text-base"
+                        className="h-12 text-base border-blue-300 focus:border-blue-500 focus:ring-blue-500"
                       />
+                      {otherDoctorName.trim() && (
+                        <div className="mt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (!selectedDoctors.includes(otherDoctorName.trim())) {
+                                setSelectedDoctors(prev => [...prev, otherDoctorName.trim()])
+                                setOtherDoctorName('')
+                                setShowOtherDoctorInput(false)
+                              }
+                            }}
+                            className="text-sm border-blue-300 text-blue-700 hover:bg-blue-50"
+                          >
+                            Add Doctor
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               ) : (
                 // No dentists configured - show other input
-                <div>
+                <div className="p-3 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-medium text-blue-800 mb-2">Enter Doctor Name:</p>
                   <Input
                     placeholder="Enter doctor name (e.g., Dr. Specialist Name)"
                     value={otherDoctorName}
                     onChange={(e) => setOtherDoctorName(e.target.value)}
-                    className="h-12 text-base"
+                    className="h-12 text-base border-blue-300 focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
               )}
@@ -315,7 +371,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
           ) : (
             // Show loading state
             <div>
-              <Label htmlFor="doctor">Doctor *</Label>
+              <Label htmlFor="doctor">Doctor(s) *</Label>
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 <span className="text-sm text-gray-600">Loading dentists...</span>

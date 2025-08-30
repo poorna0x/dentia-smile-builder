@@ -3435,7 +3435,7 @@ export default function AdminPatientManagement() {
                                 {treatment.created_by && (
                                   <p className="text-blue-600 mt-1">
                                     <User className="h-3 w-3 inline mr-1" />
-                                    Doctor: {treatment.created_by}
+                                    {treatment.created_by.includes(',') ? 'Doctors: ' : 'Doctor: '}{treatment.created_by}
                                   </p>
                                 )}
                                 {treatment.notes && (
