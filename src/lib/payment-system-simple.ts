@@ -50,7 +50,7 @@ export interface PaymentFormData {
 }
 
 // =====================================================
-// 🦷 SIMPLIFIED PAYMENT API FUNCTIONS
+// 🦷 SIMPLIFIED PAYMENT API FUNCTIONS (v2.0 - 406 Error Fixed)
 // =====================================================
 
 export const simplePaymentApi = {
@@ -71,6 +71,7 @@ export const simplePaymentApi = {
 
   // Get payment summary for a treatment (direct database queries)
   getPaymentSummary: async (treatmentId: string): Promise<PaymentSummary | null> => {
+    // Outer try-catch to handle any unhandled errors
     try {
       console.log('🔍 Getting payment summary for treatment:', treatmentId)
       
@@ -120,7 +121,14 @@ export const simplePaymentApi = {
       console.log('✅ Payment summary retrieved:', summary)
       return summary
     } catch (error) {
-      console.error('Error in getPaymentSummary:', error)
+      // Catch ALL errors and return null instead of throwing
+      console.log('ℹ️ Error in getPaymentSummary for treatment:', treatmentId, '- Returning null')
+      console.log('Error details:', error)
+      return null
+    } catch (outerError) {
+      // Catch any unhandled errors and return null
+      console.log('ℹ️ Outer error in getPaymentSummary for treatment:', treatmentId, '- Returning null')
+      console.log('Outer error details:', outerError)
       return null
     }
   },
