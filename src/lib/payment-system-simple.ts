@@ -125,11 +125,6 @@ export const simplePaymentApi = {
       console.log('ℹ️ Error in getPaymentSummary for treatment:', treatmentId, '- Returning null')
       console.log('Error details:', error)
       return null
-    } catch (outerError) {
-      // Catch any unhandled errors and return null
-      console.log('ℹ️ Outer error in getPaymentSummary for treatment:', treatmentId, '- Returning null')
-      console.log('Outer error details:', outerError)
-      return null
     }
   },
 
