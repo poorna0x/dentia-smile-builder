@@ -25,9 +25,10 @@ export interface PaymentTransaction {
   id: string
   treatment_payment_id: string
   amount: number
-  payment_date: string
   payment_method: PaymentMode
+  transaction_id?: string
   notes?: string
+  payment_date: string
   created_at: string
 }
 
@@ -44,9 +45,10 @@ export interface PaymentFormData {
   total_amount: number
   payment_type: 'full' | 'partial'
   partial_amount?: number
-  payment_date: string
   payment_method: PaymentMode
+  transaction_id?: string
   notes?: string
+  payment_date: string
 }
 
 // =====================================================
@@ -100,14 +102,23 @@ export const simplePaymentApi = {
         throw new Error(`Failed to get treatment payment: ${paymentError.message}`)
       }
 
-      // Get transaction count
-      const { count: transactionCount, error: countError } = await supabase
+      // Get transaction count and payment modes breakdown
+      const { data: transactions, error: countError } = await supabase
         .from('payment_transactions')
-        .select('*', { count: 'exact', head: true })
+        .select('amount, payment_method')
         .eq('treatment_payment_id', paymentData.id)
 
       if (countError) {
         throw new Error(`Failed to get transaction count: ${countError.message}`)
+      }
+
+      // Calculate payment modes breakdown
+      const paymentModes: { [key: string]: number } = {}
+      if (transactions) {
+        transactions.forEach(transaction => {
+          const method = transaction.payment_method
+          paymentModes[method] = (paymentModes[method] || 0) + transaction.amount
+        })
       }
 
       const summary: PaymentSummary = {
@@ -115,7 +126,8 @@ export const simplePaymentApi = {
         paid_amount: paymentData.paid_amount,
         remaining_amount: paymentData.remaining_amount,
         payment_status: paymentData.payment_status,
-        transaction_count: transactionCount || 0
+        transaction_count: transactions?.length || 0,
+        payment_modes: Object.keys(paymentModes).length > 0 ? paymentModes : undefined
       }
 
       console.log('✅ Payment summary retrieved:', summary)
@@ -154,6 +166,8 @@ export const simplePaymentApi = {
 
   // Add a payment transaction
   addPaymentTransaction: async (transaction: Omit<PaymentTransaction, 'id' | 'created_at'>): Promise<PaymentTransaction> => {
+    console.log('🔍 Debug - API received transaction data:', transaction)
+    
     const { data, error } = await supabase
       .from('payment_transactions')
       .insert(transaction)
@@ -161,6 +175,7 @@ export const simplePaymentApi = {
       .single()
 
     if (error) {
+      console.error('❌ API Error details:', error)
       throw new Error(`Failed to add payment transaction: ${error.message}`)
     }
 

@@ -56,7 +56,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     total_amount: 0,
     payment_type: 'full',
     payment_date: new Date().toISOString().split('T')[0],
-    payment_mode: 'Cash',
+    payment_method: 'Cash',
     notes: ''
   })
 
@@ -109,7 +109,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         total_amount: treatment.cost || 0,
         payment_type: 'partial',
         payment_date: new Date().toISOString().split('T')[0],
-        payment_mode: 'Cash',
+        payment_method: 'Cash',
         notes: ''
       })
 
@@ -266,6 +266,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 treatment_payment_id: relatedPayment.id,
                 amount: paymentAmount,
                 payment_date: formData.payment_date,
+                payment_method: formData.payment_method,
                 notes: `Multi-tooth sync: ${formData.notes || 'Additional payment'}`
               })
             }
@@ -275,6 +276,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 treatment_payment_id: relatedPayment.id,
                 amount: miscAmount,
                 payment_date: formData.payment_date,
+                payment_method: formData.payment_method,
                 notes: `Multi-tooth sync: Miscellaneous: ${miscCost.description} (₹${miscAmount})`
               })
             }
@@ -338,11 +340,23 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
       // Add main payment transaction if there's a payment amount
       if (paymentAmount > 0) {
+        console.log('🔍 Debug - Form data being sent:', {
+          treatment_payment_id: treatmentPayment.id,
+          amount: paymentAmount,
+          payment_date: formData.payment_date,
+          payment_method: formData.payment_method,
+          notes: formData.notes || undefined
+        })
+        
+        console.log('🔍 Debug - Full formData object:', formData)
+        console.log('🔍 Debug - payment_method value:', formData.payment_method)
+        console.log('🔍 Debug - payment_method type:', typeof formData.payment_method)
+        
         await simplePaymentApi.addPaymentTransaction({
           treatment_payment_id: treatmentPayment.id,
           amount: paymentAmount,
           payment_date: formData.payment_date,
-          payment_method: formData.payment_mode,
+          payment_method: formData.payment_method,
           notes: formData.notes || undefined
         })
       }
@@ -353,7 +367,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           treatment_payment_id: treatmentPayment.id,
           amount: miscPaymentAmount,
           payment_date: formData.payment_date,
-          payment_method: formData.payment_mode,
+          payment_method: formData.payment_method,
           notes: `Miscellaneous: ${miscCost.description} (₹${miscPaymentAmount})`
         })
       }
@@ -369,7 +383,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         total_amount: 0,
         payment_type: 'partial', // Default to partial for subsequent payments
         payment_date: new Date().toISOString().split('T')[0],
-        payment_mode: 'Cash',
+        payment_method: 'Cash',
         notes: ''
       })
 
@@ -639,7 +653,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                             {new Date(transaction.payment_date).toLocaleDateString()}
                           </div>
                           <div className="text-xs text-blue-600 font-medium">
-                            {transaction.payment_mode}
+                            {transaction.payment_method}
                           </div>
                           {transaction.notes && (
                             <div className="text-xs text-gray-500 mt-1">
@@ -852,10 +866,10 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
             {/* Payment Mode */}
             <div>
-              <Label htmlFor="payment_mode">Payment Mode</Label>
-              <Select 
-                value={formData.payment_mode} 
-                onValueChange={(value: any) => handleInputChange('payment_mode', value)}
+                              <Label htmlFor="payment_method">Payment Method</Label>
+                <Select
+                  value={formData.payment_method}
+                  onValueChange={(value: any) => handleInputChange('payment_method', value)}
               >
                 <SelectTrigger>
                   <SelectValue />

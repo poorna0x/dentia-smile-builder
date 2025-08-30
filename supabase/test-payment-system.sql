@@ -1,138 +1,236 @@
 -- =====================================================
--- 🧪 TEST PAYMENT SYSTEM - SIMPLE CHECK
+-- 🔧 TEST PAYMENT SYSTEM - VERIFY EVERYTHING WORKS
 -- =====================================================
 
--- First, let's see what we have
-SELECT 'CURRENT STATE:' as info;
+-- =====================================================
+-- 1. CHECK TABLE STRUCTURE
+-- =====================================================
 
--- Check if we have any treatments
-SELECT 'DENTAL TREATMENTS:' as info;
-SELECT COUNT(*) as total_treatments FROM dental_treatments;
+SELECT '=== CHECKING TABLE STRUCTURE ===' as section;
 
--- Check if we have any treatment payments
-SELECT 'TREATMENT PAYMENTS:' as info;
-SELECT COUNT(*) as total_treatment_payments FROM treatment_payments;
+-- Check treatment_payments structure
+SELECT 
+    'treatment_payments' as table_name,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'treatment_payments'
+AND table_schema = 'public'
+ORDER BY ordinal_position;
 
--- Check if we have any payment transactions
-SELECT 'PAYMENT TRANSACTIONS:' as info;
-SELECT COUNT(*) as total_payment_transactions FROM payment_transactions;
+-- Check payment_transactions structure
+SELECT 
+    'payment_transactions' as table_name,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'payment_transactions'
+AND table_schema = 'public'
+ORDER BY ordinal_position;
 
--- Get a sample treatment to test with
-SELECT 'SAMPLE TREATMENT:' as info;
-SELECT id, treatment_type, clinic_id FROM dental_treatments LIMIT 1;
+-- =====================================================
+-- 2. CHECK RLS AND POLICIES
+-- =====================================================
 
--- Get clinic ID
-SELECT 'CLINIC ID:' as info;
-SELECT id, name FROM clinics LIMIT 1;
+SELECT '=== CHECKING RLS AND POLICIES ===' as section;
 
--- Now let's create a simple test payment
+-- Check RLS status
+SELECT 
+    'RLS status' as check_type,
+    schemaname,
+    tablename,
+    rowsecurity,
+    CASE 
+        WHEN rowsecurity THEN '✅ RLS ENABLED'
+        ELSE '❌ RLS DISABLED'
+    END as rls_status
+FROM pg_tables 
+WHERE schemaname = 'public'
+AND tablename IN ('treatment_payments', 'payment_transactions');
+
+-- Check policies
+SELECT 
+    'Policies' as check_type,
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd
+FROM pg_policies 
+WHERE schemaname = 'public'
+AND tablename IN ('treatment_payments', 'payment_transactions')
+ORDER BY tablename, policyname;
+
+-- =====================================================
+-- 3. CHECK SAMPLE DATA
+-- =====================================================
+
+SELECT '=== CHECKING SAMPLE DATA ===' as section;
+
+-- Check treatment_payments data
+SELECT 
+    'treatment_payments data' as table_name,
+    COUNT(*) as record_count
+FROM treatment_payments;
+
+-- Check payment_transactions data
+SELECT 
+    'payment_transactions data' as table_name,
+    COUNT(*) as record_count
+FROM payment_transactions;
+
+-- Show sample treatment payments
+SELECT 
+    'Sample treatment payments' as info,
+    id,
+    treatment_id,
+    total_amount,
+    paid_amount,
+    payment_status
+FROM treatment_payments 
+LIMIT 3;
+
+-- =====================================================
+-- 4. TEST API ACCESS
+-- =====================================================
+
+SELECT '=== TESTING API ACCESS ===' as section;
+
+-- Test as authenticated user
+SET ROLE authenticated;
+
+-- Test treatment_payments access
+SELECT 
+    'Authenticated treatment_payments access' as test_name,
+    COUNT(*) as record_count
+FROM treatment_payments;
+
+-- Test payment_transactions access
+SELECT 
+    'Authenticated payment_transactions access' as test_name,
+    COUNT(*) as record_count
+FROM payment_transactions;
+
+-- Test specific treatment query (like the 406 error)
+SELECT 
+    'Specific treatment query test' as test_name,
+    COUNT(*) as record_count
+FROM treatment_payments 
+WHERE treatment_id IN (
+    '3f0562bc-a3aa-4285-b752-d9f542a9ee49',
+    '1914daf7-ca11-46c9-913e-9e64c9f75af5'
+);
+
+RESET ROLE;
+
+-- Test as anon user
+SET ROLE anon;
+
+-- Test treatment_payments access
+SELECT 
+    'Anon treatment_payments access' as test_name,
+    COUNT(*) as record_count
+FROM treatment_payments;
+
+-- Test payment_transactions access
+SELECT 
+    'Anon payment_transactions access' as test_name,
+    COUNT(*) as record_count
+FROM payment_transactions;
+
+RESET ROLE;
+
+-- =====================================================
+-- 5. TEST FUNCTION CALLS
+-- =====================================================
+
+SELECT '=== TESTING FUNCTION CALLS ===' as section;
+
+-- Test add_payment_transaction function
 DO $$
 DECLARE
-  clinic_uuid UUID;
-  treatment_id UUID;
-  patient_id UUID;
-  treatment_payment_id UUID;
+    v_payment_id UUID;
+    v_transaction_id UUID;
 BEGIN
-  -- Get clinic ID
-  SELECT id INTO clinic_uuid FROM clinics LIMIT 1;
-  
-  -- Get or create a treatment
-  SELECT id INTO treatment_id FROM dental_treatments WHERE clinic_id = clinic_uuid LIMIT 1;
-  
-  IF treatment_id IS NULL THEN
-    RAISE NOTICE 'No treatments found for clinic %', clinic_uuid;
-    RETURN;
-  END IF;
-  
-  -- Get or create a patient
-  SELECT id INTO patient_id FROM patients WHERE clinic_id = clinic_uuid LIMIT 1;
-  
-  IF patient_id IS NULL THEN
-    -- Create a test patient
-    INSERT INTO patients (clinic_id, name, phone, email, date_of_birth, gender, address)
-    VALUES (
-      clinic_uuid,
-      'Test Patient',
-      '1234567890',
-      'test@example.com',
-      '1990-01-01',
-      'Other',
-      'Test Address'
-    ) RETURNING id INTO patient_id;
-  END IF;
-  
-  -- Check if treatment payment already exists
-  SELECT id INTO treatment_payment_id FROM treatment_payments WHERE treatment_id = treatment_id;
-  
-  IF treatment_payment_id IS NULL THEN
-    -- Create treatment payment
-    INSERT INTO treatment_payments (treatment_id, clinic_id, patient_id, total_amount, paid_amount, payment_status)
-    VALUES (
-      treatment_id,
-      clinic_uuid,
-      patient_id,
-      5000.00,
-      0.00,
-      'Pending'
-    ) RETURNING id INTO treatment_payment_id;
+    -- Get a payment ID to use
+    SELECT id INTO v_payment_id 
+    FROM treatment_payments 
+    LIMIT 1;
     
-    RAISE NOTICE 'Created treatment payment with ID: %', treatment_payment_id;
-  ELSE
-    RAISE NOTICE 'Treatment payment already exists with ID: %', treatment_payment_id;
-  END IF;
-  
-  -- Add a test payment transaction
-  INSERT INTO payment_transactions (treatment_payment_id, amount, payment_date, payment_method, notes)
-  VALUES (
-    treatment_payment_id,
-    2000.00,
-    CURRENT_DATE,
-    'Cash',
-    'Test payment transaction'
-  );
-  
-  RAISE NOTICE 'Added test payment transaction';
-  
+    IF v_payment_id IS NOT NULL THEN
+        -- Try to call the function
+        SELECT add_payment_transaction(
+            v_payment_id,
+            100.00,
+            'Cash',
+            'TEST-001',
+            'Test function call'
+        ) INTO v_transaction_id;
+        
+        RAISE NOTICE '✅ Function call successful, transaction ID: %', v_transaction_id;
+        
+        -- Clean up
+        DELETE FROM payment_transactions WHERE id = v_transaction_id;
+        RAISE NOTICE '✅ Test transaction cleaned up';
+    ELSE
+        RAISE NOTICE '⚠️ No payment records found to test function with';
+    END IF;
 END $$;
 
--- Check the results
-SELECT 'AFTER TEST - TREATMENT PAYMENTS:' as info;
-SELECT 
-  id,
-  treatment_id,
-  total_amount,
-  paid_amount,
-  remaining_amount,
-  payment_status
-FROM treatment_payments 
-ORDER BY created_at DESC 
-LIMIT 3;
+-- =====================================================
+-- 6. TEST MANUAL INSERT
+-- =====================================================
 
-SELECT 'AFTER TEST - PAYMENT TRANSACTIONS:' as info;
-SELECT 
-  id,
-  treatment_payment_id,
-  amount,
-  payment_method,
-  payment_date
-FROM payment_transactions 
-ORDER BY created_at DESC 
-LIMIT 3;
+SELECT '=== TESTING MANUAL INSERT ===' as section;
 
--- Test the payment summary function
-SELECT 'TESTING PAYMENT SUMMARY FUNCTION:' as info;
-SELECT 
-  tp.treatment_id,
-  tp.total_amount,
-  tp.paid_amount,
-  tp.remaining_amount,
-  tp.payment_status,
-  COUNT(pt.id) as transaction_count
-FROM treatment_payments tp
-LEFT JOIN payment_transactions pt ON tp.id = pt.treatment_payment_id
-GROUP BY tp.id, tp.treatment_id, tp.total_amount, tp.paid_amount, tp.remaining_amount, tp.payment_status
-ORDER BY tp.created_at DESC
-LIMIT 3;
+-- Test manual insert as authenticated user
+SET ROLE authenticated;
 
--- Success message
-SELECT 'Payment system test completed!' as status;
+DO $$
+DECLARE
+    v_payment_id UUID;
+    v_transaction_id UUID;
+BEGIN
+    -- Get a payment ID to use
+    SELECT id INTO v_payment_id 
+    FROM treatment_payments 
+    LIMIT 1;
+    
+    IF v_payment_id IS NOT NULL THEN
+        -- Try to insert a transaction
+        INSERT INTO payment_transactions (
+            treatment_payment_id,
+            amount,
+            payment_method,
+            transaction_id,
+            notes,
+            payment_date
+        ) VALUES (
+            v_payment_id,
+            50.00,
+            'UPI',
+            'TEST-MANUAL-001',
+            'Test manual insert',
+            CURRENT_DATE
+        ) RETURNING id INTO v_transaction_id;
+        
+        RAISE NOTICE '✅ Manual insert successful, transaction ID: %', v_transaction_id;
+        
+        -- Clean up
+        DELETE FROM payment_transactions WHERE id = v_transaction_id;
+        RAISE NOTICE '✅ Test transaction cleaned up';
+    ELSE
+        RAISE NOTICE '⚠️ No payment records found to test manual insert with';
+    END IF;
+END $$;
+
+RESET ROLE;
+
+-- =====================================================
+-- 7. SUCCESS MESSAGE
+-- =====================================================
+
+SELECT '🎉 Payment system test complete! If all tests passed, the 400 errors should be resolved.' as status;
