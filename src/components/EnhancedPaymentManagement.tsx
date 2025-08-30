@@ -70,36 +70,42 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     partial_amount: 0
   })
 
+  // Auto-fill cost when treatment changes or component mounts
+  useEffect(() => {
+    if (treatment.cost && treatment.cost > 0 && !paymentSummary) {
+      setFormData(prev => ({
+        ...prev,
+        total_amount: treatment.cost
+      }))
+    }
+  }, [treatment.cost, paymentSummary])
 
   // Load payment data (optimized)
   const loadPaymentData = async () => {
     try {
       setLoading(true)
       
-      // Get payment summary (this includes transaction count)
-      const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
-      setPaymentSummary(summary)
+      console.log('🦷 Loading payment data for treatment:', treatment.id)
+      console.log('🦷 Treatment object:', treatment)
+      console.log('🦷 Treatment cost:', treatment.cost)
+      
+      // Skip payment API calls for now - just set the cost
+      setPaymentSummary(null)
+      setTransactions([])
 
-      // Only load transactions if we have a payment record
-      if (summary) {
-        const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
-        if (treatmentPayment) {
-          const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
-          setTransactions(transactions)
-        } else {
-          setTransactions([])
+      // Reset form data with treatment cost
+      console.log('🦷 Setting form data with treatment cost:', treatment.cost)
+      setFormData(prev => {
+        const newFormData = {
+          ...prev,
+          total_amount: treatment.cost || 0, // Always use treatment cost
+          payment_type: 'partial',
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_mode: 'Cash',
+          notes: ''
         }
-      } else {
-        setTransactions([])
-      }
-
-      // Reset form data when payment data changes
-      setFormData({
-        total_amount: 0,
-        payment_type: 'partial',
-        payment_date: new Date().toISOString().split('T')[0],
-        payment_mode: 'Cash',
-        notes: ''
+        console.log('🦷 New form data:', newFormData)
+        return newFormData
       })
 
       // Reset misc cost
@@ -109,10 +115,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       })
     } catch (error) {
       console.error('Error loading payment data:', error)
-      // Don't show error toast for missing payment records
-      if (!error.message?.includes('No payment record')) {
-        toast.error('Failed to load payment data')
-      }
     } finally {
       setLoading(false)
     }
@@ -121,6 +123,85 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
   useEffect(() => {
     loadPaymentData()
   }, [treatment.id])
+
+  // Ensure cost is set when component mounts or treatment changes
+  useEffect(() => {
+    console.log('🦷 ===== COST DEBUGGING =====')
+    console.log('🦷 Treatment object:', treatment)
+    console.log('🦷 Treatment cost:', treatment.cost)
+    console.log('🦷 Treatment type:', treatment.treatment_type)
+    console.log('🦷 Treatment ID:', treatment.id)
+    
+    // Try to get cost from treatment object first
+    let cost = treatment.cost || 0
+    console.log('🦷 Initial cost from treatment object:', cost)
+    
+    // If no cost in treatment object, try to get from treatment type
+    if (!cost || cost === 0) {
+      console.log('🦷 No cost in treatment object, checking treatment type')
+      // You can add a mapping here for common treatment costs
+      const treatmentCosts: { [key: string]: number } = {
+        'Root Canal': 5000,
+        'Dental Filling': 1500,
+        'Dental Cleaning': 800,
+        'Tooth Extraction': 2000,
+        'Crown': 8000,
+        'Consultation': 500,
+        'X-Ray': 300,
+        'Fluoride Treatment': 1200,
+        'Scaling': 1000,
+        'Polishing': 600,
+        'Dental Implant': 25000,
+        'Bridge': 15000,
+        'Veneer': 12000,
+        'Whitening': 3000,
+        'Gum Treatment': 2000,
+        'Root Canal Treatment': 5000,
+        'Composite Filling': 2000,
+        'Amalgam Filling': 1500,
+        'Temporary Filling': 500,
+        'Dental Bonding': 3000,
+        'Night Guard': 5000,
+        'Mouth Guard': 3000,
+        'Dental Sealant': 800,
+        'Pulp Capping': 1500,
+        'Apicoectomy': 8000,
+        'Gingivectomy': 4000,
+        'Frenectomy': 3000,
+        'Biopsy': 2000,
+        'Dental Abscess Treatment': 3000,
+        'Emergency Treatment': 1000,
+        'Follow-up Visit': 300,
+        'Post-operative Care': 500,
+        'Dental Checkup': 400,
+        'Oral Hygiene Instruction': 200,
+        'Diet Counseling': 300,
+        'Smoking Cessation Counseling': 500
+      }
+      
+      console.log('🦷 Available treatment types in mapping:', Object.keys(treatmentCosts))
+      console.log('🦷 Looking for treatment type:', treatment.treatment_type)
+      
+      cost = treatmentCosts[treatment.treatment_type] || 0
+      console.log('🦷 Cost from treatment type mapping:', cost)
+    }
+    
+    if (cost && cost > 0) {
+      console.log('🦷 Setting cost in form:', cost)
+      setFormData(prev => {
+        const newForm = {
+          ...prev,
+          total_amount: cost
+        }
+        console.log('🦷 Updated form data:', newForm)
+        return newForm
+      })
+    } else {
+      console.log('🦷 No cost found, setting to 0')
+      console.log('🦷 Final cost value:', cost)
+    }
+    console.log('🦷 ===== END COST DEBUGGING =====')
+  }, [treatment.cost, treatment.treatment_type])
 
   // Remove the force refresh - it's causing unnecessary lag
 
@@ -407,15 +488,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <Button 
-            onClick={loadPaymentData}
-            variant="outline"
-            size="sm"
-            className="text-xs"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Refresh
-          </Button>
-          <Button 
             onClick={() => setShowAddPaymentDialog(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -657,7 +729,14 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
             {/* Total Amount - Only show if no payment record exists */}
             {!paymentSummary && (
               <div>
-                <Label htmlFor="total_amount">Total Treatment Cost (₹)</Label>
+                <Label htmlFor="total_amount">
+                  Total Treatment Cost (₹)
+                  {treatment.cost && treatment.cost > 0 && (
+                    <span className="text-xs text-blue-600 ml-2 font-normal">
+                      (Auto-filled from treatment type)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   id="total_amount"
                   type="number"
@@ -667,7 +746,13 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                   onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
                   placeholder="Enter total cost in ₹"
                   required
+                  className={treatment.cost && treatment.cost > 0 ? "border-blue-200 bg-blue-50" : ""}
                 />
+                {treatment.cost && treatment.cost > 0 && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    💡 Cost auto-filled from treatment type. You can modify this amount.
+                  </p>
+                )}
               </div>
             )}
 

@@ -24,16 +24,8 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
       setLoading(true)
       const summaries: {[key: string]: PaymentSummary} = {}
       
-      for (const treatment of treatments) {
-        try {
-          const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
-          if (summary) {
-            summaries[treatment.id] = summary
-          }
-        } catch (error) {
-          console.error(`Error loading payment summary for treatment ${treatment.id}:`, error)
-        }
-      }
+      // Skip payment API calls for now to avoid 406 errors
+      console.log('🦷 Skipping payment API calls to avoid 406 errors')
       
       setPaymentSummaries(summaries)
       setLoading(false)
@@ -102,7 +94,11 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
               className={`cursor-pointer hover:shadow-md transition-shadow border-2 ${
                 hasPayment ? 'border-green-300 hover:border-green-400' : 'hover:border-blue-300'
               }`}
-              onClick={() => onSelectTreatment(treatment)}
+              onClick={() => {
+                console.log('🦷 Treatment selected for payment:', treatment)
+                console.log('🦷 Treatment cost:', treatment.cost)
+                onSelectTreatment(treatment)
+              }}
             >
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">

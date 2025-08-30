@@ -167,6 +167,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
     payment_amount: '',
     payment_notes: ''
   })
+
+  // Debug treatment form changes
+  useEffect(() => {
+    console.log('🦷 Treatment form changed:', treatmentForm)
+  }, [treatmentForm])
   
   // Condition form state
   const [conditionForm, setConditionForm] = useState({
@@ -236,8 +241,27 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       // Load treatment types
       setLoadingTreatmentTypes(true)
-      const treatmentTypesData = await treatmentTypesApi.getAll(clinicId)
+      let treatmentTypesData = await treatmentTypesApi.getAll(clinicId)
       console.log('✅ Treatment types loaded:', treatmentTypesData)
+      console.log('✅ Treatment types count:', treatmentTypesData.length)
+      
+      // Fallback to hardcoded treatment types if none found in database
+      if (!treatmentTypesData || treatmentTypesData.length === 0) {
+        console.log('🦷 No treatment types found in database, using fallback')
+        treatmentTypesData = [
+          { id: '1', clinic_id: clinicId, name: 'Root Canal', description: 'Endodontic treatment', default_cost: 5000, is_active: true },
+          { id: '2', clinic_id: clinicId, name: 'Dental Filling', description: 'Cavity filling', default_cost: 1500, is_active: true },
+          { id: '3', clinic_id: clinicId, name: 'Dental Cleaning', description: 'Professional cleaning', default_cost: 800, is_active: true },
+          { id: '4', clinic_id: clinicId, name: 'Tooth Extraction', description: 'Tooth removal', default_cost: 2000, is_active: true },
+          { id: '5', clinic_id: clinicId, name: 'Crown', description: 'Dental crown', default_cost: 8000, is_active: true },
+          { id: '6', clinic_id: clinicId, name: 'Consultation', description: 'Initial consultation', default_cost: 500, is_active: true },
+          { id: '7', clinic_id: clinicId, name: 'X-Ray', description: 'Dental imaging', default_cost: 300, is_active: true }
+        ]
+        console.log('🦷 Using fallback treatment types:', treatmentTypesData)
+      } else {
+        console.log('🦷 Using database treatment types:', treatmentTypesData)
+      }
+      
       setTreatmentTypes(treatmentTypesData)
       
     } catch (error) {
@@ -853,6 +877,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_description: treatmentForm.treatment_description,
         treatment_status: treatmentForm.treatment_status,
         treatment_date: treatmentForm.treatment_date,
+        cost: parseFloat(treatmentForm.total_cost) || 0,
         notes: treatmentForm.notes,
         created_by: getFinalDoctorNames()
       })
@@ -866,7 +891,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_description: '',
         treatment_status: 'Completed',
         treatment_date: new Date().toISOString().split('T')[0],
-        notes: ''
+        notes: '',
+        include_payment: false,
+        payment_type: 'full',
+        total_cost: '',
+        payment_amount: '',
+        payment_notes: ''
       })
       setSelectedDoctors([])
       setOtherDoctorName('')
@@ -1642,17 +1672,20 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
                 <TabsContent value="payments" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   {selectedPaymentTreatment ? (
-                    <EnhancedPaymentManagement
-                      treatment={selectedPaymentTreatment}
-                      treatments={selectedTooth.treatments}
-                      clinicId={clinicId}
-                      patientId={patientId}
-                      onBack={() => setSelectedPaymentTreatment(null)}
-                      onTreatmentChange={(newTreatment) => setSelectedPaymentTreatment(newTreatment)}
-                      onPaymentUpdate={() => {
-                        // Refresh data if needed
-                      }}
-                    />
+                    <div>
+                      {console.log('🦷 Rendering EnhancedPaymentManagement with treatment:', selectedPaymentTreatment)}
+                      <EnhancedPaymentManagement
+                        treatment={selectedPaymentTreatment}
+                        treatments={selectedTooth.treatments}
+                        clinicId={clinicId}
+                        patientId={patientId}
+                        onBack={() => setSelectedPaymentTreatment(null)}
+                        onTreatmentChange={(newTreatment) => setSelectedPaymentTreatment(newTreatment)}
+                        onPaymentUpdate={() => {
+                          // Refresh data if needed
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div>
                       <div className="text-center mb-4">
@@ -1684,7 +1717,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
         )}
 
         {/* Add Treatment Dialog */}
-        <Dialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog}>
+        <Dialog open={showAddTreatmentDialog} onOpenChange={(open) => {
+          console.log('🦷 Treatment dialog open state:', open)
+          setShowAddTreatmentDialog(open)
+        }}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
             <DialogHeader>
               <DialogTitle>
@@ -1702,7 +1738,43 @@ const ToothChart: React.FC<ToothChartProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="treatment_type">Treatment Type *</Label>
-                  <Select value={treatmentForm.treatment_type} onValueChange={(value) => setTreatmentForm(prev => ({ ...prev, treatment_type: value }))}>
+                  <Select value={treatmentForm.treatment_type} onValueChange={(value) => {
+                    console.log('🦷 Treatment type selected:', value)
+                    console.log('🦷 Available treatment types:', treatmentTypes)
+                    console.log('🦷 Treatment types length:', treatmentTypes.length)
+                    console.log('🦷 Current treatment form:', treatmentForm)
+                    
+                    setTreatmentForm(prev => {
+                      console.log('🦷 Setting treatment type in form:', value)
+                      return { ...prev, treatment_type: value }
+                    })
+                    
+                    // Auto-fill cost when treatment type is selected
+                    if (value && value !== 'Other') {
+                      console.log('🦷 Looking for treatment type:', value)
+                      const selectedType = treatmentTypes.find(type => type.name === value)
+                      console.log('🦷 Selected treatment type object:', selectedType)
+                      
+                      if (selectedType) {
+                        console.log('🦷 Found treatment type, default_cost:', selectedType.default_cost)
+                        console.log('🦷 Auto-filling cost:', selectedType.default_cost)
+                        setTreatmentForm(prev => {
+                          const newForm = { 
+                            ...prev, 
+                            treatment_type: value,
+                            total_cost: selectedType.default_cost.toString()
+                          }
+                          console.log('🦷 Updated treatment form:', newForm)
+                          return newForm
+                        })
+                      } else {
+                        console.log('🦷 No matching treatment type found for:', value)
+                        console.log('🦷 Available names:', treatmentTypes.map(t => t.name))
+                      }
+                    } else {
+                      console.log('🦷 Value is empty or "Other", skipping cost auto-fill')
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select treatment type" />
                     </SelectTrigger>
@@ -1759,6 +1831,37 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   value={treatmentForm.treatment_date}
                   onChange={(e) => setTreatmentForm(prev => ({ ...prev, treatment_date: e.target.value }))}
                 />
+              </div>
+
+              {/* Cost Input */}
+              <div>
+                <Label htmlFor="total_cost">
+                  Treatment Cost (₹)
+                  {treatmentForm.total_cost && (
+                    <span className="text-xs text-blue-600 ml-2 font-normal">
+                      (Auto-filled from treatment type)
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  id="total_cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={treatmentForm.total_cost}
+                  onChange={(e) => {
+                    console.log('🦷 Cost input changed:', e.target.value)
+                    setTreatmentForm(prev => ({ ...prev, total_cost: e.target.value }))
+                  }}
+                  placeholder="Enter treatment cost"
+                  className={treatmentForm.total_cost ? "border-blue-200 bg-blue-50" : ""}
+                />
+                {console.log('🦷 Rendering cost input with value:', treatmentForm.total_cost)}
+                {treatmentForm.total_cost && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    💡 Cost auto-filled from treatment type. You can modify this amount.
+                  </p>
+                )}
               </div>
 
               {/* Doctor Selection */}
