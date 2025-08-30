@@ -37,7 +37,7 @@ import {
   dentalTreatmentApi,
   toothConditionApi
 } from '@/lib/dental-treatments'
-import { dentistsApi, Dentist } from '@/lib/supabase'
+import { dentistsApi, Dentist, treatmentTypesApi, TreatmentType } from '@/lib/supabase'
 import { testToothNumbering } from '@/lib/test-tooth-numbering'
 import { toothImageApi, ToothImage as DbToothImage } from '@/lib/tooth-images'
 import { compressImage, validateImageFile, formatFileSize } from '@/lib/image-compression'
@@ -112,6 +112,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const [otherDoctorName, setOtherDoctorName] = useState('')
   const [showOtherDoctorInput, setShowOtherDoctorInput] = useState(false)
   const [loadingDentists, setLoadingDentists] = useState(true)
+
+  // Treatment types state
+  const [treatmentTypes, setTreatmentTypes] = useState<TreatmentType[]>([])
+  const [loadingTreatmentTypes, setLoadingTreatmentTypes] = useState(true)
 
   // Use FDI tooth chart utilities
   const getDisplayNumber = (index: number): string => {
@@ -214,10 +218,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
     }
   }, [selectedTreatmentToContinue, teeth])
   
-  // Load dentists for the clinic
+  // Load dentists and treatment types for the clinic
   const loadDentists = async () => {
     try {
-      console.log('🦷 Loading dentists for clinic:', clinicId)
+      console.log('🦷 Loading dentists and treatment types for clinic:', clinicId)
+      
+      // Load dentists
       setLoadingDentists(true)
       const dentistsData = await dentistsApi.getAll(clinicId)
       console.log('✅ Dentists loaded:', dentistsData)
@@ -227,10 +233,18 @@ const ToothChart: React.FC<ToothChartProps> = ({
       if (dentistsData.length === 1) {
         setSelectedDoctors([dentistsData[0].name])
       }
+      
+      // Load treatment types
+      setLoadingTreatmentTypes(true)
+      const treatmentTypesData = await treatmentTypesApi.getAll(clinicId)
+      console.log('✅ Treatment types loaded:', treatmentTypesData)
+      setTreatmentTypes(treatmentTypesData)
+      
     } catch (error) {
-      console.error('❌ Error loading dentists:', error)
+      console.error('❌ Error loading data:', error)
     } finally {
       setLoadingDentists(false)
+      setLoadingTreatmentTypes(false)
     }
   }
   
@@ -1693,47 +1707,17 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       <SelectValue placeholder="Select treatment type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Common treatments first */}
-                      <SelectItem value="Cleaning">Cleaning</SelectItem>
-                      <SelectItem value="Filling">Filling</SelectItem>
-                      <SelectItem value="Root Canal">Root Canal</SelectItem>
-                      <SelectItem value="Extraction">Extraction</SelectItem>
-                      <SelectItem value="Crown">Crown</SelectItem>
-                      <SelectItem value="Bridge">Bridge</SelectItem>
-                      <SelectItem value="Implant">Implant</SelectItem>
-                      
-                      {/* Orthodontic treatments */}
-                      <SelectItem value="Braces Installation">Braces Installation</SelectItem>
-                      <SelectItem value="Braces Adjustment">Braces Adjustment</SelectItem>
-                      <SelectItem value="Braces Removal">Braces Removal</SelectItem>
-                      <SelectItem value="Retainer Fitting">Retainer Fitting</SelectItem>
-                      <SelectItem value="Retainer Adjustment">Retainer Adjustment</SelectItem>
-                      <SelectItem value="Clear Aligners">Clear Aligners</SelectItem>
-                      
-                      {/* Preventive treatments */}
-                      <SelectItem value="Whitening">Whitening</SelectItem>
-                      <SelectItem value="Sealant">Sealant</SelectItem>
-                      <SelectItem value="Fluoride Treatment">Fluoride Treatment</SelectItem>
-                      <SelectItem value="Deep Cleaning">Deep Cleaning</SelectItem>
-                      <SelectItem value="Scaling">Scaling</SelectItem>
-                      
-                      {/* Restorative treatments */}
-                      <SelectItem value="Veneer">Veneer</SelectItem>
-                      <SelectItem value="Inlay">Inlay</SelectItem>
-                      <SelectItem value="Onlay">Onlay</SelectItem>
-                      <SelectItem value="Denture">Denture</SelectItem>
-                      <SelectItem value="Partial Denture">Partial Denture</SelectItem>
-                      
-                      {/* Diagnostic and other */}
-                      <SelectItem value="X-Ray">X-Ray</SelectItem>
-                      <SelectItem value="CT Scan">CT Scan</SelectItem>
-                      <SelectItem value="Consultation">Consultation</SelectItem>
-                      <SelectItem value="Follow-up">Follow-up</SelectItem>
-                      <SelectItem value="Emergency Treatment">Emergency Treatment</SelectItem>
-                      <SelectItem value="Pain Management">Pain Management</SelectItem>
-                      <SelectItem value="Gum Treatment">Gum Treatment</SelectItem>
-                      <SelectItem value="Oral Surgery">Oral Surgery</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      {loadingTreatmentTypes ? (
+                        <SelectItem value="loading" disabled>Loading treatment types...</SelectItem>
+                      ) : treatmentTypes.length === 0 ? (
+                        <SelectItem value="no-data" disabled>No treatment types available</SelectItem>
+                      ) : (
+                        treatmentTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.name} className="text-sm">
+                            {type.name} - ₹{type.default_cost.toLocaleString()}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

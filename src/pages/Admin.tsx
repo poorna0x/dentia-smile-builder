@@ -9,7 +9,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { usePermissions } from '@/hooks/usePermissions';
-import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi } from '@/lib/supabase';
+import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
@@ -44,7 +44,8 @@ import {
   AlertCircle,
   Lock,
   Users,
-  Save
+  Save,
+  Stethoscope
 } from 'lucide-react';
 
 // WhatsApp Icon Component
@@ -109,6 +110,18 @@ const Admin = () => {
     specialization: ''
   });
   const [loadingDentists, setLoadingDentists] = useState(false);
+
+  // Treatment Types Management State
+  const [treatmentTypes, setTreatmentTypes] = useState<TreatmentType[]>([]);
+  const [showAddTreatmentTypeDialog, setShowAddTreatmentTypeDialog] = useState(false);
+  const [showEditTreatmentTypeDialog, setShowEditTreatmentTypeDialog] = useState(false);
+  const [newTreatmentType, setNewTreatmentType] = useState({
+    name: '',
+    description: '',
+    default_cost: 0
+  });
+  const [editingTreatmentType, setEditingTreatmentType] = useState<TreatmentType | null>(null);
+  const [loadingTreatmentTypes, setLoadingTreatmentTypes] = useState(false);
   
   const navigate = useNavigate();
   
@@ -234,10 +247,11 @@ const Admin = () => {
     }
   }, [clinic, isDentist]);
 
-  // Load dentists when clinic is available
+  // Load dentists and treatment types when clinic is available
   useEffect(() => {
     if (clinic && clinic.id) {
       loadDentists();
+      loadTreatmentTypes();
     }
   }, [clinic]);
 
@@ -312,6 +326,100 @@ const Admin = () => {
     } catch (error) {
       console.error('Error deleting dentist:', error);
       toast.error('Failed to remove dentist');
+    }
+  };
+
+  // Load treatment types for the clinic
+  const loadTreatmentTypes = async () => {
+    if (!clinic || !clinic.id) return;
+    
+    try {
+      setLoadingTreatmentTypes(true);
+      const treatmentTypesData = await treatmentTypesApi.getAll(clinic.id);
+      setTreatmentTypes(treatmentTypesData);
+    } catch (error) {
+      console.error('Error loading treatment types:', error);
+      toast.error('Failed to load treatment types');
+    } finally {
+      setLoadingTreatmentTypes(false);
+    }
+  };
+
+  // Add new treatment type
+  const handleAddTreatmentType = async () => {
+    if (!clinic || !clinic.id) return;
+    
+    if (!newTreatmentType.name.trim()) {
+      toast.error('Please enter treatment name');
+      return;
+    }
+    
+    if (newTreatmentType.default_cost < 0) {
+      toast.error('Cost cannot be negative');
+      return;
+    }
+    
+    try {
+      await treatmentTypesApi.create({
+        clinic_id: clinic.id,
+        name: newTreatmentType.name.trim(),
+        description: newTreatmentType.description.trim() || '',
+        default_cost: newTreatmentType.default_cost,
+        is_active: true
+      });
+      
+      toast.success('Treatment type added successfully');
+      setNewTreatmentType({ name: '', description: '', default_cost: 0 });
+      setShowAddTreatmentTypeDialog(false);
+      loadTreatmentTypes(); // Refresh the list
+    } catch (error) {
+      console.error('Error adding treatment type:', error);
+      toast.error('Failed to add treatment type');
+    }
+  };
+
+  // Edit treatment type
+  const handleEditTreatmentType = async () => {
+    if (!editingTreatmentType || !clinic || !clinic.id) return;
+    
+    if (!editingTreatmentType.name.trim()) {
+      toast.error('Please enter treatment name');
+      return;
+    }
+    
+    if (editingTreatmentType.default_cost < 0) {
+      toast.error('Cost cannot be negative');
+      return;
+    }
+    
+    try {
+      await treatmentTypesApi.update(editingTreatmentType.id, {
+        name: editingTreatmentType.name.trim(),
+        description: editingTreatmentType.description.trim() || '',
+        default_cost: editingTreatmentType.default_cost
+      });
+      
+      toast.success('Treatment type updated successfully');
+      setEditingTreatmentType(null);
+      setShowEditTreatmentTypeDialog(false);
+      loadTreatmentTypes(); // Refresh the list
+    } catch (error) {
+      console.error('Error updating treatment type:', error);
+      toast.error('Failed to update treatment type');
+    }
+  };
+
+  // Delete treatment type
+  const handleDeleteTreatmentType = async (treatmentTypeId: string) => {
+    if (!clinic || !clinic.id) return;
+    
+    try {
+      await treatmentTypesApi.delete(treatmentTypeId);
+      toast.success('Treatment type removed successfully');
+      loadTreatmentTypes(); // Refresh the list
+    } catch (error) {
+      console.error('Error deleting treatment type:', error);
+      toast.error('Failed to remove treatment type');
     }
   };
 
@@ -3132,6 +3240,86 @@ Jeshna Dental Clinic Team`;
             </CardContent>
           </Card>
 
+          {/* Treatment Types Management Section */}
+          <Card className="mt-6 md:mt-8 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-green-800">Treatment Types Management</CardTitle>
+              <CardDescription className="text-green-700">Add and manage treatment types with costs for this clinic</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Add Treatment Type Button */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-medium">Manage Treatment Types</Label>
+                  <p className="text-sm text-gray-600">Add or remove treatment types with default costs</p>
+                </div>
+                <Button
+                  onClick={() => setShowAddTreatmentTypeDialog(true)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Treatment Type
+                </Button>
+              </div>
+
+              {/* Treatment Types List */}
+              <div className="space-y-4">
+                {loadingTreatmentTypes ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mr-2"></div>
+                    <span className="text-gray-600">Loading treatment types...</span>
+                  </div>
+                ) : treatmentTypes.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                    <Stethoscope className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="font-medium">No treatment types found for this clinic</p>
+                    <p className="text-sm mt-1">Click "Add Treatment Type" to get started</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {treatmentTypes.map((treatmentType) => (
+                      <div
+                        key={treatmentType.id}
+                        className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{treatmentType.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {treatmentType.description || 'No description'}
+                          </p>
+                          <p className="text-sm font-medium text-green-600">
+                            ₹{treatmentType.default_cost.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingTreatmentType(treatmentType);
+                              setShowEditTreatmentTypeDialog(true);
+                            }}
+                            className="h-8 px-3 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteTreatmentType(treatmentType.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:bg-red-100"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Status Notice */}
           <Card className="mt-6">
             <CardContent className="pt-6">
@@ -4158,6 +4346,148 @@ Jeshna Dental Clinic Team`;
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Dentist
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Treatment Type Dialog */}
+      <Dialog open={showAddTreatmentTypeDialog} onOpenChange={setShowAddTreatmentTypeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Stethoscope className="h-5 w-5 text-green-600" />
+              Add New Treatment Type
+            </DialogTitle>
+            <DialogDescription>
+              Add a new treatment type with default cost. This will be available when creating treatments.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="treatment-name">Treatment Name *</Label>
+              <Input
+                id="treatment-name"
+                placeholder="e.g., Root Canal, Dental Filling"
+                value={newTreatmentType.name}
+                onChange={(e) => setNewTreatmentType({ ...newTreatmentType, name: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="treatment-description">Description</Label>
+              <Input
+                id="treatment-description"
+                placeholder="e.g., Endodontic treatment for infected tooth pulp"
+                value={newTreatmentType.description}
+                onChange={(e) => setNewTreatmentType({ ...newTreatmentType, description: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="treatment-cost">Default Cost (₹) *</Label>
+              <Input
+                id="treatment-cost"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g., 5000.00"
+                value={newTreatmentType.default_cost}
+                onChange={(e) => setNewTreatmentType({ ...newTreatmentType, default_cost: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddTreatmentTypeDialog(false);
+                setNewTreatmentType({ name: '', description: '', default_cost: 0 });
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddTreatmentType}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              disabled={!newTreatmentType.name.trim() || newTreatmentType.default_cost < 0}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Treatment Type
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Treatment Type Dialog */}
+      <Dialog open={showEditTreatmentTypeDialog} onOpenChange={setShowEditTreatmentTypeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-blue-600" />
+              Edit Treatment Type
+            </DialogTitle>
+            <DialogDescription>
+              Update the treatment type details and default cost.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-treatment-name">Treatment Name *</Label>
+              <Input
+                id="edit-treatment-name"
+                placeholder="e.g., Root Canal, Dental Filling"
+                value={editingTreatmentType?.name || ''}
+                onChange={(e) => setEditingTreatmentType(editingTreatmentType ? { ...editingTreatmentType, name: e.target.value } : null)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-treatment-description">Description</Label>
+              <Input
+                id="edit-treatment-description"
+                placeholder="e.g., Endodontic treatment for infected tooth pulp"
+                value={editingTreatmentType?.description || ''}
+                onChange={(e) => setEditingTreatmentType(editingTreatmentType ? { ...editingTreatmentType, description: e.target.value } : null)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-treatment-cost">Default Cost (₹) *</Label>
+              <Input
+                id="edit-treatment-cost"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g., 5000.00"
+                value={editingTreatmentType?.default_cost || 0}
+                onChange={(e) => setEditingTreatmentType(editingTreatmentType ? { ...editingTreatmentType, default_cost: parseFloat(e.target.value) || 0 } : null)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditTreatmentTypeDialog(false);
+                setEditingTreatmentType(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleEditTreatmentType}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={!editingTreatmentType?.name?.trim() || (editingTreatmentType?.default_cost || 0) < 0}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Update Treatment Type
             </Button>
           </DialogFooter>
         </DialogContent>

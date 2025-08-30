@@ -13,7 +13,7 @@ import {
   toothChartUtils,
   dentalTreatmentApi
 } from '@/lib/dental-treatments'
-import { dentistsApi, Dentist } from '@/lib/supabase'
+import { dentistsApi, Dentist, treatmentTypesApi, TreatmentType } from '@/lib/supabase'
 import PaymentManagementSimple from './PaymentManagementSimple'
 
 interface DentalTreatmentFormProps {
@@ -54,15 +54,18 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
   
   const [loading, setLoading] = useState(false)
   const [availableTeeth] = useState(toothChartUtils.getAllTeeth())
-  const [treatmentTypes] = useState(toothChartUtils.getTreatmentTypes())
+  const [treatmentTypes, setTreatmentTypes] = useState<TreatmentType[]>([])
+  const [loadingTreatmentTypes, setLoadingTreatmentTypes] = useState(true)
   const [createdTreatmentId, setCreatedTreatmentId] = useState<string | null>(null)
   const [showPaymentManagement, setShowPaymentManagement] = useState(false)
 
-  // Load dentists for the clinic
+  // Load dentists and treatment types for the clinic
   useEffect(() => {
-    const loadDentists = async () => {
+    const loadData = async () => {
       try {
-        console.log('🦷 Loading dentists for clinic:', clinicId)
+        console.log('🦷 Loading dentists and treatment types for clinic:', clinicId)
+        
+        // Load dentists
         setLoadingDentists(true)
         const dentistsData = await dentistsApi.getAll(clinicId)
         console.log('✅ Dentists loaded:', dentistsData)
@@ -72,15 +75,23 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         if (dentistsData.length === 1) {
           setSelectedDoctors([dentistsData[0].name])
         }
+        
+        // Load treatment types
+        setLoadingTreatmentTypes(true)
+        const treatmentTypesData = await treatmentTypesApi.getAll(clinicId)
+        console.log('✅ Treatment types loaded:', treatmentTypesData)
+        setTreatmentTypes(treatmentTypesData)
+        
       } catch (error) {
-        console.error('❌ Error loading dentists:', error)
-        toast.error('Failed to load dentists')
+        console.error('❌ Error loading data:', error)
+        toast.error('Failed to load data')
       } finally {
         setLoadingDentists(false)
+        setLoadingTreatmentTypes(false)
       }
     }
     
-    loadDentists()
+    loadData()
   }, [clinicId])
 
   // Handle doctor selection change
@@ -249,11 +260,17 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
                 <SelectValue placeholder="Select treatment type" className="text-base truncate" />
               </SelectTrigger>
               <SelectContent>
-                {treatmentTypes.map((type) => (
-                  <SelectItem key={type} value={type} className="text-sm">
-                    {type}
-                  </SelectItem>
-                ))}
+                {loadingTreatmentTypes ? (
+                  <SelectItem value="loading" disabled>Loading treatment types...</SelectItem>
+                ) : treatmentTypes.length === 0 ? (
+                  <SelectItem value="no-data" disabled>No treatment types available</SelectItem>
+                ) : (
+                  treatmentTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.name} className="text-sm">
+                      {type.name} - ₹{type.default_cost.toLocaleString()}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

@@ -89,6 +89,17 @@ export interface FollowUp {
   completed_by?: string
 }
 
+export interface TreatmentType {
+  id: string
+  clinic_id: string
+  name: string
+  description?: string
+  default_cost: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface SchedulingSettings {
   id: string
   clinic_id: string
@@ -719,4 +730,80 @@ export const subscribeToFollowUps = (callback: (payload: any) => void) => {
       callback
     )
     .subscribe()
+}
+
+// Treatment Types API
+export const treatmentTypesApi = {
+  // Get all treatment types for a clinic
+  async getAll(clinicId: string) {
+    const { data, error } = await supabase
+      .from('treatment_types')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .eq('is_active', true)
+      .order('name', { ascending: true })
+    
+    if (error) throw error
+    return data
+  },
+
+  // Get a specific treatment type
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('treatment_types')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Create a new treatment type
+  async create(treatmentType: Omit<TreatmentType, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('treatment_types')
+      .insert(treatmentType)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Update a treatment type
+  async update(id: string, updates: Partial<TreatmentType>) {
+    const { data, error } = await supabase
+      .from('treatment_types')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Delete a treatment type (soft delete by setting is_active to false)
+  async delete(id: string) {
+    const { data, error } = await supabase
+      .from('treatment_types')
+      .update({ is_active: false })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Hard delete a treatment type
+  async hardDelete(id: string) {
+    const { error } = await supabase
+      .from('treatment_types')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+  }
 }

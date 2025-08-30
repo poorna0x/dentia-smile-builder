@@ -1418,60 +1418,188 @@ export default function AdminPatientManagement() {
   const [isSavingPrescription, setIsSavingPrescription] = useState(false);
   const isSavingRef = useRef(false);
 
-  // Common dental medications for suggestions
+  // Common dental medications for suggestions (Indian brands included)
   const commonDentalMedications = [
+    // Antibiotics
     'Amoxicillin',
-    'Ibuprofen',
-    'Paracetamol',
-    'Chlorhexidine Mouthwash',
-    'Metronidazole',
-    'Diclofenac',
+    'Amoxicillin + Clavulanic Acid',
+    'Azithromycin',
+    'Cephalexin',
     'Ciprofloxacin',
     'Clindamycin',
-    'Azithromycin',
     'Doxycycline',
-    'Penicillin V',
     'Erythromycin',
-    'Cephalexin',
+    'Metronidazole',
+    'Penicillin V',
+    
+    // Pain Relief
+    'Paracetamol',
+    'Ibuprofen',
+    'Diclofenac',
+    'Aceclofenac',
+    'Ketorolac',
+    'Tramadol',
+    
+    // Indian Brand Names (Pain Relief)
+    'Crocin',
+    'Dolo 650',
+    'Brufen',
+    'Combiflam',
+    'Voveran',
+    'Nimulid',
+    'Ponstan',
+    
+    // Anti-inflammatory
+    'Prednisolone',
+    'Dexamethasone',
+    'Betamethasone',
+    
+    // Antifungal
     'Fluconazole',
     'Nystatin',
-    'Lidocaine Gel',
-    'Benzocaine Gel',
+    'Clotrimazole',
+    'Miconazole',
+    
+    // Local Anesthetics
+    'Lidocaine',
+    'Benzocaine',
+    'Prilocaine',
+    
+    // Mouthwashes & Topical
+    'Chlorhexidine Mouthwash',
+    'Betadine Gargle',
+    'Hexidine',
+    'Listerine',
+    'Colgate Plax',
+    
+    // Antacids & Gastroprotective
+    'Pantoprazole',
+    'Omeprazole',
+    'Ranitidine',
+    'Domperidone',
+    
+    // Vitamins & Supplements
+    'Calcium',
+    'Vitamin D3',
+    'Multivitamin',
+    'Iron Supplements',
+    
+    // Other Common Dental Medications
     'Orajel',
     'Anbesol',
-    'Salt Water Rinse'
+    'Salt Water Rinse',
+    'Honey',
+    'Turmeric Paste',
+    'Clove Oil',
+    'Tea Tree Oil'
   ];
 
-  // Common dosages for suggestions
+  // Common dosages for suggestions (Indian standards)
   const commonDosages = [
+    // Tablet/Capsule Dosages
     '250mg',
     '500mg',
+    '650mg',
     '750mg',
     '1000mg',
-    '0.12%',
-    '0.2%',
+    '1g',
+    '10mg',
+    '20mg',
+    '25mg',
+    '50mg',
+    '100mg',
+    '150mg',
+    '200mg',
+    '400mg',
+    '600mg',
+    '800mg',
+    
+    // Liquid Dosages
     '5ml',
     '10ml',
     '15ml',
-    '20ml'
+    '20ml',
+    '30ml',
+    '50ml',
+    '100ml',
+    '125mg/5ml',
+    '250mg/5ml',
+    '500mg/5ml',
+    
+    // Topical Concentrations
+    '0.12%',
+    '0.2%',
+    '1%',
+    '2%',
+    '5%',
+    '10%',
+    '20%',
+    
+    // Drops
+    '1 drop',
+    '2 drops',
+    '3 drops',
+    '5 drops',
+    
+    // Other
+    '1 tablet',
+    '2 tablets',
+    '1 capsule',
+    '1 sachet',
+    '1 spoonful'
   ];
 
-  // Common frequencies for suggestions
+  // Common frequencies for suggestions (Indian patterns)
   const commonFrequencies = [
+    // Standard Frequencies
     'Once daily',
     'Twice daily',
     '3 times daily',
     '4 times daily',
+    '5 times daily',
+    
+    // Time-based
+    'Every 4 hours',
     'Every 6 hours',
     'Every 8 hours',
     'Every 12 hours',
-    'As needed',
+    'Every 24 hours',
+    
+    // Meal-related
     'Before meals',
-    'After meals'
+    'After meals',
+    'With meals',
+    'On empty stomach',
+    '1 hour before meals',
+    '2 hours after meals',
+    
+    // As needed patterns
+    'As needed',
+    'When pain occurs',
+    'When fever occurs',
+    'When required',
+    'PRN (as needed)',
+    
+    // Specific times
+    'Morning only',
+    'Evening only',
+    'Night only',
+    'Before bedtime',
+    'After breakfast',
+    'After lunch',
+    'After dinner',
+    
+    // Topical frequencies
+    'Apply 2-3 times daily',
+    'Apply 4 times daily',
+    'Rinse 2-3 times daily',
+    'Gargle 3-4 times daily',
+    'Apply as needed'
   ];
 
-  // Common durations for suggestions
+  // Common durations for suggestions (Indian patterns)
   const commonDurations = [
+    // Short-term courses
     '3 days',
     '5 days',
     '7 days',
@@ -1479,27 +1607,108 @@ export default function AdminPatientManagement() {
     '14 days',
     '21 days',
     '30 days',
+    
+    // Weeks
+    '1 week',
+    '2 weeks',
+    '3 weeks',
+    '4 weeks',
+    '6 weeks',
+    '8 weeks',
+    
+    // Months
+    '1 month',
+    '2 months',
+    '3 months',
+    '6 months',
+    
+    // Special durations
     'Until finished',
-    'As needed'
+    'Until symptoms improve',
+    'Until pain subsides',
+    'As needed',
+    'Long term',
+    'Indefinite',
+    'Until next visit',
+    'Until review',
+    
+    // Topical durations
+    'Apply for 3-5 days',
+    'Use for 1 week',
+    'Continue until healed',
+    'Until inflammation reduces'
   ];
 
-  // Common instructions for suggestions
+  // Common instructions for suggestions (Indian patterns)
   const commonInstructions = [
+    // Food-related instructions
     'Take with food',
     'Take on empty stomach',
     'Take before meals',
     'Take after meals',
-    'Take with plenty of water',
+    'Take with or without food',
+    'Take 1 hour before meals',
+    'Take 2 hours after meals',
+    'Take with milk',
+    'Take with warm water',
+    'Take with cold water',
     'Do not take with dairy products',
+    'Do not take with tea/coffee',
+    
+    // Course completion
     'Complete the full course',
     'Do not stop early',
+    'Finish all tablets',
+    'Take until finished',
+    'Continue as prescribed',
+    
+    // Timing instructions
     'Take at the same time daily',
+    'Take morning and evening',
+    'Take with breakfast',
+    'Take with dinner',
+    'Take before bedtime',
+    
+    // Storage instructions
     'Store in refrigerator',
+    'Store in cool place',
+    'Keep away from sunlight',
+    'Store at room temperature',
+    'Do not freeze',
+    
+    // Usage instructions
     'Shake well before use',
     'Rinse mouth after use',
+    'Gargle for 30 seconds',
+    'Apply thinly',
+    'Apply to affected area',
+    'Do not swallow',
+    'Spit out after use',
+    
+    // Lifestyle instructions
     'Avoid alcohol while taking',
-    'Take with or without food',
-    'Take 1 hour before or 2 hours after meals'
+    'Avoid smoking',
+    'Avoid spicy food',
+    'Avoid hot beverages',
+    'Avoid cold beverages',
+    
+    // Special instructions
+    'Take with plenty of water',
+    'Drink 8 glasses of water daily',
+    'Rest well',
+    'Avoid strenuous activity',
+    'Keep follow-up appointment',
+    'Contact if side effects occur',
+    'Take as directed by doctor',
+    
+    // Topical instructions
+    'Apply with clean hands',
+    'Wash area before applying',
+    'Do not apply to broken skin',
+    'Avoid contact with eyes',
+    'Apply 2-3 times daily',
+    'Massage gently',
+    'Cover with bandage if needed'
   ];
 
   // Calculate pagination
