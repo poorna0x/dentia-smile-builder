@@ -1720,6 +1720,14 @@ Jeshna Dental Clinic Team`;
                 slot_interval_minutes: schedule.slotInterval,
                 enabled: schedule.enabled
               };
+              
+              // Debug logging for breaks
+              if (schedule.breakStart.length > 1) {
+                console.log('🔧 Saving multiple breaks for', day, ':', {
+                  breakStart: schedule.breakStart,
+                  breakEnd: schedule.breakEnd
+                });
+              }
             }
             return acc;
           }, {} as Record<number, any>);
@@ -2990,10 +2998,31 @@ Jeshna Dental Clinic Team`;
                             size="sm"
                             onClick={() => {
                               const currentBreaks = schedulingSettings.daySchedules[selectedDay].breakStart;
+                              const currentBreakEnds = schedulingSettings.daySchedules[selectedDay].breakEnd;
                               const newBreaks = [...currentBreaks, '13:00'];
-                              const newBreakEnds = [...schedulingSettings.daySchedules[selectedDay].breakEnd, '14:00'];
-                              handleScheduleUpdate(selectedDay, 'breakStart', newBreaks);
-                              handleScheduleUpdate(selectedDay, 'breakEnd', newBreakEnds);
+                              const newBreakEnds = [...currentBreakEnds, '14:00'];
+                              console.log('🔧 Adding break:', {
+                                day: selectedDay,
+                                currentBreaks,
+                                newBreaks,
+                                newBreakEnds
+                              });
+                              
+                              // Update both arrays in a single state update
+                              const updatedSettings = {
+                                ...schedulingSettings,
+                                daySchedules: {
+                                  ...schedulingSettings.daySchedules,
+                                  [selectedDay]: {
+                                    ...schedulingSettings.daySchedules[selectedDay],
+                                    breakStart: newBreaks,
+                                    breakEnd: newBreakEnds
+                                  }
+                                }
+                              };
+                              
+                              setSchedulingSettings(updatedSettings);
+                              debouncedAutoSave(updatedSettings);
                             }}
                             className="h-8"
                           >
@@ -3002,6 +3031,7 @@ Jeshna Dental Clinic Team`;
                           </Button>
                         </div>
                         
+                        {console.log('🔧 Rendering breaks for', selectedDay, ':', schedulingSettings.daySchedules[selectedDay].breakStart)}
                         {schedulingSettings.daySchedules[selectedDay].breakStart.map((breakStart, index) => (
                           <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div className="space-y-2">
@@ -3013,7 +3043,20 @@ Jeshna Dental Clinic Team`;
                                 onChange={(e) => {
                                   const newBreaks = [...schedulingSettings.daySchedules[selectedDay].breakStart];
                                   newBreaks[index] = e.target.value;
-                                  handleScheduleUpdate(selectedDay, 'breakStart', newBreaks);
+                                  
+                                  const updatedSettings = {
+                                    ...schedulingSettings,
+                                    daySchedules: {
+                                      ...schedulingSettings.daySchedules,
+                                      [selectedDay]: {
+                                        ...schedulingSettings.daySchedules[selectedDay],
+                                        breakStart: newBreaks
+                                      }
+                                    }
+                                  };
+                                  
+                                  setSchedulingSettings(updatedSettings);
+                                  debouncedAutoSave(updatedSettings);
                                 }}
                               />
                             </div>
@@ -3026,7 +3069,20 @@ Jeshna Dental Clinic Team`;
                                 onChange={(e) => {
                                   const newBreakEnds = [...schedulingSettings.daySchedules[selectedDay].breakEnd];
                                   newBreakEnds[index] = e.target.value;
-                                  handleScheduleUpdate(selectedDay, 'breakEnd', newBreakEnds);
+                                  
+                                  const updatedSettings = {
+                                    ...schedulingSettings,
+                                    daySchedules: {
+                                      ...schedulingSettings.daySchedules,
+                                      [selectedDay]: {
+                                        ...schedulingSettings.daySchedules[selectedDay],
+                                        breakEnd: newBreakEnds
+                                      }
+                                    }
+                                  };
+                                  
+                                  setSchedulingSettings(updatedSettings);
+                                  debouncedAutoSave(updatedSettings);
                                 }}
                               />
                             </div>
@@ -3038,8 +3094,28 @@ Jeshna Dental Clinic Team`;
                                 onClick={() => {
                                   const newBreaks = schedulingSettings.daySchedules[selectedDay].breakStart.filter((_, i) => i !== index);
                                   const newBreakEnds = schedulingSettings.daySchedules[selectedDay].breakEnd.filter((_, i) => i !== index);
-                                  handleScheduleUpdate(selectedDay, 'breakStart', newBreaks);
-                                  handleScheduleUpdate(selectedDay, 'breakEnd', newBreakEnds);
+                                  console.log('🔧 Removing break:', {
+                                    day: selectedDay,
+                                    index,
+                                    newBreaks,
+                                    newBreakEnds
+                                  });
+                                  
+                                  // Update both arrays in a single state update
+                                  const updatedSettings = {
+                                    ...schedulingSettings,
+                                    daySchedules: {
+                                      ...schedulingSettings.daySchedules,
+                                      [selectedDay]: {
+                                        ...schedulingSettings.daySchedules[selectedDay],
+                                        breakStart: newBreaks,
+                                        breakEnd: newBreakEnds
+                                      }
+                                    }
+                                  };
+                                  
+                                  setSchedulingSettings(updatedSettings);
+                                  debouncedAutoSave(updatedSettings);
                                 }}
                                 className="h-10 w-10 p-0"
                                 disabled={schedulingSettings.daySchedules[selectedDay].breakStart.length === 1}

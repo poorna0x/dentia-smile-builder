@@ -562,6 +562,17 @@ const Appointment = () => {
       
       return { start: breakStartDate, end: breakEndDate };
     });
+    
+    // Debug logging for break periods
+    if (breakPeriods.length > 1) {
+      console.log('📅 Break Periods Debug:', {
+        date: dateForSlots.toDateString(),
+        breakPeriods: breakPeriods.map(bp => ({
+          start: bp.start.toLocaleTimeString(),
+          end: bp.end.toLocaleTimeString()
+        }))
+      });
+    }
 
     const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
     const slots: { label: string; value: string; disabled: boolean; booked: boolean }[] = [];
