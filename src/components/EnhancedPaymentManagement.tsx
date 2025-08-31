@@ -328,8 +328,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         return
       }
 
-      // Show confirmation toast with total teeth count
-      toast.info(`Syncing payment across ${totalTeethInProcedure} teeth. This will take a few seconds...`)
+      // Show confirmation toast
+      toast.info(`Syncing payment across teeth. This will take a few seconds...`)
 
       // Update payment records for all related treatments
       let actuallySyncedCount = 0
@@ -372,8 +372,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
       console.log(`🦷 Successfully synced to ${actuallySyncedCount} teeth`)
 
-      // Show completion notification with total teeth count
-      toast.success(`✅ Payment synced across ${totalTeethInProcedure} teeth successfully!`)
+      // Show completion notification
+      toast.success(`✅ Payment synced across teeth successfully!`)
     } catch (error) {
       toast.error('❌ Failed to sync payment across teeth')
     }
