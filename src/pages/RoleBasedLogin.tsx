@@ -125,6 +125,13 @@ const RoleBasedLogin: React.FC = () => {
             <CardDescription className="text-gray-600">
               Choose your role and enter credentials
             </CardDescription>
+            {intendedPath !== '/admin' && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  🔒 You'll be redirected to: <span className="font-medium">{intendedPath}</span>
+                </p>
+              </div>
+            )}
           </CardHeader>
           
           <CardContent>

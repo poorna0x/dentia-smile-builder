@@ -188,6 +188,8 @@ const Admin = () => {
 
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   
+
+  
   // Disabled slots state
   const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
   const [showDisabledSlotsDialog, setShowDisabledSlotsDialog] = useState(false);
@@ -216,7 +218,8 @@ const Admin = () => {
   // Staff permissions state
   const [staffPermissions, setStaffPermissions] = useState({
     canAccessSettings: false,
-    canAccessPatientPortal: false
+    canAccessPatientPortal: false,
+    canAccessPaymentAnalytics: false
   });
 
   // Loading states for appointment creation to prevent duplicate submissions
@@ -261,15 +264,29 @@ const Admin = () => {
     if (!clinic || !clinic.id) return;
     
     try {
+      console.log('🔄 Loading staff permissions for clinic:', clinic.id);
       const permissions = await staffPermissionsApi.getByClinic(clinic.id);
+      console.log('📥 Raw permissions from API:', permissions);
+      
       if (permissions) {
-        setStaffPermissions({
+        const newPermissions = {
           canAccessSettings: permissions.can_access_settings,
-          canAccessPatientPortal: permissions.can_access_patient_portal
+          canAccessPatientPortal: permissions.can_access_patient_portal,
+          canAccessPaymentAnalytics: permissions.can_access_payment_analytics ?? false
+        };
+        
+        console.log('🔧 Setting staff permissions state:', newPermissions);
+        setStaffPermissions(newPermissions);
+      } else {
+        console.log('⚠️ No permissions found, using defaults');
+        setStaffPermissions({
+          canAccessSettings: false,
+          canAccessPatientPortal: false,
+          canAccessPaymentAnalytics: false
         });
       }
     } catch (error) {
-      console.error('Error loading staff permissions:', error);
+      console.error('❌ Error loading staff permissions:', error);
     }
   };
 
@@ -428,24 +445,29 @@ const Admin = () => {
   const saveStaffPermissions = async (newPermissions?: {
     canAccessSettings?: boolean;
     canAccessPatientPortal?: boolean;
+    canAccessPaymentAnalytics?: boolean;
   }) => {
     if (!clinic || !clinic.id) return;
     
     // Use new permissions if provided, otherwise use current state
     const permissionsToSave = {
       canAccessSettings: newPermissions?.canAccessSettings ?? staffPermissions.canAccessSettings,
-      canAccessPatientPortal: newPermissions?.canAccessPatientPortal ?? staffPermissions.canAccessPatientPortal
+      canAccessPatientPortal: newPermissions?.canAccessPatientPortal ?? staffPermissions.canAccessPatientPortal,
+      canAccessPaymentAnalytics: newPermissions?.canAccessPaymentAnalytics ?? staffPermissions.canAccessPaymentAnalytics
     };
     
     console.log('💾 Saving staff permissions:', {
       clinicId: clinic.id,
-      permissions: permissionsToSave
+      permissions: permissionsToSave,
+      newPermissions: newPermissions,
+      currentState: staffPermissions
     });
     
     try {
       const result = await staffPermissionsApi.upsert(clinic.id, {
         can_access_settings: permissionsToSave.canAccessSettings,
-        can_access_patient_portal: permissionsToSave.canAccessPatientPortal
+        can_access_patient_portal: permissionsToSave.canAccessPatientPortal,
+        can_access_payment_analytics: permissionsToSave.canAccessPaymentAnalytics
       });
       
       console.log('✅ Staff permissions saved successfully:', result);
@@ -698,6 +720,8 @@ const Admin = () => {
       email: ''
     }));
   };
+
+
 
   // Note: Logout is now handled by the LogoutButton component
   // which uses the unified authentication system
@@ -2174,39 +2198,55 @@ Jeshna Dental Clinic Team`;
                 className="flex items-center gap-2 text-sm border-2 border-blue-400 text-blue-700 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-500 shadow-sm transition-all duration-200"
               >
                 <User className="h-4 w-4" />
+                <span className="sm:hidden">PMS</span>
                 <span className="hidden sm:inline">Patient Management</span>
               </Button>
               
+              {/* Payment Analytics Button - Only show if user has permission */}
+              {(isDentist || hasPermission('access_payment_analytics')) && (
+                <Button 
+                  onClick={() => navigate('/admin/payments')}
+                  variant="outline" 
+                  className="flex items-center gap-2 text-sm border-2 border-green-400 text-green-700 hover:bg-green-100 hover:text-green-800 hover:border-green-500 shadow-sm transition-all duration-200"
+                >
+                  <div className="h-4 w-4">💰</div>
+                  <span className="hidden sm:inline">Payment Analytics</span>
+                </Button>
+              )}
+              
 
               
-              <Button 
-                onClick={() => {
-                  setShowSettings(!showSettings);
-                  
-                  // Scroll to settings section after a short delay to ensure it's rendered
-                  setTimeout(() => {
-                    const settingsSection = document.getElementById('settings-section');
-                    if (settingsSection) {
-                      settingsSection.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start' 
-                      });
-                    }
-                  }, 100);
-                }} 
-                variant="outline" 
-                className={`flex items-center gap-2 text-sm border-2 transition-all duration-200 ${
-                  showSettings 
-                    ? 'border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 hover:border-emerald-500 shadow-md' 
-                    : 'border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-500 shadow-sm'
-                }`}
-                disabled={settingsLoading}
-              >
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {settingsLoading ? 'Loading...' : 'Settings'}
-                </span>
-              </Button>
+              {/* Settings Button - Only show if user has permission */}
+              {(isDentist || hasPermission('change_settings')) && (
+                <Button 
+                  onClick={() => {
+                    setShowSettings(!showSettings);
+                    
+                    // Scroll to settings section after a short delay to ensure it's rendered
+                    setTimeout(() => {
+                      const settingsSection = document.getElementById('settings-section');
+                      if (settingsSection) {
+                        settingsSection.scrollIntoView({ 
+                          behavior: 'smooth', 
+                          block: 'start' 
+                        });
+                      }
+                    }, 100);
+                  }} 
+                  variant="outline" 
+                  className={`flex items-center gap-2 text-sm border-2 transition-all duration-200 ${
+                    showSettings 
+                      ? 'border-emerald-400 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 hover:border-emerald-500 shadow-md' 
+                      : 'border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-500 shadow-sm'
+                  }`}
+                  disabled={settingsLoading}
+                >
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {settingsLoading ? 'Loading...' : 'Settings'}
+                  </span>
+                </Button>
+              )}
               <LogoutButton />
             </div>
           </div>
@@ -3257,15 +3297,45 @@ Jeshna Dental Clinic Team`;
                   </div>
                 </div>
 
-
-
+                {/* Payment Analytics Access */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Payment Analytics Access</Label>
+                      <p className="text-sm text-gray-600">Allow staff to access payment analytics and reports</p>
+                    </div>
+                    <div className="border-2 border-gray-300 rounded-lg p-1 bg-white">
+                      <Switch
+                        checked={staffPermissions.canAccessPaymentAnalytics}
+                        onCheckedChange={async (checked) => {
+                          setStaffPermissions(prev => ({
+                            ...prev,
+                            canAccessPaymentAnalytics: checked
+                          }));
+                          // Auto-save after state update
+                          setTimeout(async () => {
+                            await saveStaffPermissions({
+                              canAccessPaymentAnalytics: checked
+                            });
+                            toastHook({
+                              title: "✅ Payment Analytics Access Updated",
+                              description: checked ? "Staff can now access payment analytics" : "Staff payment analytics access disabled",
+                            });
+                          }, 100);
+                        }}
+                        className="border-2 border-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
 
               </CardContent>
             </Card>
           )}
 
-          {/* Dentist Management Section */}
-          <Card className="mt-6 md:mt-8 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg">
+          {/* Dentist Management Section - Only visible when settings are shown */}
+          {showSettings && (isDentist || hasPermission('change_settings')) && (
+            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg">
             <CardHeader>
               <CardTitle className="text-blue-800">Dentist Management</CardTitle>
               <CardDescription className="text-blue-700">Add and manage dentists for this clinic</CardDescription>
@@ -3327,9 +3397,11 @@ Jeshna Dental Clinic Team`;
               </div>
             </CardContent>
           </Card>
+          )}
 
-          {/* Treatment Types Management Section */}
-          <Card className="mt-6 md:mt-8 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
+          {/* Treatment Types Management Section - Only visible when settings are shown */}
+          {showSettings && (isDentist || hasPermission('change_settings')) && (
+            <Card className="mt-6 md:mt-8 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
             <CardHeader>
               <CardTitle className="text-green-800">Treatment Types Management</CardTitle>
               <CardDescription className="text-green-700">Add and manage treatment types with costs for this clinic</CardDescription>
@@ -3407,6 +3479,7 @@ Jeshna Dental Clinic Team`;
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Status Notice */}
           <Card className="mt-6">

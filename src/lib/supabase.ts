@@ -603,8 +603,9 @@ export const staffPermissionsApi = {
     if (data) {
       return {
         ...data,
-        can_access_settings: data.can_change_settings ?? false, // Map to correct column
-        can_access_patient_portal: data.can_access_patient_portal ?? false
+        can_access_settings: data.can_access_settings ?? false,
+        can_access_patient_portal: data.can_access_patient_portal ?? false,
+        can_access_payment_analytics: data.can_access_payment_analytics ?? false
       };
     }
     
@@ -615,16 +616,15 @@ export const staffPermissionsApi = {
   async upsert(clinicId: string, permissions: {
     can_access_settings: boolean;
     can_access_patient_portal: boolean;
+    can_access_payment_analytics: boolean;
   }) {
     const { data, error } = await supabase
       .from('staff_permissions')
       .upsert({
         clinic_id: clinicId,
-        can_view_appointments: true,
-        can_mark_complete: true,
-        can_view_patient_basic_info: true,
-        can_change_settings: permissions.can_access_settings, // Use the correct column name
-        can_access_patient_portal: permissions.can_access_patient_portal
+        can_access_settings: permissions.can_access_settings,
+        can_access_patient_portal: permissions.can_access_patient_portal,
+        can_access_payment_analytics: permissions.can_access_payment_analytics
       }, {
         onConflict: 'clinic_id'
       })

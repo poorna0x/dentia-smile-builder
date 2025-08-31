@@ -460,7 +460,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
             >
               Cancel
             </Button>
-            {initialData?.id && (
+            {initialData?.id && formData.treatment_status !== 'In Progress' && (
               <Button
                 type="button"
                 variant="outline"

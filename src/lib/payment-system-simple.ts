@@ -346,5 +346,278 @@ export const simplePaymentApi = {
     }
 
     return data || []
+  },
+
+  // =====================================================
+  // 💰 PAYMENT ANALYTICS API FUNCTIONS
+  // =====================================================
+
+  // Get today's revenue
+  getTodayRevenue: async (clinicId: string): Promise<number> => {
+    const today = new Date().toISOString().split('T')[0]
+    
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .eq('payment_date', today)
+
+    if (error) {
+      console.error('Error getting today revenue:', error)
+      return 0
+    }
+
+    return data?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
+  },
+
+  // Get monthly revenue
+  getMonthlyRevenue: async (clinicId: string, month?: string): Promise<number> => {
+    const targetMonth = month || new Date().toISOString().slice(0, 7) // YYYY-MM format
+    
+    // Calculate the first day of next month
+    const [year, monthNum] = targetMonth.split('-').map(Number)
+    const nextMonth = monthNum === 12 ? 1 : monthNum + 1
+    const nextYear = monthNum === 12 ? year + 1 : year
+    const nextMonthStr = nextMonth.toString().padStart(2, '0')
+    const nextYearStr = nextYear.toString()
+    
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .gte('payment_date', `${targetMonth}-01`)
+      .lt('payment_date', `${nextYearStr}-${nextMonthStr}-01`)
+
+    if (error) {
+      console.error('Error getting monthly revenue:', error)
+      return 0
+    }
+
+    return data?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
+  },
+
+  // Get yearly revenue
+  getYearlyRevenue: async (clinicId: string, year?: string): Promise<number> => {
+    const targetYear = year || new Date().getFullYear().toString()
+    
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .gte('payment_date', `${targetYear}-01-01`)
+      .lt('payment_date', `${targetYear + 1}-01-01`)
+
+    if (error) {
+      console.error('Error getting yearly revenue:', error)
+      return 0
+    }
+
+    return data?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
+  },
+
+  // Get payment method breakdown for today
+  getTodayPaymentMethods: async (clinicId: string): Promise<{[key: string]: number}> => {
+    const today = new Date().toISOString().split('T')[0]
+    
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('payment_method, amount')
+      .eq('payment_date', today)
+
+    if (error) {
+      console.error('Error getting today payment methods:', error)
+      return {}
+    }
+
+    const breakdown: {[key: string]: number} = {}
+    data?.forEach(transaction => {
+      const method = transaction.payment_method || 'Unknown'
+      breakdown[method] = (breakdown[method] || 0) + transaction.amount
+    })
+
+    return breakdown
+  },
+
+  // Get pending payments total
+  getPendingPaymentsTotal: async (clinicId: string): Promise<number> => {
+    const { data, error } = await supabase
+      .from('treatment_payments')
+      .select('remaining_amount')
+      .in('payment_status', ['Pending', 'Partial'])
+
+    if (error) {
+      console.error('Error getting pending payments:', error)
+      return 0
+    }
+
+    return data?.reduce((sum, payment) => sum + payment.remaining_amount, 0) || 0
+  },
+
+  // Get today's transactions
+  getTodayTransactions: async (clinicId: string): Promise<any[]> => {
+    const today = new Date().toISOString().split('T')[0]
+    
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select(`
+        *,
+        treatment_payments!inner(
+          dental_treatments!inner(
+            patients!inner(first_name, last_name, phone)
+          )
+        )
+      `)
+      .eq('payment_date', today)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error getting today transactions:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // Get outstanding payments with patient details and pagination
+  getOutstandingPayments: async (clinicId: string, page: number = 1, limit: number = 20): Promise<{data: any[], total: number, hasMore: boolean}> => {
+    const offset = (page - 1) * limit
+    
+    // Get total count first
+    const { count, error: countError } = await supabase
+      .from('treatment_payments')
+      .select('*', { count: 'exact', head: true })
+      .in('payment_status', ['Pending', 'Partial'])
+      .gt('remaining_amount', 0)
+
+    if (countError) {
+      console.error('Error getting outstanding payments count:', countError)
+      return { data: [], total: 0, hasMore: false }
+    }
+
+    // Get paginated data
+    const { data, error } = await supabase
+      .from('treatment_payments')
+      .select(`
+        *,
+        dental_treatments!inner(
+          patients!inner(first_name, last_name, phone)
+        )
+      `)
+      .in('payment_status', ['Pending', 'Partial'])
+      .gt('remaining_amount', 0)
+      .order('remaining_amount', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error('Error getting outstanding payments:', error)
+      return { data: [], total: 0, hasMore: false }
+    }
+
+    const total = count || 0
+    const hasMore = offset + limit < total
+
+    return { 
+      data: data || [], 
+      total, 
+      hasMore 
+    }
+  },
+
+  // Get revenue for custom date range
+  getCustomRangeRevenue: async (clinicId: string, fromDate: string, toDate: string): Promise<number> => {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .gte('payment_date', fromDate)
+      .lte('payment_date', toDate)
+
+    if (error) {
+      console.error('Error getting custom range revenue:', error)
+      return 0
+    }
+
+    return data?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
+  },
+
+  // Get transactions for custom date range with pagination
+  getCustomRangeTransactions: async (clinicId: string, fromDate: string, toDate: string, page: number = 1, limit: number = 20): Promise<{data: any[], total: number, hasMore: boolean}> => {
+    const offset = (page - 1) * limit
+    
+    // Get total count first
+    const { count, error: countError } = await supabase
+      .from('payment_transactions')
+      .select('*', { count: 'exact', head: true })
+      .gte('payment_date', fromDate)
+      .lte('payment_date', toDate)
+
+    if (countError) {
+      console.error('Error getting transaction count:', countError)
+      return { data: [], total: 0, hasMore: false }
+    }
+
+    // Get paginated data
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select(`
+        *,
+        treatment_payments!inner(
+          dental_treatments!inner(
+            patients!inner(first_name, last_name, phone)
+          )
+        )
+      `)
+      .gte('payment_date', fromDate)
+      .lte('payment_date', toDate)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error('Error getting custom range transactions:', error)
+      return { data: [], total: 0, hasMore: false }
+    }
+
+    const total = count || 0
+    const hasMore = offset + limit < total
+
+    return { 
+      data: data || [], 
+      total, 
+      hasMore 
+    }
+  },
+
+  // Get payment methods for custom date range
+  getCustomRangePaymentMethods: async (clinicId: string, fromDate: string, toDate: string): Promise<{[key: string]: number}> => {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('payment_method, amount')
+      .gte('payment_date', fromDate)
+      .lte('payment_date', toDate)
+
+    if (error) {
+      console.error('Error getting custom range payment methods:', error)
+      return {}
+    }
+
+    const breakdown: {[key: string]: number} = {}
+    data?.forEach(transaction => {
+      const method = transaction.payment_method || 'Unknown'
+      breakdown[method] = (breakdown[method] || 0) + transaction.amount
+    })
+
+    return breakdown
+  },
+
+  // Get last year revenue for comparison
+  getLastYearRevenue: async (clinicId: string, year: number): Promise<number> => {
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('amount')
+      .gte('payment_date', `${year}-01-01`)
+      .lt('payment_date', `${year + 1}-01-01`)
+
+    if (error) {
+      console.error('Error getting last year revenue:', error)
+      return 0
+    }
+
+    return data?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
   }
 }
