@@ -99,6 +99,9 @@ export default function AdminPatientManagement() {
   // State for in-progress treatments
   const [patientsInProgressTreatments, setPatientsInProgressTreatments] = useState<{[key: string]: any[]}>({});
   
+  // State for today's appointment patient selection
+  const [selectedTodayPatient, setSelectedTodayPatient] = useState<string | null>(null);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage] = useState(50);
@@ -1744,6 +1747,11 @@ export default function AdminPatientManagement() {
     }
   }, [clinic?.id]);
 
+  // Clear today's patient selection on page load/reload
+  useEffect(() => {
+    setSelectedTodayPatient(null);
+  }, []);
+
   // Listen for appointment completion events from other pages
   useEffect(() => {
     const handleAppointmentCompleted = (event: CustomEvent) => {
@@ -3130,12 +3138,43 @@ export default function AdminPatientManagement() {
           ) : (
             <div className="grid gap-4">
               {displayedPatients.map((patient) => (
-                <Card key={patient.id} className="border-2 border-gray-300">
+                <Card key={patient.id} className={`border-2 transition-all duration-200 ${
+                  patient.today_appointments && patient.today_appointments.length > 0 && selectedTodayPatient && selectedTodayPatient !== patient.id
+                    ? 'border-gray-200 opacity-50 bg-gray-50'
+                    : 'border-gray-300'
+                }`}>
                   <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                       <div className="flex-1">
-                        <CardTitle className="text-lg mb-2">
-                          {patient.first_name} {patient.last_name || ''}
+                        <CardTitle className="text-lg mb-2 flex items-center gap-2">
+                          {/* Profile icon for selection - only show for today's appointments */}
+                          {patient.today_appointments && patient.today_appointments.length > 0 && (
+                            <button
+                              onClick={() => setSelectedTodayPatient(selectedTodayPatient === patient.id ? null : patient.id)}
+                              className={`p-1 rounded-full transition-all duration-200 ${
+                                selectedTodayPatient === patient.id
+                                  ? 'bg-blue-500 text-white shadow-lg'
+                                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                              }`}
+                              title={selectedTodayPatient === patient.id ? 'Deselect Patient' : 'Select Patient'}
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                              </svg>
+                            </button>
+                          )}
+                          <span 
+                            className={`cursor-pointer hover:text-blue-600 transition-colors duration-200 ${
+                              patient.today_appointments && patient.today_appointments.length > 0 ? 'hover:underline' : ''
+                            }`}
+                            onClick={() => {
+                              if (patient.today_appointments && patient.today_appointments.length > 0) {
+                                setSelectedTodayPatient(selectedTodayPatient === patient.id ? null : patient.id);
+                              }
+                            }}
+                          >
+                            {patient.first_name} {patient.last_name || ''}
+                          </span>
                         </CardTitle>
                         <div className="space-y-1 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
