@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { DollarSign } from 'lucide-react'
 import { simplePaymentApi, PaymentSummary, PaymentTransaction, PaymentFormData } from '@/lib/payment-system-simple'
+import { getTreatmentCost } from '@/config/treatment-costs'
 import { toast } from 'sonner'
 
 interface PaymentManagementSimpleProps {
@@ -33,7 +34,7 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
   const [loading, setLoading] = useState(false)
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   const [formData, setFormData] = useState<PaymentFormData>({
-    total_amount: 0,
+    total_amount: getTreatmentCost(treatmentType), // Pre-fill with treatment cost
     payment_type: 'full',
     payment_date: new Date().toISOString().split('T')[0],
     payment_method: 'Cash',
@@ -56,7 +57,10 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
       }
     } catch (error) {
       console.error('Error loading payment data:', error)
-      toast.error('Failed to load payment data')
+      // Don't show error toast for 406 errors - they're expected when payment system is not set up
+      if (error instanceof Error && !error.message.includes('406')) {
+        toast.error('Failed to load payment data')
+      }
     } finally {
       setLoading(false)
       setHasInitiallyLoaded(true)
@@ -67,9 +71,34 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
     loadPaymentData()
   }, [treatmentId])
 
+  // Update form data when treatment type changes
+  useEffect(() => {
+    const treatmentCost = getTreatmentCost(treatmentType)
+    setFormData(prev => ({
+      ...prev,
+      total_amount: treatmentCost
+    }))
+  }, [treatmentType])
+
+  // Reset form when dialog opens for a new treatment
+  useEffect(() => {
+    if (showAddPaymentDialog) {
+      const treatmentCost = getTreatmentCost(treatmentType)
+      setFormData({
+        total_amount: treatmentCost,
+        payment_type: 'full',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'Cash',
+        notes: ''
+      })
+    }
+  }, [showAddPaymentDialog, treatmentType])
+
   // Auto-open payment dialog only on initial load when no payment data exists
   useEffect(() => {
     if (hasInitiallyLoaded && !loading && paymentSummary === null) {
+      // Only auto-open if we're not in a 406 error state (payment system not available)
+      // We can detect this by checking if the component has been loaded but no error was shown
       setShowAddPaymentDialog(true)
     }
   }, [hasInitiallyLoaded, paymentSummary, loading])
@@ -118,7 +147,7 @@ const PaymentManagementSimple: React.FC<PaymentManagementSimpleProps> = ({
       
       // Reset form
       setFormData({
-        total_amount: 0,
+        total_amount: getTreatmentCost(treatmentType), // Pre-fill with treatment cost
         payment_type: 'full',
         payment_date: new Date().toISOString().split('T')[0],
         payment_method: 'Cash',

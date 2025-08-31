@@ -1954,20 +1954,16 @@ export default function AdminPatientManagement() {
           description: `Loaded ${patientsWithAppointments.length} patients with appointments today`,
         });
       } else {
-        // No appointments today, load all patients to show in-progress treatments
-        console.log('🔍 No appointments today, loading all patients to check for in-progress treatments...');
-        const allPatients = await patientApi.getAll(clinic.id);
-        setPatients(allPatients);
-        setFilteredPatients(allPatients);
-        setTotalPatients(allPatients.length);
+        // No appointments today - show empty state instead of loading all patients
+        console.log('🔍 No appointments today - showing empty state');
+        setPatients([]);
+        setFilteredPatients([]);
+        setTotalPatients(0);
         setDataLoaded(true);
-        
-        // Load in-progress treatments for all patients
-        await loadInProgressTreatmentsForPatients(allPatients);
         
         toast({
           title: "No Appointments Today",
-          description: "Showing all patients with in-progress treatments",
+          description: "Use the search function to find specific patients or create new appointments",
         });
       }
     } catch (error) {
@@ -3519,21 +3515,24 @@ export default function AdminPatientManagement() {
               
               {displayedPatients.length === 0 && (
                 <div className="text-center py-8">
-                  <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">
+                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium">
                     {!dataLoaded 
                       ? "Click 'Search' to load patients" 
                       : searchTerm 
                         ? "No patients found matching your search" 
-                        : "No patients found"
+                        : "No appointments scheduled for today"
                     }
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mt-2">
                     {!dataLoaded 
                       ? "Load patient data to get started" 
-                      : "Add your first patient to get started"
+                      : searchTerm
+                        ? "Try a different search term or add a new patient"
+                        : "Use the search function to find specific patients or create new appointments"
                     }
                   </p>
+
                 </div>
               )}
               

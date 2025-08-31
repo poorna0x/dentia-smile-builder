@@ -43,11 +43,22 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
       console.log('🔍 Loading feature toggles from database...');
 
       // Try to get feature toggles from database
-      const { data, error: dbError } = await supabase
-        .from('system_settings')
-        .select('settings')
-        .eq('setting_type', 'feature_toggle')
-        .single();
+      let data = null;
+      let dbError = null;
+      
+      try {
+        const result = await supabase
+          .from('system_settings')
+          .select('settings')
+          .eq('setting_type', 'feature_toggle')
+          .single();
+        
+        data = result.data;
+        dbError = result.error;
+      } catch (err) {
+        console.warn('Exception when querying system_settings:', err);
+        dbError = err;
+      }
 
       console.log('🔍 Database response:', { data, error: dbError });
 

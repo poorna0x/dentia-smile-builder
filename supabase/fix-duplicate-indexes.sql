@@ -1,88 +1,170 @@
--- 🔧 Fix Duplicate Indexes
+-- =====================================================
+-- 🔧 FIX DUPLICATE INDEXES
 -- =====================================================
 -- 
--- This script fixes the duplicate index issue on dental_treatments table
--- Based on diagnostic results showing 10 indexes with potential duplicates
+-- This script removes duplicate indexes that are causing
+-- performance warnings in the database linter
 -- =====================================================
 
+SELECT '=== FIXING DUPLICATE INDEXES ===' as section;
+
 -- =====================================================
--- STEP 1: ANALYZE CURRENT INDEXES
+-- 1. CHECK CURRENT DUPLICATE INDEXES
 -- =====================================================
 
--- Check the exact definitions of the potentially duplicate indexes
+SELECT '=== CHECKING CURRENT DUPLICATE INDEXES ===' as section;
+
+-- Check appointments table indexes
 SELECT 
-  indexname,
-  indexdef,
-  schemaname,
-  tablename
+    'appointments indexes' as check_type,
+    indexname,
+    indexdef
 FROM pg_indexes 
-WHERE tablename = 'dental_treatments' 
-  AND indexname IN ('idx_dental_treatments_patient_id', 'idx_dental_treatments_patient')
+WHERE tablename = 'appointments'
+AND schemaname = 'public'
+ORDER BY indexname;
+
+-- Check patient_phones table indexes
+SELECT 
+    'patient_phones indexes' as check_type,
+    indexname,
+    indexdef
+FROM pg_indexes 
+WHERE tablename = 'patient_phones'
+AND schemaname = 'public'
 ORDER BY indexname;
 
 -- =====================================================
--- STEP 2: CHECK INDEX COLUMNS
+-- 2. FIX APPOINTMENTS TABLE DUPLICATE INDEXES
 -- =====================================================
 
--- Check which columns each index covers
+SELECT '=== FIXING APPOINTMENTS DUPLICATE INDEXES ===' as section;
+
+-- Drop the duplicate index on appointments.patient_id
+-- Keep idx_appointments_patient_id, drop idx_appointments_patient_id_fk
+DROP INDEX IF EXISTS idx_appointments_patient_id_fk;
+
+-- Verify the fix
 SELECT 
-  i.relname as index_name,
-  a.attname as column_name,
-  a.attnum as column_position
-FROM pg_class t
-JOIN pg_index ix ON t.oid = ix.indrelid
-JOIN pg_class i ON ix.indexrelid = i.oid
-JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
-WHERE t.relname = 'dental_treatments'
-  AND i.relname IN ('idx_dental_treatments_patient_id', 'idx_dental_treatments_patient')
-ORDER BY i.relname, a.attnum;
-
--- =====================================================
--- STEP 3: REMOVE DUPLICATE INDEX
--- =====================================================
-
--- Remove the less descriptive index name (keep idx_dental_treatments_patient_id)
--- The linter suggests keeping idx_dental_treatments_patient_id and removing idx_dental_treatments_patient
-DROP INDEX IF EXISTS idx_dental_treatments_patient;
-
--- =====================================================
--- STEP 4: VERIFY FIX
--- =====================================================
-
--- Check remaining indexes
-SELECT 
-  indexname,
-  indexdef
+    'appointments indexes after fix' as check_type,
+    indexname,
+    indexdef
 FROM pg_indexes 
-WHERE tablename = 'dental_treatments'
+WHERE tablename = 'appointments'
+AND schemaname = 'public'
 ORDER BY indexname;
 
--- Count total indexes
-SELECT 
-  COUNT(*) as total_indexes,
-  string_agg(indexname, ', ') as index_names
-FROM pg_indexes 
-WHERE tablename = 'dental_treatments';
-
 -- =====================================================
--- STEP 5: OPTIMIZE OTHER INDEXES (Optional)
+-- 3. FIX PATIENT_PHONES TABLE DUPLICATE INDEXES
 -- =====================================================
 
--- Check for other potential duplicate indexes
-SELECT 
-  indexname,
-  indexdef,
-  CASE 
-    WHEN indexname LIKE '%patient%' THEN 'patient_related'
-    WHEN indexname LIKE '%dentist%' THEN 'dentist_related'
-    WHEN indexname LIKE '%appointment%' THEN 'appointment_related'
-    WHEN indexname LIKE '%clinic%' THEN 'clinic_related'
-    WHEN indexname LIKE '%status%' THEN 'status_related'
-    ELSE 'other'
-  END as index_category
-FROM pg_indexes 
-WHERE tablename = 'dental_treatments'
-ORDER BY index_category, indexname;
+SELECT '=== FIXING PATIENT_PHONES DUPLICATE INDEXES ===' as section;
 
--- Display completion message
-SELECT 'Duplicate Index Fix Complete!' as status;
+-- Drop the duplicate index on patient_phones.patient_id
+-- Keep idx_patient_phones_patient_id, drop idx_patient_phones_patient_id_efficient
+DROP INDEX IF EXISTS idx_patient_phones_patient_id_efficient;
+
+-- Verify the fix
+SELECT 
+    'patient_phones indexes after fix' as check_type,
+    indexname,
+    indexdef
+FROM pg_indexes 
+WHERE tablename = 'patient_phones'
+AND schemaname = 'public'
+ORDER BY indexname;
+
+-- =====================================================
+-- 4. CHECK FOR OTHER DUPLICATE INDEXES
+-- =====================================================
+
+SELECT '=== CHECKING FOR OTHER DUPLICATE INDEXES ===' as section;
+
+-- Find all indexes that might be duplicates
+WITH index_groups AS (
+    SELECT 
+        tablename,
+        indexdef,
+        COUNT(*) as count,
+        array_agg(indexname ORDER BY indexname) as index_names
+    FROM pg_indexes 
+    WHERE schemaname = 'public'
+    GROUP BY tablename, indexdef
+    HAVING COUNT(*) > 1
+)
+SELECT 
+    'potential duplicates' as check_type,
+    tablename,
+    indexdef,
+    count,
+    index_names
+FROM index_groups
+ORDER BY tablename, indexdef;
+
+-- =====================================================
+-- 5. OPTIMIZE INDEX NAMING CONVENTION
+-- =====================================================
+
+SELECT '=== OPTIMIZING INDEX NAMING ===' as section;
+
+-- Rename remaining indexes to follow consistent naming convention
+-- This is optional but helps with maintenance
+
+-- Rename appointments patient_id index if needed
+DO $$
+BEGIN
+    -- Only rename if the index exists and has a different name
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_appointments_patient_id' AND tablename = 'appointments') THEN
+        -- Index already has correct name, no need to rename
+        RAISE NOTICE 'appointments patient_id index already has correct name';
+    END IF;
+END $$;
+
+-- Rename patient_phones patient_id index if needed
+DO $$
+BEGIN
+    -- Only rename if the index exists and has a different name
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_patient_phones_patient_id' AND tablename = 'patient_phones') THEN
+        -- Index already has correct name, no need to rename
+        RAISE NOTICE 'patient_phones patient_id index already has correct name';
+    END IF;
+END $$;
+
+-- =====================================================
+-- 6. VERIFY THE FIXES
+-- =====================================================
+
+SELECT '=== VERIFYING THE FIXES ===' as section;
+
+-- Final check of all indexes
+SELECT 
+    'final index check' as check_type,
+    tablename,
+    indexname,
+    indexdef
+FROM pg_indexes 
+WHERE schemaname = 'public'
+AND tablename IN ('appointments', 'patient_phones')
+ORDER BY tablename, indexname;
+
+-- Check if duplicate indexes are gone
+SELECT 
+    'duplicate check' as check_type,
+    tablename,
+    COUNT(*) as index_count,
+    COUNT(DISTINCT indexdef) as unique_index_count,
+    CASE 
+        WHEN COUNT(*) = COUNT(DISTINCT indexdef) THEN '✅ No duplicates'
+        ELSE '❌ Still has duplicates'
+    END as status
+FROM pg_indexes 
+WHERE schemaname = 'public'
+AND tablename IN ('appointments', 'patient_phones')
+GROUP BY tablename
+ORDER BY tablename;
+
+-- =====================================================
+-- 7. SUCCESS MESSAGE
+-- =====================================================
+
+SELECT '🔧 Duplicate indexes fixed! Performance warnings should be resolved.' as status;

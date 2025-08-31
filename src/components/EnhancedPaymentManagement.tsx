@@ -70,6 +70,9 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     partial_amount: 0
   })
 
+  // Ref for first input in dialog (temporarily disabled for accessibility fix)
+  // const firstInputRef = useRef<HTMLInputElement>(null)
+
   // Auto-fill cost when treatment changes or component mounts
   useEffect(() => {
     if (treatment.cost && treatment.cost > 0 && !paymentSummary) {
@@ -85,32 +88,40 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     try {
       setLoading(true)
       
-      // Get payment summary (this includes transaction count)
+      console.log('🦷 Loading payment data for treatment:', treatment.id)
+      console.log('🦷 Treatment object:', treatment)
+      console.log('🦷 Treatment cost:', treatment.cost)
+      
+      // Get payment summary from API
       const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
+      console.log('🦷 Payment summary from API:', summary)
       setPaymentSummary(summary)
-
-      // Only load transactions if we have a payment record
+      
+      // Get payment transactions from API
       if (summary) {
         const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
-
         if (treatmentPayment) {
           const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
-
+          console.log('🦷 Payment transactions from API:', transactions)
           setTransactions(transactions)
-        } else {
-          setTransactions([])
         }
       } else {
         setTransactions([])
       }
 
-      // Reset form data when payment data changes
-      setFormData({
-        total_amount: treatment.cost || 0,
-        payment_type: 'partial',
-        payment_date: new Date().toISOString().split('T')[0],
-        payment_method: 'Cash',
-        notes: ''
+      // Set form data with treatment cost or existing payment data
+      console.log('🦷 Setting form data with treatment cost:', treatment.cost)
+      setFormData(prev => {
+        const newFormData = {
+          ...prev,
+          total_amount: summary?.total_amount || treatment.cost || 0,
+          payment_type: 'partial',
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_method: 'Cash',
+          notes: ''
+        }
+        console.log('🦷 New form data:', newFormData)
+        return newFormData
       })
 
       // Reset misc cost
@@ -118,19 +129,17 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         amount: 0,
         description: ''
       })
-
-      // Reset edit cost data
-      setEditCostData({
-        total_amount: 0,
-        partial_amount: 0
-      })
-
     } catch (error) {
       console.error('Error loading payment data:', error)
-      // Don't show error toast for missing payment records
-      if (!error.message?.includes('No payment record')) {
-        toast.error('Failed to load payment data')
-      }
+      // Fallback to treatment cost if API fails
+      setFormData(prev => ({
+        ...prev,
+        total_amount: treatment.cost || 0,
+        payment_type: 'partial',
+        payment_date: new Date().toISOString().split('T')[0],
+        payment_method: 'Cash',
+        notes: ''
+      }))
     } finally {
       setLoading(false)
     }
@@ -139,6 +148,13 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
   useEffect(() => {
     loadPaymentData()
   }, [treatment.id])
+
+  // Initialize form when payment data loads
+  useEffect(() => {
+    if (paymentSummary !== null) {
+      initializePaymentForm()
+    }
+  }, [paymentSummary])
 
   // Ensure cost is set when component mounts or treatment changes
   useEffect(() => {
@@ -225,6 +241,21 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const initializePaymentForm = () => {
+    // Initialize form with existing payment data or treatment cost
+    const totalAmount = paymentSummary?.total_amount || treatment.cost || 0
+    const partialAmount = paymentSummary ? (paymentSummary.remaining_amount > 0 ? paymentSummary.remaining_amount : 0) : 0
+    
+    setFormData({
+      total_amount: totalAmount,
+      payment_type: paymentSummary ? 'partial' : 'full',
+      partial_amount: partialAmount,
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: 'Cash',
+      notes: ''
+    })
+  }
+
   // Function to sync payments across all treatments in a multi-tooth procedure
   const syncMultiToothPayments = async (currentTreatmentPayment: any, paymentAmount: number, miscAmount: number) => {
     try {
@@ -266,7 +297,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 treatment_payment_id: relatedPayment.id,
                 amount: paymentAmount,
                 payment_date: formData.payment_date,
-                payment_method: formData.payment_method,
                 notes: `Multi-tooth sync: ${formData.notes || 'Additional payment'}`
               })
             }
@@ -276,7 +306,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 treatment_payment_id: relatedPayment.id,
                 amount: miscAmount,
                 payment_date: formData.payment_date,
-                payment_method: formData.payment_method,
                 notes: `Multi-tooth sync: Miscellaneous: ${miscCost.description} (₹${miscAmount})`
               })
             }
@@ -340,18 +369,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
       // Add main payment transaction if there's a payment amount
       if (paymentAmount > 0) {
-        console.log('🔍 Debug - Form data being sent:', {
-          treatment_payment_id: treatmentPayment.id,
-          amount: paymentAmount,
-          payment_date: formData.payment_date,
-          payment_method: formData.payment_method,
-          notes: formData.notes || undefined
-        })
-        
-        console.log('🔍 Debug - Full formData object:', formData)
-        console.log('🔍 Debug - payment_method value:', formData.payment_method)
-        console.log('🔍 Debug - payment_method type:', typeof formData.payment_method)
-        
         await simplePaymentApi.addPaymentTransaction({
           treatment_payment_id: treatmentPayment.id,
           amount: paymentAmount,
@@ -378,14 +395,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       // Reload data to get updated summary
       await loadPaymentData()
       
-      // Reset form for next payment
-      setFormData({
-        total_amount: 0,
-        payment_type: 'partial', // Default to partial for subsequent payments
-        payment_date: new Date().toISOString().split('T')[0],
-        payment_method: 'Cash',
-        notes: ''
-      })
+      // Don't reset form data - let loadPaymentData handle it properly
+      // The form will be reset when the dialog opens again
 
       // Reset misc cost
       setMiscCost({
@@ -518,7 +529,10 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <Button 
-            onClick={() => setShowAddPaymentDialog(true)}
+            onClick={() => {
+              initializePaymentForm()
+              setShowAddPaymentDialog(true)
+            }}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="h-4 w-4 sm:mr-2" />
@@ -624,7 +638,10 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 <span className="text-4xl text-gray-300 mx-auto mb-4 block">₹</span>
                 <h3 className="text-lg font-medium mb-2">No Payment Record</h3>
                 <p className="text-gray-500 mb-4">Start tracking payments for this treatment</p>
-                <Button onClick={() => setShowAddPaymentDialog(true)}>
+                <Button onClick={() => {
+                  initializePaymentForm()
+                  setShowAddPaymentDialog(true)
+                }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Set Treatment Cost & Payment
                 </Button>
@@ -867,10 +884,10 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
             {/* Payment Mode */}
             <div>
                               <Label htmlFor="payment_method">Payment Method</Label>
-                <Select
+                              <Select 
                   value={formData.payment_method}
                   onValueChange={(value: any) => handleInputChange('payment_method', value)}
-              >
+                >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

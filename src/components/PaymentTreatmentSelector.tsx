@@ -24,17 +24,24 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
       setLoading(true)
       const summaries: {[key: string]: PaymentSummary} = {}
       
-      for (const treatment of treatments) {
-        try {
-          const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
-          if (summary) {
-            summaries[treatment.id] = summary
+      try {
+        // Load payment summaries for each treatment
+        for (const treatment of treatments) {
+          try {
+            const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
+            if (summary) {
+              summaries[treatment.id] = summary
+            }
+          } catch (error) {
+            console.log(`🦷 No payment data for treatment ${treatment.id}:`, error)
+            // Continue with other treatments even if one fails
           }
-        } catch (error) {
-          console.error(`Error loading payment summary for treatment ${treatment.id}:`, error)
         }
+      } catch (error) {
+        console.error('🦷 Error loading payment summaries:', error)
       }
       
+      console.log('🦷 Loaded payment summaries:', summaries)
       setPaymentSummaries(summaries)
       setLoading(false)
     }
@@ -146,19 +153,28 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
                         <div className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-3 w-3 text-green-600" />
-                            <span className="font-medium text-green-800">Payment:</span>
+                            <span className="font-medium text-green-800">Payment Status:</span>
                           </div>
                           <Badge className={`text-xs ${getPaymentStatusColor(paymentSummary.payment_status)}`}>
                             {paymentSummary.payment_status}
                           </Badge>
                         </div>
-                        <div className="text-xs text-green-700 mt-1">
-                          <span>₹{paymentSummary.paid_amount.toFixed(2)}</span>
+                        <div className="text-xs text-green-700 mt-1 space-y-1">
+                          <div>
+                            <span className="font-medium">Total Cost:</span> ₹{paymentSummary.total_amount.toFixed(2)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Amount Paid:</span> ₹{paymentSummary.paid_amount.toFixed(2)}
+                          </div>
                           {paymentSummary.remaining_amount > 0 && (
-                            <span> / ₹{paymentSummary.total_amount.toFixed(2)}</span>
+                            <div className="text-orange-600">
+                              <span className="font-medium">Remaining:</span> ₹{paymentSummary.remaining_amount.toFixed(2)}
+                            </div>
                           )}
-                          {paymentSummary.remaining_amount > 0 && (
-                            <span className="ml-2">(₹{paymentSummary.remaining_amount.toFixed(2)} remaining)</span>
+                          {paymentSummary.remaining_amount <= 0 && paymentSummary.paid_amount > 0 && (
+                            <div className="text-green-600">
+                              <span className="font-medium">✓ Fully Paid</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -170,7 +186,10 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
                       {treatment.treatment_status}
                     </Badge>
                     {!hasPayment && (
-                      <span className="text-gray-400 font-bold text-lg">₹</span>
+                      <div className="text-center">
+                        <span className="text-gray-400 font-bold text-lg">₹</span>
+                        <div className="text-xs text-gray-500 mt-1">No Payment</div>
+                      </div>
                     )}
                   </div>
                 </div>

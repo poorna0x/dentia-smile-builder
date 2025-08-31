@@ -26,7 +26,6 @@ export interface PaymentTransaction {
   treatment_payment_id: string
   amount: number
   payment_method: PaymentMode
-  transaction_id?: string
   notes?: string
   payment_date: string
   created_at: string
@@ -58,17 +57,26 @@ export interface PaymentFormData {
 export const simplePaymentApi = {
   // Create a new treatment payment record
   createTreatmentPayment: async (payment: Omit<TreatmentPayment, 'id' | 'created_at' | 'updated_at' | 'remaining_amount'>): Promise<TreatmentPayment> => {
-    const { data, error } = await supabase
-      .from('treatment_payments')
-      .insert(payment)
-      .select()
-      .single()
+    try {
+      console.log('🔍 Creating treatment payment:', payment)
+      
+      const { data, error } = await supabase
+        .from('treatment_payments')
+        .insert(payment)
+        .select()
+        .single()
 
-    if (error) {
-      throw new Error(`Failed to create treatment payment: ${error.message}`)
+      if (error) {
+        console.error('❌ Error creating treatment payment:', error)
+        throw new Error(`Failed to create treatment payment: ${error.message}`)
+      }
+
+      console.log('✅ Treatment payment created:', data)
+      return data
+    } catch (error) {
+      console.error('❌ Exception in createTreatmentPayment:', error)
+      throw error
     }
-
-    return data
   },
 
   // Get payment summary for a treatment (direct database queries)
@@ -76,6 +84,17 @@ export const simplePaymentApi = {
     // Outer try-catch to handle any unhandled errors
     try {
       console.log('🔍 Getting payment summary for treatment:', treatmentId)
+      
+      // First check if the treatment_payments table exists
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('treatment_payments')
+        .select('id')
+        .limit(1)
+      
+      if (tableError) {
+        console.log('ℹ️ Payment tables not accessible:', tableError.code, '- Returning null')
+        return null
+      }
       
       // Get the treatment payment record
       const { data: paymentData, error: paymentError } = await supabase
@@ -87,8 +106,44 @@ export const simplePaymentApi = {
       if (paymentError) {
         // Handle 406 errors gracefully - just return null instead of throwing
         if (paymentError.code === '406') {
-          console.log('ℹ️ 406 error for treatment:', treatmentId, '- Payment tables not accessible, returning null')
-          return null
+          console.log('ℹ️ 406 error for treatment:', treatmentId, '- This might be a permission issue or missing payment record')
+          
+          // Try to create a payment record if it doesn't exist
+          try {
+            console.log('🔍 Attempting to create payment record for treatment:', treatmentId)
+            
+            // First get the treatment details to get clinic_id and patient_id
+            const { data: treatmentData, error: treatmentError } = await supabase
+              .from('dental_treatments')
+              .select('clinic_id, patient_id')
+              .eq('id', treatmentId)
+              .single()
+            
+            if (treatmentError) {
+              console.log('ℹ️ Could not get treatment details, returning null')
+              return null
+            }
+            
+            const newPayment = await simplePaymentApi.createTreatmentPayment({
+              treatment_id: treatmentId,
+              clinic_id: treatmentData.clinic_id,
+              patient_id: treatmentData.patient_id,
+              total_amount: 0,
+              paid_amount: 0,
+              payment_status: 'pending'
+            })
+            console.log('✅ Created payment record:', newPayment)
+            return {
+              total_amount: 0,
+              paid_amount: 0,
+              remaining_amount: 0,
+              payment_status: 'pending',
+              transaction_count: 0
+            }
+          } catch (createError) {
+            console.log('ℹ️ Could not create payment record, returning null')
+            return null
+          }
         }
         
         if (paymentError.code === 'PGRST116') {
@@ -167,71 +222,38 @@ export const simplePaymentApi = {
   // Add a payment transaction
   addPaymentTransaction: async (transaction: Omit<PaymentTransaction, 'id' | 'created_at'>): Promise<PaymentTransaction> => {
     console.log('🔍 Debug - API received transaction data:', transaction)
+    console.log('🔍 Transaction type check:', typeof transaction.amount)
+    console.log('🔍 Payment method check:', transaction.payment_method)
+    console.log('🔍 Payment date check:', transaction.payment_date)
     
-    const { data, error } = await supabase
-      .from('payment_transactions')
-      .insert(transaction)
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('payment_transactions')
+        .insert(transaction)
+        .select()
+        .single()
 
-    if (error) {
-      console.error('❌ API Error details:', error)
-      throw new Error(`Failed to add payment transaction: ${error.message}`)
+      if (error) {
+        console.error('❌ API Error details:', error)
+        console.error('❌ Error code:', error.code)
+        console.error('❌ Error message:', error.message)
+        console.error('❌ Error details:', error.details)
+        console.error('❌ Error hint:', error.hint)
+        throw new Error(`Failed to add payment transaction: ${error.message}`)
+      }
+
+      console.log('✅ Transaction added successfully:', data)
+      return data
+    } catch (error) {
+      console.error('❌ Exception in addPaymentTransaction:', error)
+      throw error
     }
-
-    // Update the treatment payment record
-    await simplePaymentApi.updateTreatmentPaymentAmount(transaction.treatment_payment_id)
-
-    return data
   },
 
-  // Update treatment payment amounts
+  // Update treatment payment amounts (deprecated - now handled by database triggers)
   updateTreatmentPaymentAmount: async (treatmentPaymentId: string): Promise<void> => {
-    // Get total paid amount from transactions
-    const { data: transactions, error: sumError } = await supabase
-      .from('payment_transactions')
-      .select('amount')
-      .eq('treatment_payment_id', treatmentPaymentId)
-
-    if (sumError) {
-      throw new Error(`Failed to get transaction amounts: ${sumError.message}`)
-    }
-
-    const totalPaid = transactions.reduce((sum, t) => sum + t.amount, 0)
-
-    // Get the treatment payment record to get total_amount
-    const { data: paymentRecord, error: paymentError } = await supabase
-      .from('treatment_payments')
-      .select('total_amount')
-      .eq('id', treatmentPaymentId)
-      .single()
-
-    if (paymentError) {
-      throw new Error(`Failed to get treatment payment record: ${paymentError.message}`)
-    }
-
-    // Calculate payment status correctly
-    let paymentStatus: PaymentStatus
-    if (totalPaid === 0) {
-      paymentStatus = 'Pending'
-    } else if (totalPaid >= paymentRecord.total_amount) {
-      paymentStatus = 'Completed'
-    } else {
-      paymentStatus = 'Partial'
-    }
-
-    // Update the treatment payment record
-    const { error: updateError } = await supabase
-      .from('treatment_payments')
-      .update({ 
-        paid_amount: totalPaid,
-        payment_status: paymentStatus
-      })
-      .eq('id', treatmentPaymentId)
-
-    if (updateError) {
-      throw new Error(`Failed to update treatment payment: ${updateError.message}`)
-    }
+    console.log('⚠️ updateTreatmentPaymentAmount is deprecated - triggers handle this automatically')
+    // This function is kept for backward compatibility but triggers now handle the updates
   },
 
   // Get payment transactions for a treatment payment

@@ -1,67 +1,82 @@
 -- =====================================================
--- 🔧 FIX MULTIPLE PERMISSIVE POLICIES WARNINGS
+-- 🔧 FIX MULTIPLE PERMISSIVE POLICIES
+-- =====================================================
+-- 
+-- This script fixes the specific multiple permissive policy warnings
+-- by removing duplicate policies and keeping only the essential ones
 -- =====================================================
 
+SELECT '=== FIXING MULTIPLE PERMISSIVE POLICIES ===' as section;
+
 -- =====================================================
--- 1. CHECK CURRENT POLICIES
+-- 1. FIX PAYMENT_TRANSACTIONS TABLE
 -- =====================================================
 
-SELECT '=== CURRENT USER_ROLES POLICIES ===' as section;
+SELECT '=== FIXING PAYMENT_TRANSACTIONS POLICIES ===' as section;
 
+-- Drop the duplicate "Allow all for anon" and "Allow all for authenticated" policies
+-- Keep only "Allow all operations on payment_transactions"
+
+-- Drop anon policies
+DROP POLICY IF EXISTS "Allow all for anon" ON payment_transactions;
+
+-- Drop authenticated policies  
+DROP POLICY IF EXISTS "Allow all for authenticated" ON payment_transactions;
+
+-- Verify only one policy remains
 SELECT 
-    schemaname,
-    tablename,
+    'payment_transactions policies after fix' as check_type,
     policyname,
     permissive,
     roles,
-    cmd,
-    qual
+    cmd
 FROM pg_policies 
 WHERE schemaname = 'public'
-AND tablename = 'user_roles'
+AND tablename = 'payment_transactions'
 ORDER BY policyname;
 
 -- =====================================================
--- 2. DROP EXISTING POLICIES
+-- 2. FIX TREATMENT_PAYMENTS TABLE
 -- =====================================================
 
-SELECT '=== DROPPING EXISTING POLICIES ===' as section;
+SELECT '=== FIXING TREATMENT_PAYMENTS POLICIES ===' as section;
 
--- Drop all existing user_roles policies
-DROP POLICY IF EXISTS "Users can view their own roles" ON user_roles;
-DROP POLICY IF EXISTS "Clinic admins can manage user roles" ON user_roles;
+-- Drop the duplicate "Allow all for anon" and "Allow all for authenticated" policies
+-- Keep only "Allow all operations on treatment_payments"
 
--- =====================================================
--- 3. CREATE SINGLE CONSOLIDATED POLICY
--- =====================================================
+-- Drop anon policies
+DROP POLICY IF EXISTS "Allow all for anon" ON treatment_payments;
 
-SELECT '=== CREATING CONSOLIDATED POLICY ===' as section;
+-- Drop authenticated policies
+DROP POLICY IF EXISTS "Allow all for authenticated" ON treatment_payments;
 
--- Create a single policy that handles both cases
-CREATE POLICY "Consolidated user roles policy" ON user_roles
-    FOR ALL USING (
-        -- Users can view their own roles
-        user_id = (select auth.uid())
-        OR
-        -- Clinic admins can manage all roles in their clinic
-        EXISTS (
-            SELECT 1 FROM user_roles ur
-            WHERE ur.user_id = (select auth.uid())
-            AND ur.role = 'clinic_admin'
-            AND ur.clinic_id = user_roles.clinic_id
-        )
-    );
-
--- =====================================================
--- 4. VERIFY THE FIX
--- =====================================================
-
-SELECT '=== VERIFYING THE FIX ===' as section;
-
--- Check that only one policy exists now
+-- Verify only one policy remains
 SELECT 
-    schemaname,
-    tablename,
+    'treatment_payments policies after fix' as check_type,
+    policyname,
+    permissive,
+    roles,
+    cmd
+FROM pg_policies 
+WHERE schemaname = 'public'
+AND tablename = 'treatment_payments'
+ORDER BY policyname;
+
+-- =====================================================
+-- 3. FIX USER_ROLES TABLE
+-- =====================================================
+
+SELECT '=== FIXING USER_ROLES POLICIES ===' as section;
+
+-- Drop the duplicate "Simple user roles policy" 
+-- Keep "Allow all operations on user_roles" and "Users can view their own roles"
+
+-- Drop the duplicate policy
+DROP POLICY IF EXISTS "Simple user roles policy" ON user_roles;
+
+-- Verify remaining policies
+SELECT 
+    'user_roles policies after fix' as check_type,
     policyname,
     permissive,
     roles,
@@ -71,48 +86,50 @@ WHERE schemaname = 'public'
 AND tablename = 'user_roles'
 ORDER BY policyname;
 
--- Test the consolidated policy
-SELECT 
-    'user_roles consolidated test' as test_name,
-    COUNT(*) as result_count
-FROM user_roles 
-WHERE user_id = (select auth.uid());
-
--- Test clinic admin access
-SELECT 
-    'clinic admin test' as test_name,
-    COUNT(*) as result_count
-FROM user_roles 
-WHERE EXISTS (
-    SELECT 1 FROM user_roles ur
-    WHERE ur.user_id = (select auth.uid())
-    AND ur.role = 'clinic_admin'
-    AND ur.clinic_id = user_roles.clinic_id
-);
-
 -- =====================================================
--- 5. TEST RELATED FUNCTIONALITY
+-- 4. VERIFY ALL FIXES
 -- =====================================================
 
-SELECT '=== TESTING RELATED FUNCTIONALITY ===' as section;
+SELECT '=== VERIFYING ALL FIXES ===' as section;
 
--- Test staff_permissions
+-- Check for any remaining multiple permissive policies
+WITH policy_counts AS (
+    SELECT 
+        schemaname,
+        tablename,
+        roles,
+        cmd,
+        COUNT(*) as policy_count
+    FROM pg_policies 
+    WHERE schemaname = 'public'
+    AND permissive = 'PERMISSIVE'
+    GROUP BY schemaname, tablename, roles, cmd
+    HAVING COUNT(*) > 1
+)
 SELECT 
-    'staff_permissions test' as test_name,
-    COUNT(*) as result_count
-FROM staff_permissions 
-WHERE clinic_id = 'c1ca557d-ca85-4905-beb7-c3985692d463';
+    'remaining multiple policies' as check_type,
+    tablename,
+    roles,
+    cmd,
+    policy_count
+FROM policy_counts
+ORDER BY tablename, roles, cmd;
 
--- Test treatment_types
+-- Final policy summary
 SELECT 
-    'treatment_types test' as test_name,
-    COUNT(*) as result_count
-FROM treatment_types 
-WHERE clinic_id = 'c1ca557d-ca85-4905-beb7-c3985692d463' 
-AND is_active = true;
+    'final policy summary' as check_type,
+    tablename,
+    COUNT(*) as total_policies,
+    COUNT(CASE WHEN permissive = 'PERMISSIVE' THEN 1 END) as permissive_policies,
+    string_agg(policyname, ', ' ORDER BY policyname) as policy_names
+FROM pg_policies 
+WHERE schemaname = 'public'
+AND tablename IN ('payment_transactions', 'treatment_payments', 'user_roles')
+GROUP BY tablename
+ORDER BY tablename;
 
 -- =====================================================
--- 6. SUCCESS MESSAGE
+-- 5. SUCCESS MESSAGE
 -- =====================================================
 
-SELECT '🎉 Multiple permissive policies fixed! Single consolidated policy created.' as status;
+SELECT '🔧 Multiple permissive policies fixed! Performance warnings should be resolved.' as status;
