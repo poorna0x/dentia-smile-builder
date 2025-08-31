@@ -52,6 +52,16 @@ export const useSettings = () => {
       
       const data = await settingsApi.get(clinic.id)
       
+      console.log('🔧 Settings Hook Debug - Raw data from API:', {
+        minimum_advance_notice: data?.minimum_advance_notice,
+        type: typeof data?.minimum_advance_notice,
+        isNull: data?.minimum_advance_notice === null,
+        isUndefined: data?.minimum_advance_notice === undefined,
+        fullData: data,
+        cacheKey: cacheKey,
+        isFromCache: !forceRefresh && cached && (now - cached.timestamp) < SETTINGS_CACHE_DURATION
+      });
+      
       // Update cache
       settingsCache.set(cacheKey, { data, timestamp: now })
       setSettings(data)
@@ -147,6 +157,13 @@ export const useSettings = () => {
     refresh: () => loadSettings(true),
     clearCache: () => {
       settingsCache.clear()
+    },
+    clearSettingsCache: () => {
+      if (clinic?.id) {
+        const cacheKey = `settings_${clinic.id}`
+        settingsCache.delete(cacheKey)
+        console.log('🔧 Settings cache cleared for clinic:', clinic.id)
+      }
     }
   }
 }

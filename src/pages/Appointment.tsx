@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import dentistChildImage from '@/assets/dentist-patient.jpg';
 import { toast } from 'sonner';
-import { appointmentsApi, supabase, disabledSlotsApi, DisabledSlot } from '@/lib/supabase';
+import { appointmentsApi, supabase, disabledSlotsApi, DisabledSlot, getMinimumAdvanceNotice } from '@/lib/supabase';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
@@ -108,7 +108,9 @@ const Appointment = () => {
     const now = new Date();
     
     // Get minimum advance notice from settings (default to 24 hours)
-    const minimumAdvanceNotice = settings?.minimum_advance_notice !== null && settings?.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24;
+    const minimumAdvanceNotice = getMinimumAdvanceNotice(settings);
+    
+    
     
     // Calculate the earliest allowed booking time
     const earliestBookingTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
@@ -117,8 +119,13 @@ const Appointment = () => {
     let startDate = new Date(earliestBookingTime);
     startDate.setHours(0, 0, 0, 0); // Start of day
     
-    // If the earliest booking time is today, start from tomorrow
-    if (startDate <= today) {
+    // If minimum advance notice is 0, allow booking today
+    // Otherwise, if the earliest booking time is today, start from tomorrow
+    if (minimumAdvanceNotice === 0) {
+      // For 0 hours advance notice, start from today
+      startDate = new Date(today);
+    } else if (startDate <= today) {
+      // For non-zero advance notice, start from tomorrow if earliest time is today
       startDate = new Date(today);
       startDate.setDate(today.getDate() + 1);
     }
@@ -162,7 +169,16 @@ const Appointment = () => {
   // Update date to next available date when settings load
   useEffect(() => {
     if (settings && !settingsLoading) {
+      console.log('📅 Appointment Debug - Settings loaded, calculating next available date:', {
+        minimumAdvanceNotice: getMinimumAdvanceNotice(settings),
+        currentDate: new Date(),
+        settingsLoaded: !!settings,
+        settingsId: settings.id, // To track if settings object changes
+        timestamp: new Date().toISOString()
+      });
+      
       const nextAvailableDate = getNextAvailableDate();
+      console.log('📅 Appointment Debug - Next available date calculated:', nextAvailableDate);
       setDate(nextAvailableDate);
     }
   }, [settings, settingsLoading]);
@@ -572,11 +588,23 @@ const Appointment = () => {
         return slotStart < disabledEnd && slotEnd > disabledStart;
       });
 
-      // Disable past times and times within 1 hour if the selected date is today
+      // Disable past times based on minimum advance notice setting
       const now = new Date();
       const isToday = dateForSlots.toDateString() === now.toDateString();
-      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
-      const isPast = isToday && slotStart.getTime() <= oneHourFromNow.getTime();
+      const minimumAdvanceNotice = getMinimumAdvanceNotice(settings);
+      const earliestAllowedTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
+      const isPast = isToday && slotStart.getTime() <= earliestAllowedTime.getTime();
+      
+      // Debug logging for time slots
+      if (isToday && slotStart.getTime() > now.getTime() && slotStart.getTime() <= earliestAllowedTime.getTime()) {
+        console.log('📅 Time Slot Debug - Slot being disabled:', {
+          slotTime: slotStart.toLocaleTimeString(),
+          minimumAdvanceNotice,
+          earliestAllowedTime: earliestAllowedTime.toLocaleTimeString(),
+          isPast,
+          timeDifference: Math.round((earliestAllowedTime.getTime() - slotStart.getTime()) / (1000 * 60)) + ' minutes'
+        });
+      }
 
       if (!overlapsBreak && !overlapsDisabledSlot && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
@@ -1012,7 +1040,7 @@ const Appointment = () => {
                             const now = new Date();
                             
                             // Get minimum advance notice from settings (default to 24 hours)
-                            const minimumAdvanceNotice = settings?.minimum_advance_notice !== null && settings?.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24;
+                            const minimumAdvanceNotice = getMinimumAdvanceNotice(settings);
                             
                             // Calculate the earliest allowed booking time
                             const earliestBookingTime = new Date(now.getTime() + (minimumAdvanceNotice * 60 * 60 * 1000));
@@ -1020,8 +1048,32 @@ const Appointment = () => {
                             earliestBookingDate.setHours(0, 0, 0, 0);
                             
                             const isPast = day < today;
-                            const isTooSoon = day < earliestBookingDate;
+                            // For 0 hours advance notice, don't check if too soon
+                            const isTooSoon = minimumAdvanceNotice === 0 ? false : day < earliestBookingDate;
                             const isHoliday = isDateHoliday(day);
+                            
+                            // Debug logging for specific dates
+                            if (day.getDate() === new Date().getDate()) { // Today
+                              console.log('📅 Calendar Debug - Today check:', {
+                                day: day.toDateString(),
+                                minimumAdvanceNotice,
+                                earliestBookingDate: earliestBookingDate.toDateString(),
+                                isPast,
+                                isTooSoon,
+                                isHoliday,
+                                willBeDisabled: isPast || isTooSoon || isHoliday
+                              });
+                            } else if (day.getDate() === new Date().getDate() + 1) { // Tomorrow
+                              console.log('📅 Calendar Debug - Tomorrow check:', {
+                                day: day.toDateString(),
+                                minimumAdvanceNotice,
+                                earliestBookingDate: earliestBookingDate.toDateString(),
+                                isPast,
+                                isTooSoon,
+                                isHoliday,
+                                willBeDisabled: isPast || isTooSoon || isHoliday
+                              });
+                            }
                             
                             return isPast || isTooSoon || isHoliday;
                           }}

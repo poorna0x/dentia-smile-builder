@@ -132,6 +132,19 @@ export interface NotificationSettings {
   auto_confirm: boolean
 }
 
+// Helper function to get minimum advance notice from settings
+export const getMinimumAdvanceNotice = (settings: SchedulingSettings | null): number => {
+  if (!settings) return 24; // Default fallback
+  
+  // Check if the value exists and is valid
+  if (settings.minimum_advance_notice !== null && settings.minimum_advance_notice !== undefined) {
+    return settings.minimum_advance_notice;
+  }
+  
+  // Default fallback
+  return 24;
+};
+
 export interface StaffPermissions {
   id: string
   clinic_id: string

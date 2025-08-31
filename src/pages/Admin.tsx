@@ -9,7 +9,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { usePermissions } from '@/hooks/usePermissions';
-import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType } from '@/lib/supabase';
+import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType, getMinimumAdvanceNotice } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
@@ -237,7 +237,7 @@ const Admin = () => {
     deleteAppointment,
     refresh: refreshAppointments
   } = useOptimizedAppointments()
-  const { settings, loading: settingsLoading, refresh: refreshSettings } = useSettings();
+  const { settings, loading: settingsLoading, refresh: refreshSettings, clearSettingsCache } = useSettings();
   const { isDentist, isStaff, hasPermission, clearRole, userRole, refreshPermissions } = usePermissions();
   const { toast: toastHook } = useToast();
 
@@ -535,6 +535,13 @@ const Admin = () => {
       // Syncing settings from database
       
       // Convert database format to frontend format
+      console.log('🔧 Settings Debug - Raw settings from DB:', {
+        minimum_advance_notice: settings.minimum_advance_notice,
+        type: typeof settings.minimum_advance_notice,
+        isNull: settings.minimum_advance_notice === null,
+        isUndefined: settings.minimum_advance_notice === undefined
+      });
+      
       const convertedSettings: SchedulingSettings = {
         appointmentsDisabled: settings.disabled_appointments || false,
         disableMessage: "We're currently not accepting new appointments. Please check back later or contact us directly.",
@@ -547,7 +554,7 @@ const Admin = () => {
         }),
         customHolidays: settings.custom_holidays || [],
         showStatsCards: settings.show_stats_cards !== false, // Default to true if not set
-        minimumAdvanceNotice: settings.minimum_advance_notice !== null && settings.minimum_advance_notice !== undefined ? settings.minimum_advance_notice : 24, // Default: 24 hours
+        minimumAdvanceNotice: getMinimumAdvanceNotice(settings), // Use helper function to handle both column names
         dentalNumberingSystem: settings.dental_numbering_system || 'universal', // Default: universal
         daySchedules: {
           Mon: { enabled: true, startTime: '09:00', endTime: '18:00', breakStart: ['13:00'], breakEnd: ['14:00'], slotInterval: 30 },
@@ -1736,8 +1743,10 @@ Jeshna Dental Clinic Team`;
           
           // Attempting to save settings data
           const result = await settingsApi.upsert(settingsData);
-                      // Settings auto-saved successfully
+          // Settings auto-saved successfully
           toast.success('Settings saved automatically');
+          
+          // Settings auto-saved successfully
         }
       } catch (error) {
         console.error('Error auto-saving settings:', error);
@@ -3051,7 +3060,7 @@ Jeshna Dental Clinic Team`;
                           max="120"
                           step="15"
                           value={schedulingSettings.daySchedules[selectedDay].slotInterval}
-                          onChange={(e) => handleScheduleUpdate(selectedDay, 'slotInterval', parseInt(e.target.value))}
+                          onChange={(e) => handleScheduleUpdate(selectedDay, 'slotInterval', parseInt(e.target.value) || 30)}
                         />
                       </div>
                       
