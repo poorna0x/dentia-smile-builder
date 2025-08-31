@@ -137,7 +137,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
   
   // Image form state for multi-tooth upload
   const [imageForm, setImageForm] = useState({
-    image_type: '',
+    image_type: 'xray' as 'xray' | 'photo' | 'scan',
     description: '',
     file: null as File | null,
     previewUrl: null as string | null,
@@ -611,7 +611,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       // Reset form and close dialog
       setImageForm({
-        image_type: '',
+        image_type: 'xray' as 'xray' | 'photo' | 'scan',
         description: '',
         file: null,
         previewUrl: null,
