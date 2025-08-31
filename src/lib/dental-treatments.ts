@@ -216,7 +216,7 @@ export const dentalTreatmentApi = {
       .select('*')
       .eq('patient_id', patientId)
       .eq('clinic_id', clinicId)
-      .order('treatment_date', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (error) {
       throw new Error(`Failed to get dental treatments: ${error.message}`)
@@ -233,7 +233,7 @@ export const dentalTreatmentApi = {
       .eq('patient_id', patientId)
       .eq('tooth_number', toothNumber)
       .eq('clinic_id', clinicId)
-      .order('treatment_date', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (error) {
       console.error('API: Error getting treatments by tooth:', error)

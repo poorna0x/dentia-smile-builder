@@ -264,34 +264,82 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       const allTreatments = await dentalTreatmentApi.getByPatient(patientId, clinicId)
 
       // Find treatments that are part of the same multi-tooth procedure
+      const currentTreatmentCreatedAt = new Date(treatment.created_at).getTime()
+      const timeWindowMs = 2 * 60 * 1000 // 2 minutes window for multi-tooth procedures
+      
       const relatedTreatments = allTreatments.filter(t => {
+        // More precise matching criteria for multi-tooth procedures
         const sameDescription = t.treatment_description === treatment.treatment_description
         const sameDate = t.treatment_date === treatment.treatment_date
+        const sameType = t.treatment_type === treatment.treatment_type
+        const sameCost = t.cost === treatment.cost
         
-        const currentTreatmentDate = new Date(treatment.created_at)
-        const otherTreatmentDate = new Date(t.created_at)
-        const timeDiff = Math.abs(currentTreatmentDate.getTime() - otherTreatmentDate.getTime())
-        const withinTimeWindow = timeDiff < 5 * 60 * 1000 // 5 minutes
-
-        const isRelated = sameDescription && sameDate && withinTimeWindow && t.id !== treatment.id
+        // Time window check: only sync to treatments created within 2 minutes
+        const treatmentCreatedAt = new Date(t.created_at).getTime()
+        const withinTimeWindow = Math.abs(treatmentCreatedAt - currentTreatmentCreatedAt) <= timeWindowMs
+        
+        // Only sync if ALL criteria match including time window
+        // Include ALL treatments from the same multi-tooth procedure (including current one for counting)
+        const isRelated = sameDescription && sameDate && sameType && sameCost && withinTimeWindow
+        
         return isRelated
       })
 
       const isMultiTooth = relatedTreatments.length > 0
 
       if (!isMultiTooth) {
+        console.log('🦷 No related treatments found for multi-tooth sync')
         return
       }
 
-      // Show confirmation toast
-      toast.info(`Syncing payment across ${relatedTreatments.length} teeth. This will take a few seconds...`)
+      // Get total count of all treatments in this multi-tooth procedure
+      const totalTeethInProcedure = relatedTreatments.length
+      console.log(`🦷 Found ${totalTeethInProcedure} teeth in this multi-tooth procedure`)
+
+      // Filter out the current treatment for syncing (it gets payment directly)
+      const treatmentsToSync = relatedTreatments.filter(t => t.id !== treatment.id)
+      console.log(`🦷 Will sync payment to ${treatmentsToSync.length} other teeth`)
+
+      // Additional safety check: verify these are truly part of the same multi-tooth procedure
+      // by checking if they have similar payment patterns
+      const validRelatedTreatments = []
+      for (const relatedTreatment of treatmentsToSync) {
+        try {
+          const relatedPayment = await simplePaymentApi.getTreatmentPayment(relatedTreatment.id)
+          if (relatedPayment) {
+            // Only sync to treatments that have the same total amount (indicating same procedure)
+            if (relatedPayment.total_amount === paymentSummary?.total_amount) {
+              validRelatedTreatments.push(relatedTreatment)
+            } else {
+              console.log(`🦷 Skipping tooth ${relatedTreatment.tooth_number} - different total amount`)
+            }
+          } else {
+            console.log(`🦷 No payment record for tooth ${relatedTreatment.tooth_number}`)
+          }
+        } catch (error) {
+          console.error(`🦷 Error checking payment for tooth ${relatedTreatment.tooth_number}:`, error)
+        }
+      }
+
+      console.log(`🦷 Valid treatments for sync: ${validRelatedTreatments.length}`)
+
+      if (validRelatedTreatments.length === 0) {
+        console.log('🦷 No valid related treatments found for sync after payment amount verification')
+        return
+      }
+
+      // Show confirmation toast with total teeth count
+      toast.info(`Syncing payment across ${totalTeethInProcedure} teeth. This will take a few seconds...`)
 
       // Update payment records for all related treatments
-      for (const relatedTreatment of relatedTreatments) {
+      let actuallySyncedCount = 0
+      for (const relatedTreatment of validRelatedTreatments) {
         try {
           const relatedPayment = await simplePaymentApi.getTreatmentPayment(relatedTreatment.id)
           
           if (relatedPayment) {
+            let syncedThisTreatment = false
+            
             if (paymentAmount > 0) {
               await simplePaymentApi.addPaymentTransaction({
                 treatment_payment_id: relatedPayment.id,
@@ -299,6 +347,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 payment_date: formData.payment_date,
                 notes: `Multi-tooth sync: ${formData.notes || 'Additional payment'}`
               })
+              syncedThisTreatment = true
             }
 
             if (miscAmount > 0) {
@@ -308,15 +357,23 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
                 payment_date: formData.payment_date,
                 notes: `Multi-tooth sync: Miscellaneous: ${miscCost.description} (₹${miscAmount})`
               })
+              syncedThisTreatment = true
+            }
+            
+            if (syncedThisTreatment) {
+              actuallySyncedCount++
             }
           }
         } catch (error) {
+          console.error(`🦷 Error syncing to tooth ${relatedTreatment.tooth_number}:`, error)
           // Continue with other treatments even if one fails
         }
       }
 
-      // Show completion notification
-      toast.success(`✅ Payment synced across ${relatedTreatments.length} teeth successfully!`)
+      console.log(`🦷 Successfully synced to ${actuallySyncedCount} teeth`)
+
+      // Show completion notification with total teeth count
+      toast.success(`✅ Payment synced across ${totalTeethInProcedure} teeth successfully!`)
     } catch (error) {
       toast.error('❌ Failed to sync payment across teeth')
     }

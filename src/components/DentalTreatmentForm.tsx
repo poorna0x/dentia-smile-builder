@@ -177,6 +177,7 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         treatment_description: formData.treatment_description || undefined,
         treatment_status: formData.treatment_status,
         treatment_date: formData.treatment_date || undefined,
+        cost: parseFloat(formData.cost) || 0,
         notes: formData.notes || undefined,
         created_by: getFinalDoctorNames()
       }

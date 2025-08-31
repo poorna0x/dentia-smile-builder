@@ -161,7 +161,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
     treatment_date: new Date().toISOString().split('T')[0],
     notes: '',
     // Payment fields for multi-tooth procedures
-    include_payment: false,
+    include_payment: true,
     payment_type: 'full' as 'full' | 'partial',
     total_cost: '',
     payment_amount: '',
@@ -401,7 +401,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
   }
 
   const selectAllTeeth = () => {
-    setSelectedTeeth(teeth.map(t => t.number))
+    const allTeethNumbers = teeth.map(t => t.number)
+    console.log('🦷 selectAllTeeth - Total teeth array length:', teeth.length)
+    console.log('🦷 selectAllTeeth - Selected teeth count:', allTeethNumbers.length)
+    console.log('🦷 selectAllTeeth - Selected teeth:', allTeethNumbers)
+    setSelectedTeeth(allTeethNumbers)
   }
 
   const selectUpperJaw = () => {
@@ -409,7 +413,12 @@ const ToothChart: React.FC<ToothChartProps> = ({
   }
 
   const selectLowerJaw = () => {
-    setSelectedTeeth(teeth.slice(16, 32).map(t => t.number))
+    const lowerTeeth = teeth.slice(16, 32)
+    const lowerTeethNumbers = lowerTeeth.map(t => t.number)
+    console.log('🦷 selectLowerJaw - Total teeth array length:', teeth.length)
+    console.log('🦷 selectLowerJaw - Lower teeth slice (16, 32):', lowerTeeth.length)
+    console.log('🦷 selectLowerJaw - Lower teeth numbers:', lowerTeethNumbers)
+    setSelectedTeeth(lowerTeethNumbers)
   }
 
   const selectQuadrant = (quadrant: number) => {
@@ -681,76 +690,35 @@ const ToothChart: React.FC<ToothChartProps> = ({
           treatment_description: treatmentForm.treatment_description,
           treatment_status: treatmentForm.treatment_status,
           treatment_date: treatmentForm.treatment_date,
-          notes: treatmentForm.notes
+          notes: treatmentForm.notes,
+          cost: parseFloat(treatmentForm.total_cost) || 0
         })
       )
 
+      console.log(`🦷 Attempting to create treatments for ${selectedTeeth.length} teeth:`, selectedTeeth)
+      
       const createdTreatments = await Promise.all(treatmentPromises)
       
-      // Create payment record if payment is included
-      if (treatmentForm.include_payment && treatmentForm.payment_amount > 0) {
-        setProcessingMessage('Creating payment records...')
-        try {
-          // Import payment API dynamically to avoid circular dependencies
-          const { simplePaymentApi } = await import('@/lib/payment-system-simple')
-          
-          // Calculate payment details based on payment type
-          const totalCost = parseFloat(treatmentForm.total_cost) || parseFloat(treatmentForm.payment_amount) || 0
-          const paymentAmount = parseFloat(treatmentForm.payment_amount) || 0
-          const remainingBalance = totalCost - paymentAmount
-          
-          // Create payment records for all treatments in the multi-tooth procedure
-          for (const treatment of createdTreatments) {
-            try {
-              // Calculate payment status correctly
-              let paymentStatus: 'Pending' | 'Partial' | 'Completed'
-              if (paymentAmount === 0) {
-                paymentStatus = 'Pending'
-              } else if (remainingBalance > 0) {
-                paymentStatus = 'Partial'
-              } else {
-                paymentStatus = 'Completed'
-              }
-
-              // Create the treatment payment record
-              const paymentData = {
-                clinic_id: clinicId,
-                patient_id: patientId,
-                treatment_id: treatment.id,
-                total_amount: totalCost,
-                paid_amount: paymentAmount,
-                payment_status: paymentStatus
-              }
-              
-              const treatmentPayment = await simplePaymentApi.createTreatmentPayment(paymentData)
-              
-              // Create the initial payment transaction
-              if (paymentAmount > 0) {
-                const transactionData = {
-                  treatment_payment_id: treatmentPayment.id,
-                  amount: paymentAmount,
-                  payment_date: treatmentForm.treatment_date
-                }
-                
-                const transaction = await simplePaymentApi.addPaymentTransaction(transactionData)
-              }
-              
-
-            } catch (error) {
-              console.error(`Error creating payment for treatment ${treatment.id}:`, error)
-            }
-          }
-          
-
-          
-          // Refresh tooth data to show the new payments
-          setProcessingMessage('Finalizing...')
-          await loadToothData()
-        } catch (paymentError) {
-          console.error('Error creating payment records:', paymentError)
-          // Don't fail the entire operation if payment creation fails
-        }
+      console.log(`🦷 Successfully created ${createdTreatments.length} treatments out of ${selectedTeeth.length} selected teeth`)
+      console.log('🦷 Created treatments:', createdTreatments.map(t => ({
+        id: t.id,
+        tooth: t.tooth_number,
+        type: t.treatment_type,
+        cost: t.cost
+      })))
+      
+      if (createdTreatments.length !== selectedTeeth.length) {
+        console.warn(`⚠️  Warning: Only ${createdTreatments.length} treatments created out of ${selectedTeeth.length} selected teeth`)
+        console.warn('⚠️  This might indicate some treatments failed to create')
       }
+      
+      // Note: Payment records are automatically created by database triggers when treatments are created
+      // No need to manually create payment records here - they will be created automatically
+      console.log('🦷 Multi-tooth treatments created. Payment records will be auto-created by database triggers.')
+      
+      // Refresh tooth data to show the new treatments and their payment records
+      setProcessingMessage('Finalizing...')
+      await loadToothData()
       
       // Reset form and close dialog
       setTreatmentForm({
@@ -760,7 +728,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_status: 'Completed',
         treatment_date: new Date().toISOString().split('T')[0],
         notes: '',
-        include_payment: false,
+        include_payment: true,
         payment_type: 'full',
         total_cost: '',
         payment_amount: '',
@@ -892,7 +860,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
         treatment_status: 'Completed',
         treatment_date: new Date().toISOString().split('T')[0],
         notes: '',
-        include_payment: false,
+        include_payment: true,
         payment_type: 'full',
         total_cost: '',
         payment_amount: '',
@@ -2196,52 +2164,55 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="treatment_type">Treatment Type *</Label>
-                    <Select value={treatmentForm.treatment_type} onValueChange={(value) => setTreatmentForm(prev => ({ ...prev, treatment_type: value }))}>
+                    <Select value={treatmentForm.treatment_type} onValueChange={(value) => {
+                      console.log('🦷 Multi-tooth treatment type selected:', value)
+                      
+                      setTreatmentForm(prev => {
+                        console.log('🦷 Setting multi-tooth treatment type in form:', value)
+                        return { ...prev, treatment_type: value }
+                      })
+                      
+                      // Auto-fill cost when treatment type is selected
+                      if (value && value !== 'Other') {
+                        console.log('🦷 Looking for treatment type:', value)
+                        const selectedType = treatmentTypes.find(type => type.name === value)
+                        console.log('🦷 Selected treatment type object:', selectedType)
+                        
+                        if (selectedType) {
+                          console.log('🦷 Found treatment type, default_cost:', selectedType.default_cost)
+                          console.log('🦷 Auto-filling cost:', selectedType.default_cost)
+                          setTreatmentForm(prev => {
+                            const newForm = { 
+                              ...prev, 
+                              treatment_type: value,
+                              total_cost: selectedType.default_cost.toString()
+                            }
+                            console.log('🦷 Updated multi-tooth treatment form:', newForm)
+                            return newForm
+                          })
+                        } else {
+                          console.log('🦷 No matching treatment type found for:', value)
+                          console.log('🦷 Available names:', treatmentTypes.map(t => t.name))
+                        }
+                      } else {
+                        console.log('🦷 Value is empty or "Other", skipping cost auto-fill')
+                      }
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select treatment type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {/* Common treatments first */}
-                        <SelectItem value="Cleaning">Cleaning</SelectItem>
-                        <SelectItem value="Filling">Filling</SelectItem>
-                        <SelectItem value="Root Canal">Root Canal</SelectItem>
-                        <SelectItem value="Extraction">Extraction</SelectItem>
-                        <SelectItem value="Crown">Crown</SelectItem>
-                        <SelectItem value="Bridge">Bridge</SelectItem>
-                        <SelectItem value="Implant">Implant</SelectItem>
-                        
-                        {/* Orthodontic treatments */}
-                        <SelectItem value="Braces Installation">Braces Installation</SelectItem>
-                        <SelectItem value="Braces Adjustment">Braces Adjustment</SelectItem>
-                        <SelectItem value="Braces Removal">Braces Removal</SelectItem>
-                        <SelectItem value="Retainer Fitting">Retainer Fitting</SelectItem>
-                        <SelectItem value="Retainer Adjustment">Retainer Adjustment</SelectItem>
-                        <SelectItem value="Clear Aligners">Clear Aligners</SelectItem>
-                        
-                        {/* Preventive treatments */}
-                        <SelectItem value="Whitening">Whitening</SelectItem>
-                        <SelectItem value="Sealant">Sealant</SelectItem>
-                        <SelectItem value="Fluoride Treatment">Fluoride Treatment</SelectItem>
-                        <SelectItem value="Deep Cleaning">Deep Cleaning</SelectItem>
-                        <SelectItem value="Scaling">Scaling</SelectItem>
-                        
-                        {/* Restorative treatments */}
-                        <SelectItem value="Veneer">Veneer</SelectItem>
-                        <SelectItem value="Inlay">Inlay</SelectItem>
-                        <SelectItem value="Onlay">Onlay</SelectItem>
-                        <SelectItem value="Denture">Denture</SelectItem>
-                        <SelectItem value="Partial Denture">Partial Denture</SelectItem>
-                        
-                        {/* Diagnostic and other */}
-                        <SelectItem value="X-Ray">X-Ray</SelectItem>
-                        <SelectItem value="CT Scan">CT Scan</SelectItem>
-                        <SelectItem value="Consultation">Consultation</SelectItem>
-                        <SelectItem value="Follow-up">Follow-up</SelectItem>
-                        <SelectItem value="Emergency Treatment">Emergency Treatment</SelectItem>
-                        <SelectItem value="Pain Management">Pain Management</SelectItem>
-                        <SelectItem value="Gum Treatment">Gum Treatment</SelectItem>
-                        <SelectItem value="Oral Surgery">Oral Surgery</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
+                        {loadingTreatmentTypes ? (
+                          <SelectItem value="loading" disabled>Loading treatment types...</SelectItem>
+                        ) : treatmentTypes.length === 0 ? (
+                          <SelectItem value="no-data" disabled>No treatment types available</SelectItem>
+                        ) : (
+                          treatmentTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.name} className="text-sm">
+                              {type.name} - ₹{type.default_cost.toLocaleString()}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -2311,8 +2282,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   
                   {treatmentForm.include_payment && (
                     <div className="space-y-4 bg-green-50 p-4 rounded-lg border border-green-200">
-                      {/* Payment Type Selection */}
-                      <div>
+                      {/* Payment Type Selection - Hidden in multi-tooth */}
+                      <div className="hidden">
                         <Label htmlFor="payment_type">Payment Type *</Label>
                         <Select value={treatmentForm.payment_type} onValueChange={(value: any) => setTreatmentForm(prev => ({ ...prev, payment_type: value }))}>
                           <SelectTrigger>
@@ -2345,8 +2316,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
                         />
                       </div>
 
-                      {/* Payment Amount */}
-                      <div>
+                      {/* Payment Amount - Hidden in multi-tooth */}
+                      <div className="hidden">
                         <Label htmlFor="payment_amount">
                           {treatmentForm.payment_type === 'full' ? 'Payment Amount' : 'Partial Payment Amount'} *
                         </Label>
@@ -2385,15 +2356,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
                       <div className="text-sm text-green-700 bg-green-100 p-3 rounded">
                         <div className="font-medium mb-2">Payment Summary:</div>
                         <div>• Total Cost: ₹{parseFloat(treatmentForm.total_cost || '0').toFixed(2)}</div>
-                        <div>• Payment Type: {treatmentForm.payment_type === 'full' ? 'Full Payment' : 'Partial Payment'}</div>
-                        <div>• Amount: ₹{parseFloat(treatmentForm.payment_amount || '0').toFixed(2)}</div>
-                        {treatmentForm.payment_type === 'partial' && parseFloat(treatmentForm.total_cost || '0') > 0 && (
-                          <div>• Remaining: ₹{(parseFloat(treatmentForm.total_cost || '0') - parseFloat(treatmentForm.payment_amount || '0')).toFixed(2)}</div>
-                        )}
-
                         <div className="mt-2 text-xs">
-                          💡 <strong>Note:</strong> Payment records will be created for all {selectedTeeth.length} teeth, 
-                          making it easy to track payments when viewing any involved tooth.
+                          💡 <strong>Note:</strong> Payment records will be automatically created for all {selectedTeeth.length} teeth. 
+                          You can manage payments later in the Payment tab of any involved tooth.
                         </div>
                       </div>
                     </div>

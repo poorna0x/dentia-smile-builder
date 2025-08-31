@@ -126,6 +126,9 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
                       {hasPayment && (
                         <DollarSign className="h-4 w-4 text-green-600" />
                       )}
+                      {treatment.created_at && new Date(treatment.created_at).toDateString() === new Date().toDateString() && (
+                        <Badge className="bg-blue-100 text-blue-800 text-xs">NEW</Badge>
+                      )}
                     </div>
                     
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
@@ -137,6 +140,12 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           <span>{new Date(treatment.treatment_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      {treatment.created_at && (
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <span className="text-xs">Created:</span>
+                          <span className="text-xs">{new Date(treatment.created_at).toLocaleDateString()}</span>
                         </div>
                       )}
                     </div>

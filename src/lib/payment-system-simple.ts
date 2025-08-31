@@ -221,11 +221,6 @@ export const simplePaymentApi = {
 
   // Add a payment transaction
   addPaymentTransaction: async (transaction: Omit<PaymentTransaction, 'id' | 'created_at'>): Promise<PaymentTransaction> => {
-    console.log('🔍 Debug - API received transaction data:', transaction)
-    console.log('🔍 Transaction type check:', typeof transaction.amount)
-    console.log('🔍 Payment method check:', transaction.payment_method)
-    console.log('🔍 Payment date check:', transaction.payment_date)
-    
     try {
       const { data, error } = await supabase
         .from('payment_transactions')
@@ -234,15 +229,10 @@ export const simplePaymentApi = {
         .single()
 
       if (error) {
-        console.error('❌ API Error details:', error)
-        console.error('❌ Error code:', error.code)
-        console.error('❌ Error message:', error.message)
-        console.error('❌ Error details:', error.details)
-        console.error('❌ Error hint:', error.hint)
+        console.error('❌ Payment transaction error:', error.message)
         throw new Error(`Failed to add payment transaction: ${error.message}`)
       }
 
-      console.log('✅ Transaction added successfully:', data)
       return data
     } catch (error) {
       console.error('❌ Exception in addPaymentTransaction:', error)
