@@ -194,6 +194,7 @@ export default function AdminPatientManagement() {
   // Form validation states
   const [phoneError, setPhoneError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [isSubmittingPatient, setIsSubmittingPatient] = useState(false);
   
   // Phone number formatting function
   const formatPhoneNumber = (phoneNumber: string): string => {
@@ -2364,6 +2365,9 @@ export default function AdminPatientManagement() {
   };
 
   const handleAddPatient = async () => {
+    // Prevent multiple submissions
+    if (isSubmittingPatient) return;
+    
     console.log('Component: Starting to add patient');
     console.log('Component: Clinic object:', clinic);
     console.log('Component: Clinic ID:', clinic?.id);
@@ -2378,64 +2382,71 @@ export default function AdminPatientManagement() {
       return;
     }
     
-    // Validation
+    // Comprehensive validation - collect all errors
+    const errors: string[] = [];
+    
+    // Required field validation
     if (!patientForm.first_name.trim()) {
-      toast({
-        title: "Error",
-        description: "First name is required",
-        variant: "destructive"
-      });
-      return;
+      errors.push("First name is required");
     }
     
     if (!patientForm.phone.trim()) {
-      toast({
-        title: "Error",
-        description: "Phone number is required",
-        variant: "destructive"
-      });
-      return;
+      errors.push("Phone number is required");
     }
     
-    // Phone number validation
-    if (!validatePhone(patientForm.phone)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid phone number",
-        variant: "destructive"
-      });
-      return;
+    // Phone number format validation
+    if (patientForm.phone.trim() && !validatePhone(patientForm.phone)) {
+      errors.push("Please enter a valid 10-digit phone number");
     }
     
     // Email validation (if provided)
     if (patientForm.email && !validateEmail(patientForm.email)) {
+      errors.push("Please enter a valid email address");
+    }
+    
+    // Show all validation errors at once
+    if (errors.length > 0) {
       toast({
-        title: "Error",
-        description: "Please enter a valid email address",
+        title: "Validation Error",
+        description: errors.join(". "),
         variant: "destructive"
       });
       return;
     }
     
-    // Check for duplicates
-    console.log('Starting duplicate check...');
-    const duplicateCheck = await checkForDuplicates();
-    console.log('Duplicate check result:', duplicateCheck);
+    // Start loading state
+    setIsSubmittingPatient(true);
     
-    if (duplicateCheck.patients.length > 0) {
-      console.log('Duplicate found, showing dialog');
-      // Show duplicate dialog
-      setExistingPatients(duplicateCheck.patients);
-      setDuplicateType(duplicateCheck.type || 'phone');
-      setNameSimilarity(duplicateCheck.similarity);
-      setSelectedPatient(duplicateCheck.patients[0]); // Auto-select most recent
-      setShowDuplicateDialog(true);
-      return;
+    try {
+      // Check for duplicates
+      console.log('Starting duplicate check...');
+      const duplicateCheck = await checkForDuplicates();
+      console.log('Duplicate check result:', duplicateCheck);
+      
+      if (duplicateCheck.patients.length > 0) {
+        console.log('Duplicate found, showing dialog');
+        // Show duplicate dialog
+        setExistingPatients(duplicateCheck.patients);
+        setDuplicateType(duplicateCheck.type || 'phone');
+        setNameSimilarity(duplicateCheck.similarity);
+        setSelectedPatient(duplicateCheck.patients[0]); // Auto-select most recent
+        setShowDuplicateDialog(true);
+        return;
+      }
+      
+      console.log('No duplicates found, creating new patient');
+      // No duplicates found, create new patient
+      await createNewPatient();
+    } catch (error) {
+      console.error('Error in handleAddPatient:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add patient. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingPatient(false);
     }
-    
-    console.log('No duplicates found, creating new patient');
-    // No duplicates found, create new patient
-    await createNewPatient();
   };
 
   const handleAddTreatment = async () => {
@@ -2889,7 +2900,13 @@ export default function AdminPatientManagement() {
                       id="first_name"
                       value={patientForm.first_name}
                       onChange={(e) => handleNameChange('first_name', e.target.value)}
+                      className={!patientForm.first_name.trim() ? 'border-red-500 focus:border-red-500' : ''}
                     />
+                    {!patientForm.first_name.trim() && (
+                      <div className="text-sm text-red-600 mt-1">
+                        First name is required
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="last_name">Last Name</Label>
@@ -2907,7 +2924,13 @@ export default function AdminPatientManagement() {
                       placeholder="9876543210, +91 9876543210, or 09876543210"
                       value={patientForm.phone}
                       onChange={(e) => handlePhoneChange(e.target.value)}
+                      className={!patientForm.phone.trim() || phoneError ? 'border-red-500 focus:border-red-500' : ''}
                     />
+                    {!patientForm.phone.trim() && (
+                      <div className="text-sm text-red-600 mt-1">
+                        Phone number is required
+                      </div>
+                    )}
                     {phoneError && (
                       <div className="text-sm text-red-600 mt-1">
                         {phoneError}
@@ -3080,8 +3103,18 @@ export default function AdminPatientManagement() {
                   }}>
                     Cancel
                   </Button>
-                  <Button onClick={isEditMode ? handleUpdatePatient : handleAddPatient}>
-                    {isEditMode ? 'Update Patient' : 'Add Patient'}
+                  <Button 
+                    onClick={isEditMode ? handleUpdatePatient : handleAddPatient}
+                    disabled={isSubmittingPatient}
+                  >
+                    {isSubmittingPatient ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Adding Patient...
+                      </>
+                    ) : (
+                      isEditMode ? 'Update Patient' : 'Add Patient'
+                    )}
                   </Button>
                   </div>
                 </div>
