@@ -48,6 +48,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { toothChartUtils } from '@/lib/dental-treatments';
 
 // WhatsApp Icon SVG
 const WhatsAppIcon = () => (
@@ -277,7 +278,7 @@ const PrescriptionsDetail = ({
   );
 };
 
-// Detailed Dental Chart Component with 32 Teeth
+// Detailed Dental Chart Component with FDI Numbering System
 const DetailedDentalChart = ({ 
   patient, 
   dentalTreatments,
@@ -291,46 +292,46 @@ const DetailedDentalChart = ({
 }) => {
   const [dentalData, setDentalData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
+  const [selectedTooth, setSelectedTooth] = useState<string | null>(null);
 
-  // Define all 32 teeth with their positions and user-friendly names
+  // Define all 32 teeth using FDI numbering system (same as dentist chart)
   const teeth = [
-    // Upper right (1-8) - Patient's Right Side
-    { number: 1, name: 'Upper Right Third Molar (Wisdom Tooth)', position: 'top', side: 'Right' },
-    { number: 2, name: 'Upper Right Second Molar', position: 'top', side: 'Right' },
-    { number: 3, name: 'Upper Right First Molar', position: 'top', side: 'Right' },
-    { number: 4, name: 'Upper Right Second Premolar', position: 'top', side: 'Right' },
-    { number: 5, name: 'Upper Right First Premolar', position: 'top', side: 'Right' },
-    { number: 6, name: 'Upper Right Canine (Eye Tooth)', position: 'top', side: 'Right' },
-    { number: 7, name: 'Upper Right Lateral Incisor', position: 'top', side: 'Right' },
-    { number: 8, name: 'Upper Right Central Incisor', position: 'top', side: 'Right' },
-    // Upper left (9-16) - Patient's Left Side
-    { number: 9, name: 'Upper Left Central Incisor', position: 'top', side: 'Left' },
-    { number: 10, name: 'Upper Left Lateral Incisor', position: 'top', side: 'Left' },
-    { number: 11, name: 'Upper Left Canine (Eye Tooth)', position: 'top', side: 'Left' },
-    { number: 12, name: 'Upper Left First Premolar', position: 'top', side: 'Left' },
-    { number: 13, name: 'Upper Left Second Premolar', position: 'top', side: 'Left' },
-    { number: 14, name: 'Upper Left First Molar', position: 'top', side: 'Left' },
-    { number: 15, name: 'Upper Left Second Molar', position: 'top', side: 'Left' },
-    { number: 16, name: 'Upper Left Third Molar (Wisdom Tooth)', position: 'top', side: 'Left' },
-    // Lower left (17-24) - Patient's Left Side
-    { number: 17, name: 'Lower Left Third Molar (Wisdom Tooth)', position: 'bottom', side: 'Left' },
-    { number: 18, name: 'Lower Left Second Molar', position: 'bottom', side: 'Left' },
-    { number: 19, name: 'Lower Left First Molar', position: 'bottom', side: 'Left' },
-    { number: 20, name: 'Lower Left Second Premolar', position: 'bottom', side: 'Left' },
-    { number: 21, name: 'Lower Left First Premolar', position: 'bottom', side: 'Left' },
-    { number: 22, name: 'Lower Left Canine (Eye Tooth)', position: 'bottom', side: 'Left' },
-    { number: 23, name: 'Lower Left Lateral Incisor', position: 'bottom', side: 'Left' },
-    { number: 24, name: 'Lower Left Central Incisor', position: 'bottom', side: 'Left' },
-    // Lower right (25-32) - Patient's Right Side
-    { number: 25, name: 'Lower Right Central Incisor', position: 'bottom', side: 'Right' },
-    { number: 26, name: 'Lower Right Lateral Incisor', position: 'bottom', side: 'Right' },
-    { number: 27, name: 'Lower Right Canine (Eye Tooth)', position: 'bottom', side: 'Right' },
-    { number: 28, name: 'Lower Right First Premolar', position: 'bottom', side: 'Right' },
-    { number: 29, name: 'Lower Right Second Premolar', position: 'bottom', side: 'Right' },
-    { number: 30, name: 'Lower Right First Molar', position: 'bottom', side: 'Right' },
-    { number: 31, name: 'Lower Right Second Molar', position: 'bottom', side: 'Right' },
-    { number: 32, name: 'Lower Right Third Molar (Wisdom Tooth)', position: 'bottom', side: 'Right' },
+    // Upper right (11-18) - Patient's Right Side
+    { number: '11', name: 'Upper Right Central Incisor', position: 'top', side: 'Right' },
+    { number: '12', name: 'Upper Right Lateral Incisor', position: 'top', side: 'Right' },
+    { number: '13', name: 'Upper Right Canine (Eye Tooth)', position: 'top', side: 'Right' },
+    { number: '14', name: 'Upper Right First Premolar', position: 'top', side: 'Right' },
+    { number: '15', name: 'Upper Right Second Premolar', position: 'top', side: 'Right' },
+    { number: '16', name: 'Upper Right First Molar', position: 'top', side: 'Right' },
+    { number: '17', name: 'Upper Right Second Molar', position: 'top', side: 'Right' },
+    { number: '18', name: 'Upper Right Third Molar (Wisdom Tooth)', position: 'top', side: 'Right' },
+    // Upper left (21-28) - Patient's Left Side
+    { number: '21', name: 'Upper Left Central Incisor', position: 'top', side: 'Left' },
+    { number: '22', name: 'Upper Left Lateral Incisor', position: 'top', side: 'Left' },
+    { number: '23', name: 'Upper Left Canine (Eye Tooth)', position: 'top', side: 'Left' },
+    { number: '24', name: 'Upper Left First Premolar', position: 'top', side: 'Left' },
+    { number: '25', name: 'Upper Left Second Premolar', position: 'top', side: 'Left' },
+    { number: '26', name: 'Upper Left First Molar', position: 'top', side: 'Left' },
+    { number: '27', name: 'Upper Left Second Molar', position: 'top', side: 'Left' },
+    { number: '28', name: 'Upper Left Third Molar (Wisdom Tooth)', position: 'top', side: 'Left' },
+    // Lower left (31-38) - Patient's Left Side
+    { number: '31', name: 'Lower Left Central Incisor', position: 'bottom', side: 'Left' },
+    { number: '32', name: 'Lower Left Lateral Incisor', position: 'bottom', side: 'Left' },
+    { number: '33', name: 'Lower Left Canine (Eye Tooth)', position: 'bottom', side: 'Left' },
+    { number: '34', name: 'Lower Left First Premolar', position: 'bottom', side: 'Left' },
+    { number: '35', name: 'Lower Left Second Premolar', position: 'bottom', side: 'Left' },
+    { number: '36', name: 'Lower Left First Molar', position: 'bottom', side: 'Left' },
+    { number: '37', name: 'Lower Left Second Molar', position: 'bottom', side: 'Left' },
+    { number: '38', name: 'Lower Left Third Molar (Wisdom Tooth)', position: 'bottom', side: 'Left' },
+    // Lower right (41-48) - Patient's Right Side
+    { number: '41', name: 'Lower Right Central Incisor', position: 'bottom', side: 'Right' },
+    { number: '42', name: 'Lower Right Lateral Incisor', position: 'bottom', side: 'Right' },
+    { number: '43', name: 'Lower Right Canine (Eye Tooth)', position: 'bottom', side: 'Right' },
+    { number: '44', name: 'Lower Right First Premolar', position: 'bottom', side: 'Right' },
+    { number: '45', name: 'Lower Right Second Premolar', position: 'bottom', side: 'Right' },
+    { number: '46', name: 'Lower Right First Molar', position: 'bottom', side: 'Right' },
+    { number: '47', name: 'Lower Right Second Molar', position: 'bottom', side: 'Right' },
+    { number: '48', name: 'Lower Right Third Molar (Wisdom Tooth)', position: 'bottom', side: 'Right' },
   ];
 
   // Update dental data when props change
@@ -342,29 +343,17 @@ const DetailedDentalChart = ({
     setDentalData(allData);
   }, [dentalTreatments, toothConditions]);
 
-
-
-
-
-  const getToothData = (toothNumber: number) => {
+  const getToothData = (toothNumber: string) => {
     return dentalData.filter(item => {
       const itemToothNumber = item.tooth_number;
       const searchToothNumber = toothNumber.toString();
       
-      // Normalize tooth numbers by removing leading zeros
-      const normalizedItemTooth = String(Number(itemToothNumber));
-      const normalizedSearchTooth = String(toothNumber);
-      
-      const exactMatch = itemToothNumber === searchToothNumber;
-      const numberMatch = Number(itemToothNumber) === toothNumber;
-      const stringMatch = String(itemToothNumber) === searchToothNumber;
-      const normalizedMatch = normalizedItemTooth === normalizedSearchTooth;
-      
-      return exactMatch || numberMatch || stringMatch || normalizedMatch;
+      // Direct match for FDI system
+      return itemToothNumber === searchToothNumber;
     });
   };
 
-  const getToothColor = (toothNumber: number) => {
+  const getToothColor = (toothNumber: string) => {
     const toothData = getToothData(toothNumber);
     
     if (toothData.length === 0) return 'bg-gray-100 border-gray-300';
@@ -412,9 +401,9 @@ const DetailedDentalChart = ({
             {/* Dental Chart Visualization */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Dental Chart</CardTitle>
+                <CardTitle className="text-lg">Dental Chart (FDI System)</CardTitle>
                 <CardDescription>
-                  Click on any tooth to view its treatments and conditions. This is how your teeth look from the dentist's perspective.
+                  Click on any tooth to view its treatments and conditions. This chart uses the same numbering system as your dentist.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -422,8 +411,8 @@ const DetailedDentalChart = ({
                   {/* Patient Perspective Note */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> This chart shows your teeth from the dentist's perspective. 
-                      "Right" means your right side, "Left" means your left side.
+                      <strong>Note:</strong> This chart shows your teeth from the dentist's perspective using the FDI numbering system. 
+                      "Right" means your right side, "Left" means your left side. The numbers match what your dentist uses.
                     </p>
                   </div>
 
@@ -437,10 +426,24 @@ const DetailedDentalChart = ({
                       <span className="text-xs sm:text-sm font-medium text-blue-600">Your Right Side</span>
                     </div>
                     
-                    {/* Upper Teeth (1-16) */}
+                    {/* Upper Teeth (18-11, 21-28) - Match dentist layout */}
                     <div className="flex justify-center">
                       <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
-                        {teeth.slice(0, 16).map((tooth) => (
+                        {/* Left side teeth (18-11) - Upper Right Quadrant */}
+                        {teeth.slice(0, 8).reverse().map((tooth) => (
+                          <button
+                            key={tooth.number}
+                            onClick={() => setSelectedTooth(tooth.number)}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 text-xs font-bold transition-all hover:scale-110 ${getToothColor(tooth.number)} ${
+                              selectedTooth === tooth.number ? 'ring-2 ring-blue-500' : ''
+                            }`}
+                            title={`Tooth ${tooth.number}: ${tooth.name}`}
+                          >
+                            {tooth.number}
+                          </button>
+                        ))}
+                        {/* Right side teeth (21-28) - Upper Left Quadrant */}
+                        {teeth.slice(8, 16).map((tooth) => (
                           <button
                             key={tooth.number}
                             onClick={() => setSelectedTooth(tooth.number)}
@@ -455,7 +458,7 @@ const DetailedDentalChart = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Lower Teeth Section */}
                   <div className="space-y-2">
                     <h3 className="text-base sm:text-lg font-semibold text-center text-gray-800">Lower Teeth (Bottom Jaw)</h3>
@@ -466,10 +469,24 @@ const DetailedDentalChart = ({
                       <span className="text-xs sm:text-sm font-medium text-blue-600">Your Right Side</span>
                     </div>
                     
-                    {/* Lower Teeth (17-32) */}
+                    {/* Lower Teeth (48-41, 31-38) - Match dentist layout */}
                     <div className="flex justify-center">
                       <div className="grid grid-cols-8 sm:grid-cols-16 gap-1">
-                        {teeth.slice(16, 32).map((tooth) => (
+                        {/* Left side teeth (48-41) - Lower Right Quadrant */}
+                        {teeth.slice(24, 32).reverse().map((tooth) => (
+                          <button
+                            key={tooth.number}
+                            onClick={() => setSelectedTooth(tooth.number)}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 text-xs font-bold transition-all hover:scale-110 ${getToothColor(tooth.number)} ${
+                              selectedTooth === tooth.number ? 'ring-2 ring-blue-500' : ''
+                            }`}
+                            title={`Tooth ${tooth.number}: ${tooth.name}`}
+                          >
+                            {tooth.number}
+                          </button>
+                        ))}
+                        {/* Right side teeth (31-38) - Lower Left Quadrant */}
+                        {teeth.slice(16, 24).map((tooth) => (
                           <button
                             key={tooth.number}
                             onClick={() => setSelectedTooth(tooth.number)}
@@ -484,26 +501,22 @@ const DetailedDentalChart = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Legend */}
-                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold mb-2 text-center">Legend</h4>
-                    <div className="grid grid-cols-2 sm:flex sm:justify-center sm:gap-6 text-xs gap-2">
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-                        <span>No Data</span>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Color Legend:</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-200 border-2 border-green-500 rounded"></div>
+                        <span>Has Treatment</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 bg-green-200 border border-green-500 rounded"></div>
-                        <span>Treatment Done</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-red-200 border-2 border-red-500 rounded"></div>
+                        <span>Has Condition</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 bg-red-200 border border-red-500 rounded"></div>
-                        <span>Condition Found</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 bg-purple-200 border border-purple-500 rounded"></div>
-                        <span>Both Treatment & Condition</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-purple-200 border-2 border-purple-500 rounded"></div>
+                        <span>Treatment + Condition</span>
                       </div>
                     </div>
                   </div>
@@ -516,70 +529,124 @@ const DetailedDentalChart = ({
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    Tooth {selectedTooth}: {teeth.find(t => t.number === selectedTooth)?.name}
+                    <Circle className="w-4 h-4" />
+                    Tooth {selectedTooth} Details
                   </CardTitle>
-                  <CardDescription>
-                    {teeth.find(t => t.number === selectedTooth)?.side} side, {teeth.find(t => t.number === selectedTooth)?.position} jaw
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {getToothData(selectedTooth).length === 0 ? (
-                    <div className="text-center py-8">
-                      <Circle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500">No records found for this tooth</p>
-                      <p className="text-sm text-gray-400 mt-2">This tooth has no treatments or conditions recorded</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {getToothData(selectedTooth).map((item) => (
-                        <Card key={item.id} className="border-l-4 border-blue-500">
-                          <CardContent className="p-4">
-                                                          <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <h3 className="font-semibold text-lg">
-                                    {item.treatment_type || item.condition_type || 'Dental Record'}
-                                  </h3>
-                                  <Badge className={`text-xs mt-1 ${
-                                    item.treatment_type ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                                  }`}>
-                                    {item.treatment_type ? 'Treatment' : 'Condition'}
-                                  </Badge>
-                                </div>
-                              </div>
-                              
-                              {(item.treatment_description || item.condition_description) && (
-                                <div className="mb-3">
-                                  <p className="text-sm text-gray-600">
-                                    <strong>Description:</strong> {item.treatment_description || item.condition_description}
-                                  </p>
-                                </div>
-                              )}
-                            
-                            {item.notes && (
-                              <div className="mb-3 p-3 bg-yellow-50 rounded-lg">
-                                <p className="text-sm font-medium text-yellow-800 mb-1">Notes:</p>
-                                <p className="text-sm text-yellow-700">{item.notes}</p>
-                              </div>
-                            )}
-                            
-                                                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                                <span>Date: {formatDate(item.created_at)}</span>
-                                {(item.treatment_status || item.severity) && (
-                                  <Badge className="text-xs">
-                                    {item.treatment_status || item.severity}
-                                  </Badge>
-                                )}
-                              </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const toothData = getToothData(selectedTooth);
+                    const selectedToothInfo = teeth.find(t => t.number === selectedTooth);
+                    
+                    if (toothData.length === 0) {
+                      return (
+                        <div className="text-center py-4">
+                          <p className="text-gray-500">No treatments or conditions recorded for this tooth.</p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            {selectedToothInfo?.name} - {selectedToothInfo?.position}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-800">
+                            <strong>{selectedToothInfo?.name}</strong> - {selectedToothInfo?.position}
+                          </p>
+                        </div>
+
+                        {/* Treatments */}
+                        {toothData.filter(item => item.treatment_type).length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-green-700 mb-2">Treatments:</h4>
+                            <div className="space-y-2">
+                              {toothData
+                                .filter(item => item.treatment_type)
+                                .map((treatment, index) => (
+                                  <div key={index} className="bg-green-50 border border-green-200 rounded p-3">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <h5 className="font-medium text-green-800">{treatment.treatment_type}</h5>
+                                        {treatment.treatment_description && (
+                                          <p className="text-sm text-green-700 mt-1">{treatment.treatment_description}</p>
+                                        )}
+                                        {treatment.notes && (
+                                          <p className="text-sm text-green-600 mt-1"><strong>Notes:</strong> {treatment.notes}</p>
+                                        )}
+                                        {treatment.created_by && (
+                                          <p className="text-sm text-green-600 mt-1">
+                                            <User className="h-3 w-3 inline mr-1" />
+                                            Doctor: {treatment.created_by}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <Badge className="bg-green-100 text-green-800 text-xs">
+                                          {treatment.treatment_status}
+                                        </Badge>
+                                        {treatment.treatment_date && (
+                                          <p className="text-xs text-green-600 mt-1">
+                                            {formatDate(treatment.treatment_date)}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Conditions */}
+                        {toothData.filter(item => item.condition_type).length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-red-700 mb-2">Conditions:</h4>
+                            <div className="space-y-2">
+                              {toothData
+                                .filter(item => item.condition_type)
+                                .map((condition, index) => (
+                                  <div key={index} className="bg-red-50 border border-red-200 rounded p-3">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <h5 className="font-medium text-red-800">{condition.condition_type}</h5>
+                                        {condition.condition_description && (
+                                          <p className="text-sm text-red-700 mt-1">{condition.condition_description}</p>
+                                        )}
+                                        {condition.notes && (
+                                          <p className="text-sm text-red-600 mt-1"><strong>Notes:</strong> {condition.notes}</p>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <Badge className="bg-red-100 text-red-800 text-xs">
+                                          {condition.severity}
+                                        </Badge>
+                                        <p className="text-xs text-red-600 mt-1">
+                                          {formatDate(condition.last_updated)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             )}
           </div>
         )}
+
+        {/* Close Button */}
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -598,11 +665,16 @@ const ToothImagesDialog = ({
   const [selectedImage, setSelectedImage] = useState<ToothImage | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'xray' | 'photo' | 'scan'>('all');
 
-  // Filter images by type
-  const filteredImages = images.filter(img => {
-    const typeMatch = filterType === 'all' || img.image_type === filterType;
-    return typeMatch;
-  });
+  // Filter images by type and remove duplicates
+  const filteredImages = images
+    .filter(img => {
+      const typeMatch = filterType === 'all' || img.image_type === filterType;
+      return typeMatch;
+    })
+    // Remove duplicates based on Cloudinary URL (same image uploaded multiple times)
+    .filter((img, index, self) => 
+      index === self.findIndex(t => t.cloudinary_url === img.cloudinary_url)
+    );
 
   const getImageTypeIcon = (type: string) => {
     switch (type) {
@@ -620,6 +692,23 @@ const ToothImagesDialog = ({
       case 'scan': return '3D Scan';
       default: return 'Image';
     }
+  };
+
+  // Helper function to get deduplicated count for a specific image type
+  const getDeduplicatedCount = (imageType: 'xray' | 'photo' | 'scan') => {
+    return images
+      .filter(img => img.image_type === imageType)
+      .filter((img, index, self) => 
+        index === self.findIndex(t => t.cloudinary_url === img.cloudinary_url)
+      ).length;
+  };
+
+  // Helper function to get all teeth associated with a specific image URL
+  const getAssociatedTeeth = (imageUrl: string) => {
+    return images
+      .filter(img => img.cloudinary_url === imageUrl)
+      .map(img => img.tooth_number)
+      .sort((a, b) => parseInt(a) - parseInt(b));
   };
 
   const handleDownload = async (image: ToothImage) => {
@@ -672,9 +761,9 @@ const ToothImagesDialog = ({
             <Tabs value={filterType} onValueChange={(value) => setFilterType(value as any)}>
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="all">All ({filteredImages.length})</TabsTrigger>
-                <TabsTrigger value="xray">X-Rays ({images.filter(img => img.image_type === 'xray').length})</TabsTrigger>
-                <TabsTrigger value="photo">Photos ({images.filter(img => img.image_type === 'photo').length})</TabsTrigger>
-                <TabsTrigger value="scan">Scans ({images.filter(img => img.image_type === 'scan').length})</TabsTrigger>
+                <TabsTrigger value="xray">X-Rays ({getDeduplicatedCount('xray')})</TabsTrigger>
+                <TabsTrigger value="photo">Photos ({getDeduplicatedCount('photo')})</TabsTrigger>
+                <TabsTrigger value="scan">Scans ({getDeduplicatedCount('scan')})</TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -718,9 +807,13 @@ const ToothImagesDialog = ({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <span className="text-lg">{getImageTypeIcon(image.image_type)}</span>
-                          <Badge variant="outline" className="text-xs">
-                            Tooth #{image.tooth_number}
-                          </Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {getAssociatedTeeth(image.cloudinary_url).map(toothNumber => (
+                              <Badge key={toothNumber} variant="outline" className="text-xs">
+                                Tooth #{toothNumber}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                         <Badge variant="outline" className="text-xs capitalize">
                           {getImageTypeLabel(image.image_type)}
@@ -760,10 +853,17 @@ const ToothImagesDialog = ({
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   {getImageTypeIcon(selectedImage.image_type)} 
-                  Tooth #{selectedImage.tooth_number} - {getImageTypeLabel(selectedImage.image_type)}
+                  {getAssociatedTeeth(selectedImage.cloudinary_url).length > 1 
+                    ? `Teeth ${getAssociatedTeeth(selectedImage.cloudinary_url).join(', ')}` 
+                    : `Tooth #${selectedImage.tooth_number}`} - {getImageTypeLabel(selectedImage.image_type)}
                 </DialogTitle>
                 <DialogDescription>
                   {selectedImage.description}
+                  {getAssociatedTeeth(selectedImage.cloudinary_url).length > 1 && (
+                    <span className="block mt-1 text-sm text-blue-600">
+                      This image is associated with multiple teeth
+                    </span>
+                  )}
                 </DialogDescription>
               </DialogHeader>
               
