@@ -380,23 +380,12 @@ const SuperAdmin: React.FC = () => {
       const result = await response.json();
       
       if (result.success) {
-        toast({
-          title: "✅ WhatsApp Test Success",
-          description: "Test message sent successfully",
-        });
+        toast.success("✅ WhatsApp Test Success - Test message sent successfully");
       } else {
-        toast({
-          title: "❌ WhatsApp Test Failed",
-          description: result.error || "Failed to send test message",
-          variant: "destructive",
-        });
+        toast.error(`❌ WhatsApp Test Failed - ${result.error || "Failed to send test message"}`);
       }
     } catch (error) {
-      toast({
-        title: "❌ WhatsApp Test Error",
-        description: "Network error or function not available",
-        variant: "destructive",
-      });
+      toast.error("❌ WhatsApp Test Error - Network error or function not available");
     }
   };
 
@@ -427,23 +416,12 @@ Please check your appointment schedule.`,
       const result = await response.json();
       
       if (result.success) {
-        toast({
-          title: "✅ Dentist Notification Test Success",
-          description: "Test notification sent to dentist successfully",
-        });
+        toast.success("✅ Dentist Notification Test Success - Test notification sent to dentist successfully");
       } else {
-        toast({
-          title: "❌ Dentist Notification Test Failed",
-          description: result.error || "Failed to send dentist notification",
-          variant: "destructive",
-        });
+        toast.error(`❌ Dentist Notification Test Failed - ${result.error || "Failed to send dentist notification"}`);
       }
     } catch (error) {
-      toast({
-        title: "❌ Dentist Notification Test Error",
-        description: "Network error or function not available",
-        variant: "destructive",
-      });
+      toast.error("❌ Dentist Notification Test Error - Network error or function not available");
     }
   };
 
@@ -464,23 +442,12 @@ Please check your appointment schedule.`,
       const result = await response.json();
       
       if (result.success) {
-        toast({
-          title: "✅ Reminder Test Success",
-          description: "Test reminder message sent successfully",
-        });
+        toast.success("✅ Reminder Test Success - Test reminder message sent successfully");
       } else {
-        toast({
-          title: "❌ Reminder Test Failed",
-          description: result.error || "Failed to send reminder message",
-          variant: "destructive",
-        });
+        toast.error(`❌ Reminder Test Failed - ${result.error || "Failed to send reminder message"}`);
       }
     } catch (error) {
-      toast({
-        title: "❌ Reminder Test Error",
-        description: "Network error or function not available",
-        variant: "destructive",
-      });
+      toast.error("❌ Reminder Test Error - Network error or function not available");
     }
   };
 
