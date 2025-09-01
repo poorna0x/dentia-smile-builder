@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react'
+import React, { Component, ErrorInfo, ReactNode, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
@@ -11,24 +11,31 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { ClinicProvider } from './contexts/ClinicContext'
 import { supabase } from './lib/supabase'
 
-import Home from './pages/Home'
-import Appointment from './pages/Appointment'
-import Admin from './pages/Admin'
+// Lazy load components for better performance
+const Home = lazy(() => import('./pages/Home'))
+const Appointment = lazy(() => import('./pages/Appointment'))
+const Contact = lazy(() => import('./pages/Contact'))
+const Services = lazy(() => import('./pages/Services'))
+const Dentists = lazy(() => import('./pages/Dentists'))
+const NotFound = lazy(() => import('./pages/NotFound'))
+const BookingComplete = lazy(() => import('./pages/BookingComplete'))
+const CheckAppointmentStatus = lazy(() => import('./components/CheckAppointmentStatus'))
+const PatientLogin = lazy(() => import('./pages/PatientLogin'))
+const PatientDashboard = lazy(() => import('./pages/PatientDashboard'))
+const RoleBasedLogin = lazy(() => import('./pages/RoleBasedLogin'))
 
-import Contact from './pages/Contact'
-import Services from './pages/Services'
-import Dentists from './pages/Dentists'
-import NotFound from './pages/NotFound'
-import BookingComplete from './pages/BookingComplete'
-import CheckAppointmentStatus from './components/CheckAppointmentStatus'
-import PatientLogin from './pages/PatientLogin'
-import PatientDashboard from './pages/PatientDashboard'
-import AdminPatientManagement from './pages/AdminPatientManagement'
-import AdminPaymentAnalytics from './pages/AdminPaymentAnalytics'
+// Admin components (heaviest - lazy load)
+const Admin = lazy(() => import('./pages/Admin'))
+const AdminPatientManagement = lazy(() => import('./pages/AdminPatientManagement'))
+const AdminPaymentAnalytics = lazy(() => import('./pages/AdminPaymentAnalytics'))
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin'))
 
-import SuperAdmin from './pages/SuperAdmin'
-import WebsiteDisabled from './components/WebsiteDisabled'
-import RoleBasedLogin from './pages/RoleBasedLogin'
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+)
 
 import './App.css'
 
@@ -106,50 +113,52 @@ function App() {
             >
               <ClinicProvider>
                 <WebsiteStatusWrapper>
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<Home />} />
-                    <Route path="/appointment" element={<Appointment />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/services" element={<Services />} />
-                    <Route path="/dentists" element={<Dentists />} />
-                    <Route path="/booking-complete" element={<BookingComplete />} />
-                    <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
-                    
-                    {/* Login Route */}
-                    <Route path="/login" element={<RoleBasedLogin />} />
-                    
-                    {/* Protected Routes - Single Login Required */}
-                    <Route path="/admin" element={
-                      <ProtectedRoute>
-                        <Admin />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/patients" element={
-                      <ProtectedRoute>
-                        <AdminPatientManagement />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/payments" element={
-                      <ProtectedRoute>
-                        <AdminPaymentAnalytics />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/patient/dashboard" element={
-                      <ProtectedRoute>
-                        <PatientDashboard />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Super Admin Route (separate authentication) */}
-                    <Route path="/super-admin" element={<SuperAdmin />} />
-                    
-                    {/* Legacy routes for backward compatibility */}
-                    <Route path="/patient/login" element={<PatientLogin />} />
-                    
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/" element={<Home />} />
+                      <Route path="/appointment" element={<Appointment />} />
+                      <Route path="/contact" element={<Contact />} />
+                      <Route path="/services" element={<Services />} />
+                      <Route path="/dentists" element={<Dentists />} />
+                      <Route path="/booking-complete" element={<BookingComplete />} />
+                      <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
+                      
+                      {/* Login Route */}
+                      <Route path="/login" element={<RoleBasedLogin />} />
+                      
+                      {/* Protected Routes - Single Login Required */}
+                      <Route path="/admin" element={
+                        <ProtectedRoute>
+                          <Admin />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/patients" element={
+                        <ProtectedRoute>
+                          <AdminPatientManagement />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/payments" element={
+                        <ProtectedRoute>
+                          <AdminPaymentAnalytics />
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/patient/dashboard" element={
+                        <ProtectedRoute>
+                          <PatientDashboard />
+                        </ProtectedRoute>
+                      } />
+                      
+                      {/* Super Admin Route (separate authentication) */}
+                      <Route path="/super-admin" element={<SuperAdmin />} />
+                      
+                      {/* Legacy routes for backward compatibility */}
+                      <Route path="/patient/login" element={<PatientLogin />} />
+                      
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
                 </WebsiteStatusWrapper>
               </ClinicProvider>
             </Router>
