@@ -18,14 +18,13 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { sendAppointmentConfirmation } from '@/lib/email';
-import { sendNewAppointmentNotification } from '@/lib/appointment-notifications';
 import CaptchaModal from '@/components/CaptchaModal';
 import { 
   checkSecurityStatus, 
   recordAppointmentAttempt, 
   resetSecurityOnSuccess 
 } from '@/lib/security';
-import { sendNewAppointmentNotification } from '@/lib/appointment-notifications';
+
 
 
 
@@ -734,13 +733,7 @@ const Appointment = () => {
           patient_id: patientId
         });
         
-        // Send push notification for new appointment
-        try {
-          await sendNewAppointmentNotification(newAppointment);
-          // Push notification sent for new appointment
-        } catch (error) {
-          console.error('Error sending push notification:', error);
-        }
+
         
         // Send confirmation email to patient
         const patientEmailSent = await sendAppointmentConfirmation({

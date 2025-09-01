@@ -16,9 +16,7 @@ import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
 import { showLocalNotification, requestNotificationPermission } from '@/lib/notifications';
 import LogoutButton from '@/components/LogoutButton';
-import PushNotificationManager from '@/components/PushNotificationManager';
 import { sendAppointmentConfirmation } from '@/lib/email';
-import { sendAppointmentUpdateNotification } from '@/lib/appointment-notifications';
 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -989,12 +987,7 @@ Jeshna Dental Clinic Team`;
           dentist_id: selectedDentistId
         });
 
-        // Send push notification for completed appointment
-        try {
-          await sendAppointmentUpdateNotification(appointmentToComplete, 'completed');
-        } catch (error) {
-          console.error('Error sending completion notification:', error);
-        }
+
       }
       
       // Force refresh appointments to get immediate update
@@ -1019,15 +1012,7 @@ Jeshna Dental Clinic Team`;
         if (updateAppointment) {
           await updateAppointment(appointmentId, { status: 'Cancelled' });
 
-          // Send push notification for cancelled appointment
-          try {
-            const cancelledAppointment = realAppointments.find(apt => apt.id === appointmentId);
-            if (cancelledAppointment) {
-              await sendAppointmentUpdateNotification(cancelledAppointment, 'cancelled');
-            }
-          } catch (error) {
-            console.error('Error sending cancellation notification:', error);
-          }
+
         }
         
         // Force refresh appointments to get immediate update
@@ -2272,10 +2257,7 @@ Jeshna Dental Clinic Team`;
             </div>
           </div>
 
-          {/* Push Notification Manager */}
-          <div className="mb-6">
-            <PushNotificationManager />
-          </div>
+          
 
           {/* Stats Cards */}
           {schedulingSettings.showStatsCards && (

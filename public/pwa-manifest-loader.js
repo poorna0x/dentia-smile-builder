@@ -1,7 +1,7 @@
 // PWA Manifest Loader - Only loads manifest on admin routes
 (function() {
   let manifestLink = null;
-  let swRegistration = null;
+
   
   function checkAndLoadManifest() {
     const isAdminRoute = window.location.pathname.startsWith('/admin');
@@ -13,29 +13,7 @@
       manifestLink.href = '/manifest.webmanifest';
       document.head.appendChild(manifestLink);
       
-      // Register service worker on admin routes
-      if ('serviceWorker' in navigator && !swRegistration) {
-        // Check if already registered
-        navigator.serviceWorker.getRegistration('/sw-push.js')
-          .then(existingRegistration => {
-            if (existingRegistration) {
-              swRegistration = existingRegistration;
-              console.log('Existing Service Worker found for admin route:', existingRegistration);
-            } else {
-              // Register new service worker
-              return navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
-            }
-          })
-          .then(registration => {
-            if (registration) {
-              swRegistration = registration;
-              console.log('New Service Worker registered for admin route:', registration);
-            }
-          })
-          .catch(error => {
-            console.log('Service Worker registration failed:', error);
-          });
-      }
+      
       
       console.log('PWA manifest loaded for admin route');
     } else if (!isAdminRoute && manifestLink) {
@@ -43,13 +21,7 @@
       document.head.removeChild(manifestLink);
       manifestLink = null;
       
-      // Unregister service worker on non-admin routes
-      if (swRegistration) {
-        swRegistration.unregister().then(() => {
-          swRegistration = null;
-          console.log('Service Worker unregistered - not on admin route');
-        });
-      }
+      
       
       console.log('PWA manifest removed - not on admin route');
     }
