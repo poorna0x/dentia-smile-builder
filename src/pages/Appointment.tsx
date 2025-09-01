@@ -797,7 +797,8 @@ const Appointment = () => {
           status: 'Confirmed',
           clinicName: clinic.name || 'Jeshna Dental Clinic',
           clinicPhone: clinic.contact_phone || '6363116263',
-          clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
+          clinicEmail: clinic.contact_email || 'poorn8105@gmail.com',
+          clinicId: clinic.id // Add clinic ID for dentist notifications
         });
 
         // Log email status

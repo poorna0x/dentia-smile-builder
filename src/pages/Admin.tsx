@@ -1320,7 +1320,8 @@ Jeshna Dental Clinic Team`;
           status: 'Confirmed',
           clinicName: clinic?.name || 'Dental Clinic',
           clinicPhone: clinic?.contact_phone || '',
-          clinicEmail: clinic?.contact_email || ''
+          clinicEmail: clinic?.contact_email || '',
+          clinicId: clinic?.id // Add clinic ID for dentist notifications
         });
         
         if (emailSent) {
@@ -1484,7 +1485,8 @@ Jeshna Dental Clinic Team`;
           status: 'Confirmed',
           clinicName: clinic?.name || 'Dental Clinic',
           clinicPhone: clinic?.contact_phone || '',
-          clinicEmail: clinic?.contact_email || ''
+          clinicEmail: clinic?.contact_email || '',
+          clinicId: clinic?.id // Add clinic ID for dentist notifications
         });
         
         if (emailSent) {
