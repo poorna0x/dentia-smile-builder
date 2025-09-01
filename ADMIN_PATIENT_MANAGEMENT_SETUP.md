@@ -6,7 +6,7 @@ The Admin Patient Management system allows clinic administrators to manage patie
 
 ## 🚀 **Quick Setup**
 
-### **Step 1: Database Setup (If Not Done Already)**
+### **Step 1: Database Sewwwwtup (If Not Done Already)**
 
 1. **Go to Supabase Dashboard**
 2. **Navigate to SQL Editor**
