@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 
 export const usePWA = () => {
@@ -6,6 +7,10 @@ export const usePWA = () => {
   const [canInstall, setCanInstall] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const location = useLocation()
+
+  // Check if we're on an admin route
+  const isAdminRoute = location.pathname.startsWith('/admin')
 
   // Register service worker (temporarily disabled to test navigation)
   const updateSW = () => {
@@ -42,12 +47,19 @@ export const usePWA = () => {
     }
   }, [])
 
-  // Handle install prompt
+  // Handle install prompt - ONLY on admin routes
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e)
-      setCanInstall(true)
+      
+      // Only store the prompt if we're on an admin route
+      if (isAdminRoute) {
+        setDeferredPrompt(e)
+        setCanInstall(true)
+        console.log('PWA install prompt available on admin route')
+      } else {
+        console.log('PWA install prompt ignored on non-admin route')
+      }
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
@@ -55,7 +67,7 @@ export const usePWA = () => {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
-  }, [])
+  }, [isAdminRoute])
 
   // Install app
   const installApp = async () => {
@@ -91,9 +103,10 @@ export const usePWA = () => {
 
   return {
     isInstalled,
-    canInstall,
+    canInstall: isAdminRoute && canInstall, // Only show install option on admin routes
     updateAvailable,
     installApp,
     updateApp,
+    isAdminRoute,
   }
 }

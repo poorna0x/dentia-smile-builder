@@ -9,6 +9,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { usePermissions } from '@/hooks/usePermissions';
+import { usePWA } from '@/hooks/usePWA';
 import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType, getMinimumAdvanceNotice } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -243,6 +244,7 @@ const Admin = () => {
   const { settings, loading: settingsLoading, refresh: refreshSettings, clearSettingsCache } = useSettings();
   const { isDentist, isStaff, hasPermission, clearRole, userRole, refreshPermissions } = usePermissions();
   const { toast: toastHook } = useToast();
+  const { canInstall, isInstalled, installApp } = usePWA();
 
   // Load staff permissions when clinic is available
   useEffect(() => {
@@ -2869,6 +2871,40 @@ Jeshna Dental Clinic Team`;
                         </div>
                         <p className="text-xs text-blue-700 mt-1">Standard dental numbering system used worldwide</p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PWA Install */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-medium">Mobile App Installation</Label>
+                    <p className="text-sm text-gray-600">Install the admin app on your mobile device for easy access</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      {isInstalled ? (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span>✅ Admin App Installed</span>
+                          </div>
+                          <p className="text-xs text-green-700 mt-1">The admin app is installed on your device</p>
+                        </div>
+                      ) : canInstall ? (
+                        <Button 
+                          onClick={installApp}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          📱 Install Admin App
+                        </Button>
+                      ) : (
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span>📱 Install Admin App</span>
+                          </div>
+                          <p className="text-xs text-gray-700 mt-1">Use your browser's "Add to Home Screen" option to install the admin app</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

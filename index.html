@@ -8,13 +8,13 @@
     <meta name="author" content="Dentia" />
     <meta name="keywords" content="dental clinic, appointment booking, patient management, dental practice, healthcare, medical app" />
 
-    <!-- PWA Meta Tags -->
+    <!-- PWA Meta Tags (Admin Only) -->
     <meta name="theme-color" content="#3b82f6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Dentia" />
+    <meta name="apple-mobile-web-app-title" content="Admin" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="application-name" content="Dentia" />
+    <meta name="application-name" content="Admin" />
     <meta name="msapplication-TileColor" content="#3b82f6" />
     <meta name="msapplication-tap-highlight" content="no" />
 
@@ -41,22 +41,13 @@
     <meta name="twitter:image" content="/pwa-512x512.png" />
     
     <link rel="canonical" href="https://dentia.app/" />
+    
+    <!-- PWA Manifest Loader - Only loads on admin routes -->
+    <script src="/pwa-manifest-loader.js"></script>
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Unregister service worker to fix redirect issue -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for(let registration of registrations) {
-            registration.unregister();
-            console.log('Service Worker unregistered to fix redirect issue');
-          }
-        });
-      }
-    </script>
   </body>
 </html>
