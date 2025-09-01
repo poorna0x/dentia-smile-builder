@@ -95,24 +95,64 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
     
     console.log('✅ VAPID key found, length:', vapidPublicKey.length);
 
+    // Verify push manager is available
+    if (!registration.pushManager) {
+      console.error('❌ Push manager not available on service worker registration');
+      return false;
+    }
+    
+    console.log('✅ Push manager available:', registration.pushManager);
+    
     // Subscribe to push manager
     console.log('Attempting to subscribe with VAPID key:', vapidPublicKey.substring(0, 20) + '...');
     
     try {
+      console.log('🔐 About to call pushManager.subscribe...');
+      console.log('🔑 Application server key length:', urlBase64ToUint8Array(vapidPublicKey).length);
+      
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
       
       console.log('✅ Push subscription created:', subscription);
+      console.log('📱 Subscription endpoint:', subscription.endpoint);
+      console.log('🔑 Subscription keys:', {
+        p256dh: subscription.keys.p256dh ? 'Present' : 'Missing',
+        auth: subscription.keys.auth ? 'Present' : 'Missing'
+      });
     } catch (subscribeError) {
       console.error('❌ Push subscription failed:', subscribeError);
+      console.error('❌ Error name:', subscribeError.name);
+      console.error('❌ Error message:', subscribeError.message);
+      console.error('❌ Error stack:', subscribeError.stack);
       
       // Check if there's an existing subscription
-      const existingSubscription = await registration.pushManager.getSubscription();
-      if (existingSubscription) {
-        console.log('📱 Found existing subscription, using that:', existingSubscription);
-        return true;
+      try {
+        const existingSubscription = await registration.pushManager.getSubscription();
+        if (existingSubscription) {
+          console.log('📱 Found existing subscription, using that:', existingSubscription);
+          return true;
+        }
+      } catch (checkError) {
+        console.error('❌ Error checking existing subscription:', checkError);
+      }
+      
+      // Provide specific guidance based on error type
+      if (subscribeError.name === 'AbortError') {
+        console.error('🚨 AbortError detected - this usually means:');
+        console.error('   - Browser blocked the push subscription');
+        console.error('   - Push service unavailable');
+        console.error('   - Network connectivity issues');
+        console.error('   - Browser security restrictions');
+      } else if (subscribeError.name === 'NotAllowedError') {
+        console.error('🚨 NotAllowedError detected - this usually means:');
+        console.error('   - User denied permission');
+        console.error('   - Browser blocked the request');
+      } else if (subscribeError.name === 'NotSupportedError') {
+        console.error('🚨 NotSupportedError detected - this usually means:');
+        console.error('   - Push notifications not supported');
+        console.error('   - Service worker not ready');
       }
       
       throw subscribeError;
