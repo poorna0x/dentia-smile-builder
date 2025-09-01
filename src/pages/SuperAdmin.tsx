@@ -371,7 +371,7 @@ const SuperAdmin: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: '+919876543210',
+          to: '+916361631253',
           message: '🧪 Test message from SuperAdmin - ' + new Date().toLocaleString(),
           type: 'test'
         }),
@@ -383,27 +383,33 @@ const SuperAdmin: React.FC = () => {
         toast.success("✅ WhatsApp Test Success - Test message sent successfully");
       } else {
         toast.error(`❌ WhatsApp Test Failed - ${result.error || "Failed to send test message"}`);
+        console.error('WhatsApp test failed:', result);
       }
     } catch (error) {
       toast.error("❌ WhatsApp Test Error - Network error or function not available");
+      console.error('WhatsApp test error:', error);
     }
   };
 
   const testDentistNotification = async () => {
     try {
+      // Format phone number properly
+      const phoneNumber = state.notificationSettings.dentist_phone_number || '6361631253';
+      const formattedPhone = phoneNumber.startsWith('+91') ? phoneNumber : `+91${phoneNumber}`;
+      
       const response = await fetch('/.netlify/functions/send-whatsapp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: '+91' + state.notificationSettings.dentist_phone_number,
+          to: formattedPhone,
           message: `🦷 Test Dentist Notification!
 
 Patient: Test Patient
 Date: ${new Date().toLocaleDateString()}
 Time: ${new Date().toLocaleTimeString()}
-Phone: +919876543210
+Phone: +916361631253
 Email: test@example.com
 
 Clinic: Jeshna Dental
@@ -419,9 +425,11 @@ Please check your appointment schedule.`,
         toast.success("✅ Dentist Notification Test Success - Test notification sent to dentist successfully");
       } else {
         toast.error(`❌ Dentist Notification Test Failed - ${result.error || "Failed to send dentist notification"}`);
+        console.error('Dentist notification test failed:', result);
       }
     } catch (error) {
       toast.error("❌ Dentist Notification Test Error - Network error or function not available");
+      console.error('Dentist notification test error:', error);
     }
   };
 
@@ -433,8 +441,8 @@ Please check your appointment schedule.`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: '+919876543210',
-          message: `Hi Test Patient! This is a friendly reminder for your appointment at Jeshna Dental tomorrow at 10:00 AM. Please arrive 10 minutes early. For any changes, call +919876543210. Thank you!`,
+          to: '+916361631253',
+          message: `Hi Test Patient! This is a friendly reminder for your appointment at Jeshna Dental tomorrow at 10:00 AM. Please arrive 10 minutes early. For any changes, call +916361631253. Thank you!`,
           type: 'appointment_reminder'
         }),
       });
@@ -445,9 +453,11 @@ Please check your appointment schedule.`,
         toast.success("✅ Reminder Test Success - Test reminder message sent successfully");
       } else {
         toast.error(`❌ Reminder Test Failed - ${result.error || "Failed to send reminder message"}`);
+        console.error('Reminder test failed:', result);
       }
     } catch (error) {
       toast.error("❌ Reminder Test Error - Network error or function not available");
+      console.error('Reminder test error:', error);
     }
   };
 
