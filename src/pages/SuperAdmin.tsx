@@ -522,6 +522,35 @@ Please check your appointment schedule.`,
     }
   };
 
+  // Check Twilio sandbox status
+  const checkTwilioStatus = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: '+916361631253',
+          message: '🔍 Twilio Sandbox Status Check - ' + new Date().toLocaleString(),
+          type: 'status_check'
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success("✅ Twilio Sandbox Working - Your number is verified and can receive messages");
+      } else {
+        toast.error(`❌ Twilio Sandbox Issue - ${result.error}`);
+        console.error('Twilio status check failed:', result);
+      }
+    } catch (error) {
+      toast.error("❌ Twilio Status Check Error - " + error.message);
+      console.error('Twilio status check error:', error);
+    }
+  };
+
 
 
 
@@ -1364,7 +1393,7 @@ Please check your appointment schedule.`,
                         </Button>
                       </div>
                       
-                      <div className="mt-3">
+                      <div className="mt-3 space-y-2">
                         <Button
                           type="button"
                           variant="default"
@@ -1374,8 +1403,21 @@ Please check your appointment schedule.`,
                         >
                           🧪 Test Real Appointment Booking Flow
                         </Button>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500">
                           This simulates the actual appointment booking process and tests both patient and dentist notifications
+                        </p>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => checkTwilioStatus()}
+                          className="w-full"
+                        >
+                          🔍 Check Twilio Sandbox Status
+                        </Button>
+                        <p className="text-xs text-gray-500">
+                          Check if your number is verified in Twilio sandbox
                         </p>
                       </div>
                       
