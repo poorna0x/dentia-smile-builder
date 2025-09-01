@@ -36,6 +36,8 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
 
 // Subscribe to push notifications
 export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
+  let registration: ServiceWorkerRegistration | null = null;
+  
   try {
     console.log('🔔 Starting push notification subscription process...');
     
@@ -61,7 +63,7 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
     console.log('🔧 Registering service worker...');
     
     try {
-      const registration = await navigator.serviceWorker.register('/sw-push.js');
+      registration = await navigator.serviceWorker.register('/sw-push.js');
       console.log('✅ Service worker registered:', registration);
       
       // Wait for it to be ready
@@ -72,6 +74,14 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
       return false;
     }
 
+    // Verify service worker registration exists
+    if (!registration) {
+      console.error('❌ Service worker registration is null');
+      return false;
+    }
+    
+    console.log('✅ Service worker registration verified:', registration);
+    
     // Get VAPID public key from environment
     const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
     console.log('🔍 Checking VAPID key from environment...');
