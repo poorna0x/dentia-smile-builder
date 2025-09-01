@@ -362,6 +362,128 @@ const SuperAdmin: React.FC = () => {
     }
   };
 
+  // Test WhatsApp functions
+  const testWhatsAppMessage = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: '+919876543210',
+          message: '🧪 Test message from SuperAdmin - ' + new Date().toLocaleString(),
+          type: 'test'
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "✅ WhatsApp Test Success",
+          description: "Test message sent successfully",
+        });
+      } else {
+        toast({
+          title: "❌ WhatsApp Test Failed",
+          description: result.error || "Failed to send test message",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ WhatsApp Test Error",
+        description: "Network error or function not available",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const testDentistNotification = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: '+91' + state.notificationSettings.dentist_phone_number,
+          message: `🦷 Test Dentist Notification!
+
+Patient: Test Patient
+Date: ${new Date().toLocaleDateString()}
+Time: ${new Date().toLocaleTimeString()}
+Phone: +919876543210
+Email: test@example.com
+
+Clinic: Jeshna Dental
+
+Please check your appointment schedule.`,
+          type: 'dentist_notification'
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "✅ Dentist Notification Test Success",
+          description: "Test notification sent to dentist successfully",
+        });
+      } else {
+        toast({
+          title: "❌ Dentist Notification Test Failed",
+          description: result.error || "Failed to send dentist notification",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Dentist Notification Test Error",
+        description: "Network error or function not available",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const testReminderMessage = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: '+919876543210',
+          message: `Hi Test Patient! This is a friendly reminder for your appointment at Jeshna Dental tomorrow at 10:00 AM. Please arrive 10 minutes early. For any changes, call +919876543210. Thank you!`,
+          type: 'appointment_reminder'
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "✅ Reminder Test Success",
+          description: "Test reminder message sent successfully",
+        });
+      } else {
+        toast({
+          title: "❌ Reminder Test Failed",
+          description: result.error || "Failed to send reminder message",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Reminder Test Error",
+        description: "Network error or function not available",
+        variant: "destructive",
+      });
+    }
+  };
+
 
 
 
@@ -1150,6 +1272,15 @@ const SuperAdmin: React.FC = () => {
                           <p className="text-xs text-gray-500">
                             Phone number for dentist notifications (WhatsApp format)
                           </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => testDentistNotification()}
+                            className="mt-2"
+                          >
+                            Test Dentist Notification
+                          </Button>
                         </div>
                       )}
 
@@ -1167,6 +1298,48 @@ const SuperAdmin: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Test Buttons */}
+                    <Separator />
+                    
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Test WhatsApp Functions</h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => testWhatsAppMessage()}
+                          className="w-full"
+                        >
+                          Test WhatsApp Message
+                        </Button>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => testReminderMessage()}
+                          className="w-full"
+                        >
+                          Test Reminder Message
+                        </Button>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => testDentistNotification()}
+                          className="w-full"
+                        >
+                          Test Dentist Notification
+                        </Button>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500">
+                        These tests will send actual WhatsApp messages. Make sure your Twilio credentials are configured in Netlify.
+                      </p>
+                    </div>
 
                   </div>
                 )}
