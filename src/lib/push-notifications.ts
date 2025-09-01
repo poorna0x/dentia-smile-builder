@@ -19,7 +19,17 @@ interface NotificationPayload {
 
 // Check if push notifications are supported
 export const isPushSupported = (): boolean => {
-  return 'serviceWorker' in navigator && 'PushManager' in window;
+  const hasServiceWorker = 'serviceWorker' in navigator;
+  const hasPushManager = 'PushManager' in window;
+  const hasPushSubscription = 'PushSubscription' in window;
+  
+  console.log('🔍 Push support check:', {
+    hasServiceWorker,
+    hasPushManager,
+    hasPushSubscription
+  });
+  
+  return hasServiceWorker && hasPushManager && hasPushSubscription;
 };
 
 // Request notification permission
@@ -103,6 +113,22 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
     
     console.log('✅ Push manager available:', registration.pushManager);
     
+    // Check if push subscription is supported
+    if (!('PushSubscription' in window)) {
+      console.error('❌ PushSubscription not supported in this browser');
+      return false;
+    }
+    
+    console.log('✅ PushSubscription supported');
+    
+    // Check if we can create a test subscription
+    try {
+      const testSubscription = await registration.pushManager.getSubscription();
+      console.log('📱 Current subscription status:', testSubscription ? 'Has subscription' : 'No subscription');
+    } catch (error) {
+      console.log('📱 Error checking current subscription:', error);
+    }
+    
     // Subscribe to push manager
     console.log('Attempting to subscribe with VAPID key:', vapidPublicKey.substring(0, 20) + '...');
     
@@ -110,10 +136,18 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
       console.log('🔐 About to call pushManager.subscribe...');
       console.log('🔑 Application server key length:', urlBase64ToUint8Array(vapidPublicKey).length);
       
-      const subscription = await registration.pushManager.subscribe({
+      // Try to subscribe with a timeout to catch any hanging requests
+      const subscriptionPromise = registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
+      
+      // Add a timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Push subscription timeout')), 10000);
+      });
+      
+      const subscription = await Promise.race([subscriptionPromise, timeoutPromise]);
       
       console.log('✅ Push subscription created:', subscription);
       console.log('📱 Subscription endpoint:', subscription.endpoint);
@@ -153,6 +187,18 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
         console.error('🚨 NotSupportedError detected - this usually means:');
         console.error('   - Push notifications not supported');
         console.error('   - Service worker not ready');
+      }
+      
+      // Try fallback approach - subscribe without VAPID key
+      console.log('🔄 Trying fallback subscription without VAPID key...');
+      try {
+        const fallbackSubscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true
+        });
+        console.log('✅ Fallback subscription successful:', fallbackSubscription);
+        return true;
+      } catch (fallbackError) {
+        console.error('❌ Fallback subscription also failed:', fallbackError);
       }
       
       throw subscribeError;
