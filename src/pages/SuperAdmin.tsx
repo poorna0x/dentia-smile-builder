@@ -1110,7 +1110,11 @@ const SuperAdmin: React.FC = () => {
                             max="72"
                             placeholder="24"
                             value={state.notificationSettings.reminder_hours}
-                            onChange={(e) => updateNotificationSetting('reminder_hours', (parseInt(e.target.value) || 24).toString())}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value);
+                              const finalValue = isNaN(value) ? 24 : value;
+                              updateNotificationSetting('reminder_hours', finalValue.toString());
+                            }}
                           />
                           <p className="text-xs text-gray-500">
                             How many hours before the appointment to send the reminder (0 = send immediately)
