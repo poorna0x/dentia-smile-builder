@@ -282,20 +282,54 @@ const DatabaseExport: React.FC = () => {
     try {
       setIsLoadingTables(true);
       
-      // Only test the most basic tables that definitely exist in your system
-      const basicTables = [
-        'clinics', 'patients', 'appointments', 'patient_phones', 'scheduling_settings',
-        'disabled_slots', 'system_settings', 'dental_treatments', 'treatment_payments', 
-        'payment_transactions', 'tooth_images', 'dentists', 'staff_permissions', 
-        'feature_toggles', 'prescriptions', 'lab_work'
+      // All tables in your system
+      const allTables = [
+        'analytics_cache',
+        'appointments',
+        'captcha_attempts',
+        'clinics',
+        'dental_charts',
+        'dental_notes',
+        'dental_treatments',
+        'dentists',
+        'disabled_slots',
+        'doctor_attributions',
+        'follow_ups',
+        'lab_work',
+        'lab_work_history',
+        'lab_work_orders',
+        'lab_work_results',
+        'login_attempts',
+        'medical_records',
+        'patient_auth',
+        'patient_phones',
+        'patient_records',
+        'patients',
+        'payment_transactions',
+        'prescription_history',
+        'prescriptions',
+        'push_subscriptions',
+        'scheduling_settings',
+        'security_audit_log',
+        'staff_permissions',
+        'storage_usage',
+        'system_audit_log',
+        'system_settings',
+        'tooth_conditions',
+        'tooth_images',
+        'treatment_payments',
+        'treatment_plans',
+        'treatment_types',
+        'treatments_with_dentist',
+        'user_roles'
       ];
 
       const availableTables: string[] = [];
       
-      console.log('🔍 Starting basic table discovery...');
+      console.log('🔍 Starting comprehensive table discovery...');
       
-      // Test only basic tables to avoid 404 spam
-      for (const tableName of basicTables) {
+      // Test all tables to discover which ones exist
+      for (const tableName of allTables) {
         try {
           const { data, error } = await supabase
             .from(tableName)

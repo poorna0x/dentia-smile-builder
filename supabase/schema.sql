@@ -217,6 +217,41 @@ CREATE POLICY "Allow all operations on disabled_slots" ON disabled_slots
 CREATE POLICY "Allow all operations on push_subscriptions" ON push_subscriptions
   FOR ALL USING (true);
 
+-- Create staff_permissions table for role-based access control
+CREATE TABLE IF NOT EXISTS staff_permissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  clinic_id UUID NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
+  can_access_settings BOOLEAN DEFAULT FALSE,
+  can_access_patient_portal BOOLEAN DEFAULT FALSE,
+  can_access_payment_analytics BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(clinic_id)
+);
+
+-- Create trigger for staff_permissions
+CREATE TRIGGER update_staff_permissions_updated_at 
+  BEFORE UPDATE ON staff_permissions 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for staff_permissions
+ALTER TABLE staff_permissions ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for staff_permissions
+CREATE POLICY "Allow all operations on staff_permissions" ON staff_permissions
+  FOR ALL USING (true);
+
+-- Insert default staff permissions for Jeshna Dental
+INSERT INTO staff_permissions (clinic_id, can_access_settings, can_access_patient_portal, can_access_payment_analytics) 
+SELECT 
+  c.id,
+  false,  -- Staff cannot access settings by default
+  true,   -- Staff can access patient portal by default
+  false   -- Staff cannot access payment analytics by default
+FROM clinics c 
+WHERE c.slug = 'jeshna-dental'
+ON CONFLICT (clinic_id) DO NOTHING;
+
 -- =====================================================
 -- ✅ SETUP COMPLETE!
 -- =====================================================

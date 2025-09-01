@@ -10,6 +10,7 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { usePermissions } from '@/hooks/usePermissions';
 
+
 import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType, getMinimumAdvanceNotice } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -2196,6 +2197,7 @@ Jeshna Dental Clinic Team`;
             <div>
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent">Admin Dashboard</h1>
               <p className="text-slate-600 mt-2">Manage appointments and clinic settings</p>
+
             </div>
             <div className="flex items-center gap-2 md:gap-4">
               <Button 
@@ -3511,42 +3513,7 @@ Jeshna Dental Clinic Team`;
                       </svg>
                     )}
                   </div>
-                  <div>
-                    <h3 className={`text-sm font-medium ${
-                      appointmentsError ? 'text-red-800' : 'text-green-800'
-                    }`}>
-                      {appointmentsError ? 'Database Connection Error' : 'Real-time Data Connected'}
-                    </h3>
-                    <p className={`text-sm mt-1 ${
-                      appointmentsError ? 'text-red-700' : 'text-green-700'
-                    }`}>
-                      {appointmentsError ? (
-                        `Error: ${appointmentsError}. Using mock data for testing.`
-                      ) : (
-                        <>
-                          Connected to Supabase! Appointments update in real-time. 
-                          {filteredAppointments && filteredAppointments.length > 0 && (
-                            <span className="ml-2 font-medium">
-                              {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''} shown
-                              {realAppointments.length !== filteredAppointments.length && (
-                                <span className="text-green-600"> ({realAppointments.length} total)</span>
-                              )}
-                            </span>
-                          )}
-                          {filteredAppointments.length === 0 && realAppointments.length > 0 && (
-                            <span className="ml-2 font-medium text-orange-600">
-                              No appointments for selected filters ({realAppointments.length} total)
-                            </span>
-                          )}
-                          {clinic && (
-                            <span className="ml-2 text-xs">
-                              Clinic: {clinic.name}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </p>
-                  </div>
+
                 </div>
               </div>
             </CardContent>
@@ -4663,6 +4630,8 @@ Jeshna Dental Clinic Team`;
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
 
     </div>
   );

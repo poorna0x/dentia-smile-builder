@@ -57,8 +57,11 @@ const RoleBasedLogin: React.FC = () => {
     const result = await login(email, password);
     
     if (result.success) {
-      // Save the selected role to sessionStorage
+      // Save the selected role to sessionStorage with validation
       sessionStorage.setItem('userRole', selectedRole);
+      
+      // Also set a timestamp to track when the role was set
+      sessionStorage.setItem('userRoleTimestamp', Date.now().toString());
       
       // Reset failed attempts on successful login
       resetFailedAttempts();

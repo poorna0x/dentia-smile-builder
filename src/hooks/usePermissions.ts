@@ -13,12 +13,29 @@ export const usePermissions = () => {
   });
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [roleInitialized, setRoleInitialized] = useState(false);
   const { clinic } = useClinic();
 
+  // Initialize role from sessionStorage only once
   useEffect(() => {
-    // Get role from sessionStorage
-    const role = sessionStorage.getItem('userRole') as UserRole;
-    setUserRole(role);
+    if (!roleInitialized) {
+      const role = sessionStorage.getItem('userRole') as UserRole;
+      setUserRole(role);
+      setRoleInitialized(true);
+    }
+  }, [roleInitialized]);
+
+  // Listen for role changes in sessionStorage (for cross-tab synchronization)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'userRole') {
+        const newRole = e.newValue as UserRole;
+        setUserRole(newRole);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Load staff permissions from database when clinic is available
@@ -27,24 +44,30 @@ export const usePermissions = () => {
       setPermissionsLoading(true);
       
       if (clinic?.id && userRole === 'staff') {
-        console.log('🔄 Initial load of staff permissions for clinic:', clinic.id);
         try {
           const permissions = await staffPermissionsApi.getByClinic(clinic.id);
-          console.log('📥 Initial permissions loaded from database:', permissions);
           if (permissions) {
             setStaffPermissions({
               canAccessSettings: permissions.can_access_settings,
               canAccessPatientPortal: permissions.can_access_patient_portal,
               canAccessPaymentAnalytics: permissions.can_access_payment_analytics ?? false
             });
-            console.log('✅ Initial staff permissions state set:', {
-              canAccessSettings: permissions.can_access_settings,
-              canAccessPatientPortal: permissions.can_access_patient_portal,
-              canAccessPaymentAnalytics: permissions.can_access_payment_analytics ?? false
+          } else {
+            // Set default permissions if no record exists
+            setStaffPermissions({
+              canAccessSettings: false,
+              canAccessPatientPortal: true,
+              canAccessPaymentAnalytics: false
             });
           }
         } catch (error) {
-          console.error('❌ Error loading staff permissions:', error);
+          console.error('Error loading staff permissions:', error);
+          // Set default permissions on error
+          setStaffPermissions({
+            canAccessSettings: false,
+            canAccessPatientPortal: true,
+            canAccessPaymentAnalytics: false
+          });
         } finally {
           setPermissionsLoaded(true);
           setPermissionsLoading(false);
@@ -53,17 +76,16 @@ export const usePermissions = () => {
         // Dentists don't need to load staff permissions, they have all permissions
         setPermissionsLoaded(true);
         setPermissionsLoading(false);
-        console.log('🔍 Dentist detected - setting permissions loaded to true');
       } else {
         setPermissionsLoading(false);
       }
     };
 
     // Only load if we haven't loaded yet or if this is the initial load
-    if (!permissionsLoaded) {
+    if (!permissionsLoaded && roleInitialized) {
       loadStaffPermissions();
     }
-  }, [clinic?.id, userRole, permissionsLoaded]);
+  }, [clinic?.id, userRole, permissionsLoaded, roleInitialized]);
 
   const isDentist = userRole === 'dentist';
   const isStaff = userRole === 'staff';
@@ -71,11 +93,6 @@ export const usePermissions = () => {
   const hasPermission = useCallback((permission: string): boolean => {
     // Dentists have all permissions - return true immediately
     if (isDentist) {
-      console.log('🔍 Permission check (dentist):', {
-        permission,
-        isDentist,
-        result: true
-      });
       return true;
     }
     
@@ -100,62 +117,54 @@ export const usePermissions = () => {
         }
       })();
       
-      console.log('🔍 Permission check:', {
-        permission,
-        isStaff,
-        permissionsLoaded,
-        staffPermissions,
-        result
-      });
-      
       return result;
     }
     
     // If permissions are not loaded yet, but user is dentist, they should have access
     if (isDentist) {
-      console.log('🔍 Permission check (dentist, not loaded):', {
-        permission,
-        isDentist,
-        result: true
-      });
       return true;
     }
-    
-    console.log('🔍 Permission check (not loaded):', {
-      permission,
-      isStaff,
-      permissionsLoaded,
-      staffPermissions
-    });
     
     return false;
   }, [isDentist, isStaff, permissionsLoaded, staffPermissions.canAccessPatientPortal, staffPermissions.canAccessSettings]);
 
-  const clearRole = () => {
+  const clearRole = useCallback(() => {
     sessionStorage.removeItem('userRole');
     setUserRole(null);
-  };
+    setRoleInitialized(false);
+  }, []);
+
+  const setRole = useCallback((role: UserRole) => {
+    sessionStorage.setItem('userRole', role);
+    setUserRole(role);
+  }, []);
 
   const refreshPermissions = useCallback(async () => {
     if (clinic?.id && userRole === 'staff') {
-      console.log('🔄 Refreshing staff permissions for clinic:', clinic.id);
       try {
         const permissions = await staffPermissionsApi.getByClinic(clinic.id);
-        console.log('📥 Loaded permissions from database:', permissions);
         if (permissions) {
           setStaffPermissions({
             canAccessSettings: permissions.can_access_settings,
             canAccessPatientPortal: permissions.can_access_patient_portal,
             canAccessPaymentAnalytics: permissions.can_access_payment_analytics ?? false
           });
-          console.log('✅ Updated staff permissions state:', {
-            canAccessSettings: permissions.can_access_settings,
-            canAccessPatientPortal: permissions.can_access_patient_portal,
-            canAccessPaymentAnalytics: permissions.can_access_payment_analytics ?? false
+        } else {
+          // Set default permissions if no record exists
+          setStaffPermissions({
+            canAccessSettings: false,
+            canAccessPatientPortal: true,
+            canAccessPaymentAnalytics: false
           });
         }
       } catch (error) {
-        console.error('❌ Error refreshing staff permissions:', error);
+        console.error('Error refreshing staff permissions:', error);
+        // Set default permissions on error
+        setStaffPermissions({
+          canAccessSettings: false,
+          canAccessPatientPortal: true,
+          canAccessPaymentAnalytics: false
+        });
       }
     }
   }, [clinic?.id, userRole]);
@@ -166,7 +175,9 @@ export const usePermissions = () => {
     isStaff,
     hasPermission,
     clearRole,
+    setRole,
     refreshPermissions,
-    permissionsLoading
+    permissionsLoading,
+    roleInitialized
   };
 };
