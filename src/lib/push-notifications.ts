@@ -59,8 +59,16 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
 
     // Register service worker for push notifications
     console.log('🔧 Registering service worker...');
-    const registration = await navigator.serviceWorker.register('/sw-push.js');
-    console.log('✅ Service worker registered:', registration);
+    
+    // Check if service worker is already registered
+    let registration = await navigator.serviceWorker.getRegistration('/sw-push.js');
+    
+    if (!registration) {
+      registration = await navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
+      console.log('✅ New service worker registered:', registration);
+    } else {
+      console.log('✅ Existing service worker found:', registration);
+    }
     
     console.log('⏳ Waiting for service worker to be ready...');
     await navigator.serviceWorker.ready;
@@ -76,12 +84,25 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
     // Subscribe to push manager
     console.log('Attempting to subscribe with VAPID key:', vapidPublicKey.substring(0, 20) + '...');
     
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-    });
-    
-    console.log('Push subscription created:', subscription);
+    try {
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      });
+      
+      console.log('✅ Push subscription created:', subscription);
+    } catch (subscribeError) {
+      console.error('❌ Push subscription failed:', subscribeError);
+      
+      // Check if there's an existing subscription
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        console.log('📱 Found existing subscription, using that:', existingSubscription);
+        return true;
+      }
+      
+      throw subscribeError;
+    }
 
     // Save subscription to database
     const subscriptionData = {

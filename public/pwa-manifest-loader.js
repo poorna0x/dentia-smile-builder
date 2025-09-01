@@ -15,10 +15,22 @@
       
       // Register service worker on admin routes
       if ('serviceWorker' in navigator && !swRegistration) {
-        navigator.serviceWorker.register('/sw-push.js', { scope: '/' })
+        // Check if already registered
+        navigator.serviceWorker.getRegistration('/sw-push.js')
+          .then(existingRegistration => {
+            if (existingRegistration) {
+              swRegistration = existingRegistration;
+              console.log('Existing Service Worker found for admin route:', existingRegistration);
+            } else {
+              // Register new service worker
+              return navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
+            }
+          })
           .then(registration => {
-            swRegistration = registration;
-            console.log('Service Worker registered for admin route:', registration);
+            if (registration) {
+              swRegistration = registration;
+              console.log('New Service Worker registered for admin route:', registration);
+            }
           })
           .catch(error => {
             console.log('Service Worker registration failed:', error);
@@ -48,17 +60,29 @@
   
   // Listen for route changes (for SPA)
   let currentPath = window.location.pathname;
-  const observer = new MutationObserver(() => {
-    if (window.location.pathname !== currentPath) {
-      currentPath = window.location.pathname;
-      checkAndLoadManifest();
-    }
-  });
   
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  // Wait for DOM to be ready before setting up observer
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupObserver);
+  } else {
+    setupObserver();
+  }
+  
+  function setupObserver() {
+    if (document.body) {
+      const observer = new MutationObserver(() => {
+        if (window.location.pathname !== currentPath) {
+          currentPath = window.location.pathname;
+          checkAndLoadManifest();
+        }
+      });
+      
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+  }
   
   // Also listen for popstate events (browser back/forward)
   window.addEventListener('popstate', checkAndLoadManifest);
