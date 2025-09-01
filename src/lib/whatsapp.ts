@@ -18,17 +18,14 @@ export interface NotificationSettings {
   review_message_template: string;
 }
 
-// Get notification settings from database
+// Get notification settings from localStorage
 export const getNotificationSettings = async (): Promise<NotificationSettings | null> => {
   try {
-    const { data, error } = await supabase.rpc('get_notification_settings');
-    
-    if (error) {
-      console.error('❌ Error fetching notification settings:', error);
-      return null;
+    const stored = localStorage.getItem('notification_settings');
+    if (stored) {
+      return JSON.parse(stored);
     }
-    
-    return data?.[0] || null;
+    return null;
   } catch (error) {
     console.error('❌ Error in getNotificationSettings:', error);
     return null;

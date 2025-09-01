@@ -243,19 +243,15 @@ const SuperAdmin: React.FC = () => {
 
   const loadFeatureToggles = async () => {
     try {
-      // Load feature toggles from database or use defaults
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .eq('setting_type', 'feature_toggle')
-        .single();
-
-      if (data && !error) {
+      // Load feature toggles from localStorage or use defaults
+      const stored = localStorage.getItem('feature_toggles');
+      if (stored) {
+        const parsed = JSON.parse(stored);
         setState(prev => ({
           ...prev,
           features: {
             ...prev.features,
-            ...data.settings
+            ...parsed
           }
         }));
       }
@@ -266,8 +262,10 @@ const SuperAdmin: React.FC = () => {
 
   const loadNotificationSettings = async () => {
     try {
-      const settings = await getNotificationSettings();
-      if (settings) {
+      // Load notification settings from localStorage
+      const stored = localStorage.getItem('notification_settings');
+      if (stored) {
+        const settings = JSON.parse(stored);
         setState(prev => ({
           ...prev,
           notificationSettings: settings
@@ -289,56 +287,12 @@ const SuperAdmin: React.FC = () => {
         }
       }));
 
-      // Determine which setting type to update
-      let settingType = '';
-      let settingsUpdate = {};
-      
-      if (key === 'whatsapp_enabled' || key === 'whatsapp_phone_number' || key === 'send_confirmation' || key === 'send_reminders' || key === 'send_reviews' || key === 'reminder_hours' || key === 'send_to_dentist') {
-        settingType = 'whatsapp_notifications';
-        // Get current settings and update the specific field
-        const { data: currentSettings } = await supabase
-          .from('system_settings')
-          .select('settings')
-          .eq('setting_type', 'whatsapp_notifications')
-          .single();
-        
-        const currentSettingsObj = currentSettings?.settings || {};
-        settingsUpdate = {
-          ...currentSettingsObj,
-          [key === 'whatsapp_enabled' ? 'enabled' : 
-           key === 'whatsapp_phone_number' ? 'phone_number' :
-           key === 'send_confirmation' ? 'send_confirmation' :
-           key === 'send_reminders' ? 'send_reminders' :
-           key === 'send_reviews' ? 'send_reviews' :
-           key === 'reminder_hours' ? 'reminder_hours' :
-           key === 'send_to_dentist' ? 'send_to_dentist' : key]: value
-        };
-      } else if (key === 'review_requests_enabled' || key === 'review_message_template') {
-        settingType = 'review_requests';
-        // Get current settings and update the specific field
-        const { data: currentSettings } = await supabase
-          .from('system_settings')
-          .select('settings')
-          .eq('setting_type', 'review_requests')
-          .single();
-        
-        const currentSettingsObj = currentSettings?.settings || {};
-        settingsUpdate = {
-          ...currentSettingsObj,
-          [key === 'review_requests_enabled' ? 'enabled' : 'message_template']: value
-        };
-      }
-
-      // Save to database
-      const { error } = await supabase
-        .from('system_settings')
-        .update({ 
-          settings: settingsUpdate,
-          updated_at: new Date().toISOString()
-        })
-        .eq('setting_type', settingType);
-
-      if (error) throw error;
+      // Save to localStorage
+      const updatedSettings = {
+        ...state.notificationSettings,
+        [key]: value
+      };
+      localStorage.setItem('notification_settings', JSON.stringify(updatedSettings));
 
       toast.success(`${key.replace(/_/g, ' ')} updated successfully`);
     } catch (error) {
@@ -366,20 +320,12 @@ const SuperAdmin: React.FC = () => {
         }
       }));
 
-      // Save to database using direct update
-      const { data, error } = await supabase
-        .from('system_settings')
-        .update({
-          settings: {
-            ...state.features,
-            [feature]: enabled
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('setting_type', 'feature_toggle')
-        .select();
-
-      if (error) throw error;
+      // Save to localStorage
+      const updatedFeatures = {
+        ...state.features,
+        [feature]: enabled
+      };
+      localStorage.setItem('feature_toggles', JSON.stringify(updatedFeatures));
 
       // Notify all components that feature toggles have changed
       featureToggleEvents.notify();
@@ -446,19 +392,12 @@ const SuperAdmin: React.FC = () => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
-      // For now, just check if the reminder system is configured
-      const { data: settings, error } = await supabase
-        .from('system_settings')
-        .select('settings')
-        .eq('setting_type', 'whatsapp_notifications')
-        .single();
-
-      if (error) throw error;
-
-      const whatsappSettings = settings?.settings || {};
+      // Check reminder system status from localStorage
+      const stored = localStorage.getItem('notification_settings');
+      const whatsappSettings = stored ? JSON.parse(stored) : {};
       
       toast.success('Reminder system status checked!', {
-        description: `WhatsApp: ${whatsappSettings.enabled ? 'Enabled' : 'Disabled'}, Reminders: ${whatsappSettings.send_reminders ? 'Enabled' : 'Disabled'}`
+        description: `WhatsApp: ${whatsappSettings.whatsapp_enabled ? 'Enabled' : 'Disabled'}, Reminders: ${whatsappSettings.send_reminders ? 'Enabled' : 'Disabled'}`
       });
 
       console.log('📊 Reminder System Status:', whatsappSettings);

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { featureToggleEvents } from '@/lib/feature-toggle-events';
 
 interface FeatureToggles {
@@ -18,6 +17,7 @@ interface UseFeatureTogglesReturn {
   error: string | null;
   isFeatureEnabled: (feature: keyof FeatureToggles) => boolean;
   refreshToggles: () => Promise<void>;
+  updateFeatureToggle: (feature: keyof FeatureToggles, enabled: boolean) => void;
 }
 
 const defaultFeatures: FeatureToggles = {
@@ -30,6 +30,63 @@ const defaultFeatures: FeatureToggles = {
   paymentSystemEnabled: true,
 };
 
+// Load feature toggles from environment variables or local storage
+const loadFeatureTogglesFromStorage = (): FeatureToggles => {
+  try {
+    // Try to load from localStorage first
+    const stored = localStorage.getItem('feature_toggles');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...defaultFeatures, ...parsed };
+    }
+  } catch (error) {
+    console.warn('Failed to load feature toggles from localStorage:', error);
+  }
+
+  // Fallback to environment variables
+  const envFeatures: Partial<FeatureToggles> = {};
+  
+  // Check for environment variables (for build-time configuration)
+  if (typeof window !== 'undefined') {
+    // Client-side environment variables
+    const env = (window as any).__ENV__ || {};
+    
+    if (env.VITE_WEBSITE_ENABLED !== undefined) {
+      envFeatures.websiteEnabled = env.VITE_WEBSITE_ENABLED === 'true';
+    }
+    if (env.VITE_PATIENT_MANAGEMENT_ENABLED !== undefined) {
+      envFeatures.patientManagementEnabled = env.VITE_PATIENT_MANAGEMENT_ENABLED === 'true';
+    }
+    if (env.VITE_APPOINTMENT_BOOKING_ENABLED !== undefined) {
+      envFeatures.appointmentBookingEnabled = env.VITE_APPOINTMENT_BOOKING_ENABLED === 'true';
+    }
+    if (env.VITE_ADMIN_PANEL_ENABLED !== undefined) {
+      envFeatures.adminPanelEnabled = env.VITE_ADMIN_PANEL_ENABLED === 'true';
+    }
+    if (env.VITE_REALTIME_UPDATES_ENABLED !== undefined) {
+      envFeatures.realtimeUpdatesEnabled = env.VITE_REALTIME_UPDATES_ENABLED === 'true';
+    }
+    if (env.VITE_EMAIL_NOTIFICATIONS_ENABLED !== undefined) {
+      envFeatures.emailNotificationsEnabled = env.VITE_EMAIL_NOTIFICATIONS_ENABLED === 'true';
+    }
+    if (env.VITE_PAYMENT_SYSTEM_ENABLED !== undefined) {
+      envFeatures.paymentSystemEnabled = env.VITE_PAYMENT_SYSTEM_ENABLED === 'true';
+    }
+  }
+
+  return { ...defaultFeatures, ...envFeatures };
+};
+
+// Save feature toggles to localStorage
+const saveFeatureTogglesToStorage = (features: FeatureToggles) => {
+  try {
+    localStorage.setItem('feature_toggles', JSON.stringify(features));
+    console.log('🔍 Saved feature toggles to localStorage:', features);
+  } catch (error) {
+    console.warn('Failed to save feature toggles to localStorage:', error);
+  }
+};
+
 export const useFeatureToggles = (): UseFeatureTogglesReturn => {
   const [features, setFeatures] = useState<FeatureToggles>(defaultFeatures);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,43 +97,12 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
       setIsLoading(true);
       setError(null);
 
-      console.log('🔍 Loading feature toggles from database...');
+      console.log('🔍 Loading feature toggles from storage...');
 
-      // Try to get feature toggles from database
-      let data = null;
-      let dbError = null;
+      const loadedFeatures = loadFeatureTogglesFromStorage();
       
-      try {
-        const result = await supabase
-          .from('system_settings')
-          .select('settings')
-          .eq('setting_type', 'feature_toggle')
-          .single();
-        
-        data = result.data;
-        dbError = result.error;
-      } catch (err) {
-        console.warn('Exception when querying system_settings:', err);
-        dbError = err;
-      }
-
-      console.log('🔍 Database response:', { data, error: dbError });
-
-      if (dbError) {
-        console.warn('Failed to load feature toggles from database, using defaults:', dbError);
-        // Use default features if database is not available
-        setFeatures(defaultFeatures);
-      } else if (data?.settings) {
-        const mergedFeatures = {
-          ...defaultFeatures,
-          ...data.settings
-        };
-        console.log('🔍 Setting features from database:', mergedFeatures);
-        setFeatures(mergedFeatures);
-      } else {
-        console.log('🔍 No data from database, using defaults:', defaultFeatures);
-        setFeatures(defaultFeatures);
-      }
+      console.log('🔍 Loaded feature toggles:', loadedFeatures);
+      setFeatures(loadedFeatures);
     } catch (err) {
       console.error('Error loading feature toggles:', err);
       setError('Failed to load feature toggles');
@@ -94,6 +120,13 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
   const refreshToggles = async () => {
     console.log('🔄 Manually refreshing feature toggles...');
     await loadFeatureToggles();
+  };
+
+  const updateFeatureToggle = (feature: keyof FeatureToggles, enabled: boolean) => {
+    const updatedFeatures = { ...features, [feature]: enabled };
+    setFeatures(updatedFeatures);
+    saveFeatureTogglesToStorage(updatedFeatures);
+    console.log(`🔍 Updated feature toggle ${feature}: ${enabled}`);
   };
 
   useEffect(() => {
@@ -116,6 +149,7 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
     error,
     isFeatureEnabled,
     refreshToggles,
+    updateFeatureToggle,
   };
 };
 

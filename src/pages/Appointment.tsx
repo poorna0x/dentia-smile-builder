@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 // import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -87,6 +87,7 @@ const Appointment = () => {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
+  const [isLoadingDisabledSlots, setIsLoadingDisabledSlots] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<{
     requiresCaptcha: boolean;
@@ -329,6 +330,8 @@ const Appointment = () => {
 
         // Subscribe to disabled slots with date-specific polling
         const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
+          console.log('🔄 Disabled slots update received:', update);
+          
           // Disabled slots lightweight update
           if (update.type === 'UPDATED') {
             // Check if any changes affect the current date
@@ -338,9 +341,14 @@ const Appointment = () => {
             );
             
             if (hasRelevantChanges) {
-              // Refreshing disabled slots due to changes
+              console.log('🔄 Refreshing disabled slots due to changes for date:', currentDate);
+              // Force refresh disabled slots
               loadDisabledSlots(date);
             }
+          } else if (update.type === 'INSERTED' || update.type === 'DELETED') {
+            // For insert/delete operations, always refresh to be safe
+            console.log('🔄 Refreshing disabled slots due to insert/delete operation');
+            loadDisabledSlots(date);
           }
         }, format(date, 'yyyy-MM-dd'));
 
@@ -509,11 +517,18 @@ const Appointment = () => {
     if (!clinic?.id) return;
     
     try {
+      setIsLoadingDisabledSlots(true);
       const dateString = format(targetDate, 'yyyy-MM-dd');
+      console.log('🔄 Loading disabled slots for date:', dateString);
       const slots = await disabledSlotsApi.getByClinicAndDate(clinic.id, dateString);
+      console.log('✅ Disabled slots loaded:', slots.length, 'slots');
       setDisabledSlots(slots);
     } catch (error) {
-      console.error('Error loading disabled slots:', error);
+      console.error('❌ Error loading disabled slots:', error);
+      // Set empty array on error to prevent stale data
+      setDisabledSlots([]);
+    } finally {
+      setIsLoadingDisabledSlots(false);
     }
   }, [clinic?.id]);
 
@@ -538,6 +553,13 @@ const Appointment = () => {
     const dateString = format(dateForSlots, 'yyyy-MM-dd');
     const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
     
+    // Debug logging for disabled slots
+    if (disabledSlotsForDate.length > 0) {
+      console.log('🚫 Disabled slots for', dateString, ':', disabledSlotsForDate.map(slot => 
+        `${slot.start_time}-${slot.end_time}`
+      ));
+    }
+
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
     const [endH, endM] = daySettings.endTime.split(':').map(Number);
 
@@ -596,7 +618,17 @@ const Appointment = () => {
         const disabledEnd = new Date(dateForSlots);
         disabledEnd.setHours(disabledEndH, disabledEndM, 0, 0);
         
-        return slotStart < disabledEnd && slotEnd > disabledStart;
+        const overlaps = slotStart < disabledEnd && slotEnd > disabledStart;
+        
+        // Debug logging for slot overlap
+        if (overlaps) {
+          console.log('🚫 Slot disabled due to overlap:', {
+            slot: `${slotStart.toLocaleTimeString()}-${slotEnd.toLocaleTimeString()}`,
+            disabledSlot: `${disabledSlot.start_time}-${disabledSlot.end_time}`
+          });
+        }
+        
+        return overlaps;
       });
 
       // Disable past times based on minimum advance notice setting
@@ -617,22 +649,42 @@ const Appointment = () => {
         });
       }
 
-      if (!overlapsBreak && !overlapsDisabledSlot && slotEnd <= end) {
+      if (!overlapsBreak && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
         const isBooked = bookedSlots.includes(label);
-        slots.push({ 
-          label, 
-          value: label, 
-          disabled: isPast || isBooked,
-          booked: isBooked
-        });
+        const isBlocked = overlapsDisabledSlot;
+        
+        // Only add slots that are not blocked by admin settings
+        if (!isBlocked) {
+          slots.push({ 
+            label, 
+            value: label, 
+            disabled: isPast || isBooked,
+            booked: isBooked
+          });
+        }
       }
     }
 
+    console.log('📅 Generated', slots.length, 'time slots for', dateForSlots.toDateString());
     return slots;
   };
 
-  const timeSlots = generateTimeSlots(date);
+  // Memoize time slots to prevent unnecessary recalculations
+  const timeSlots = useMemo(() => {
+    // Don't generate slots if disabled slots are still loading
+    if (isLoadingDisabledSlots) {
+      console.log('⏳ Skipping time slot generation - disabled slots still loading');
+      return [];
+    }
+    console.log('🔄 Regenerating time slots - dependencies changed:', {
+      date: date.toDateString(),
+      disabledSlotsCount: disabledSlots.length,
+      bookedSlotsCount: bookedSlots.length,
+      settingsLoaded: !!settings
+    });
+    return generateTimeSlots(date);
+  }, [date, disabledSlots, bookedSlots, settings, isLoadingDisabledSlots]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1102,6 +1154,13 @@ const Appointment = () => {
                         <div className="text-sm text-destructive">
                           Appointments are temporarily disabled.
                         </div>
+                      ) : isLoadingDisabledSlots ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600 mx-auto mb-2"></div>
+                            <p className="text-sm text-muted-foreground">Loading available slots...</p>
+                          </div>
+                        </div>
                       ) : timeSlots.length === 0 ? (
                         <div className="text-sm text-destructive">
                           {(() => {
@@ -1140,6 +1199,15 @@ const Appointment = () => {
                             Red slots are unavailable. Please select an available time.
                           </div>
                         )}
+                        {(() => {
+                          const dateString = format(date, 'yyyy-MM-dd');
+                          const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
+                          return disabledSlotsForDate.length > 0 ? (
+                            <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded-md border border-orange-200">
+                              ⚠️ Some time slots are blocked by admin settings for this date.
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     )}
                     </div>
