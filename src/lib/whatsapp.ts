@@ -168,10 +168,18 @@ export const sendWhatsAppDentistNotification = async (
   }
 ): Promise<boolean> => {
   try {
+    console.log('🦷 Starting dentist notification process...');
+    console.log('🦷 Clinic ID:', clinicId);
+    console.log('🦷 Appointment data:', appointmentData);
+    
     // Check if dentist notifications are enabled
     const settings = await getNotificationSettings();
+    console.log('🦷 Notification settings:', settings);
+    
     if (!settings?.whatsapp_enabled || !settings?.send_to_dentist) {
       console.log('📱 Dentist notifications disabled');
+      console.log('🦷 WhatsApp enabled:', settings?.whatsapp_enabled);
+      console.log('🦷 Send to dentist:', settings?.send_to_dentist);
       return false;
     }
 

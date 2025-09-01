@@ -461,6 +461,67 @@ Please check your appointment schedule.`,
     }
   };
 
+  // Test real appointment booking flow
+  const testRealAppointmentBooking = async () => {
+    try {
+      console.log('🧪 Testing real appointment booking flow...');
+      
+      // Import the functions dynamically
+      const { sendWhatsAppAppointmentConfirmation, sendWhatsAppDentistNotification } = await import('@/lib/whatsapp');
+      
+      // Simulate appointment data
+      const appointmentData = {
+        name: 'Test Patient',
+        date: '2024-01-15',
+        time: '10:00 AM',
+        phone: '+919876543210',
+        email: 'test@example.com',
+        clinicName: 'Jeshna Dental',
+        clinicPhone: '+916361631253',
+        clinicId: 'c1ca557d-ca85-4905-beb7-c3985692d463' // Your clinic ID
+      };
+
+      console.log('🧪 Sending patient confirmation...');
+      const patientResult = await sendWhatsAppAppointmentConfirmation(
+        appointmentData.phone,
+        {
+          name: appointmentData.name,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          clinicName: appointmentData.clinicName,
+          clinicPhone: appointmentData.clinicPhone
+        }
+      );
+
+      console.log('🧪 Sending dentist notification...');
+      const dentistResult = await sendWhatsAppDentistNotification(
+        appointmentData.clinicId,
+        {
+          name: appointmentData.name,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          phone: appointmentData.phone,
+          email: appointmentData.email
+        }
+      );
+
+      console.log('🧪 Results:', { patientResult, dentistResult });
+
+      if (patientResult && dentistResult) {
+        toast.success("✅ Real Appointment Test Success - Both patient and dentist notifications sent!");
+      } else if (patientResult) {
+        toast.success("⚠️ Partial Success - Patient notification sent, but dentist notification failed");
+      } else if (dentistResult) {
+        toast.success("⚠️ Partial Success - Dentist notification sent, but patient notification failed");
+      } else {
+        toast.error("❌ Real Appointment Test Failed - Both notifications failed");
+      }
+    } catch (error) {
+      toast.error("❌ Real Appointment Test Error - " + error.message);
+      console.error('Real appointment test error:', error);
+    }
+  };
+
 
 
 
@@ -1281,7 +1342,7 @@ Please check your appointment schedule.`,
                     <div className="space-y-4">
                       <h4 className="font-semibold">Test WhatsApp Functions</h4>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Button
                           type="button"
                           variant="outline"
@@ -1301,16 +1362,21 @@ Please check your appointment schedule.`,
                         >
                           Test Reminder Message
                         </Button>
-                        
+                      </div>
+                      
+                      <div className="mt-3">
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="default"
                           size="sm"
-                          onClick={() => testDentistNotification()}
+                          onClick={() => testRealAppointmentBooking()}
                           className="w-full"
                         >
-                          Test Dentist Notification
+                          🧪 Test Real Appointment Booking Flow
                         </Button>
+                        <p className="text-xs text-gray-500 mt-1">
+                          This simulates the actual appointment booking process and tests both patient and dentist notifications
+                        </p>
                       </div>
                       
                       <p className="text-xs text-gray-500">
