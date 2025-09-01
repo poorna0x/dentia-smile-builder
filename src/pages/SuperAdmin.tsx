@@ -360,57 +360,7 @@ const SuperAdmin: React.FC = () => {
     }
   };
 
-  const testReminderSystem = async () => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      
-      const response = await fetch('/.netlify/functions/test-reminder');
-      const result = await response.json();
-      
-      if (result.success) {
-        const status = result.status;
-        toast.success('Reminder system test completed!', {
-          description: `WhatsApp: ${status.whatsapp_enabled ? '✅' : '❌'}, Reminders: ${status.send_reminders ? '✅' : '❌'}, Twilio: ${status.twilio_configured ? '✅' : '❌'}`
-        });
-        console.log('📊 Test Results:', result);
-      } else {
-        toast.error('Reminder test failed', {
-          description: result.error || 'Unknown error'
-        });
-      }
-    } catch (error) {
-      toast.error('Failed to test reminder system', {
-        description: 'Check console for details'
-      });
-      console.error('Reminder test error:', error);
-    } finally {
-      setState(prev => ({ ...prev, isLoading: false }));
-    }
-  };
 
-  const checkReminderStatus = async () => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true }));
-      
-      // Check reminder system status from localStorage
-      const stored = localStorage.getItem('notification_settings');
-      const whatsappSettings = stored ? JSON.parse(stored) : {};
-      
-      toast.success('Reminder system status checked!', {
-        description: `WhatsApp: ${whatsappSettings.whatsapp_enabled ? 'Enabled' : 'Disabled'}, Reminders: ${whatsappSettings.send_reminders ? 'Enabled' : 'Disabled'}`
-      });
-
-      console.log('📊 Reminder System Status:', whatsappSettings);
-      
-    } catch (error) {
-      toast.error('Failed to check reminder status', {
-        description: 'Check console for details'
-      });
-      console.error('Status check error:', error);
-    } finally {
-      setState(prev => ({ ...prev, isLoading: false }));
-    }
-  };
 
 
 
@@ -1156,14 +1106,14 @@ const SuperAdmin: React.FC = () => {
                           <Input
                             id="reminder_hours"
                             type="number"
-                            min="1"
+                            min="0"
                             max="72"
                             placeholder="24"
                             value={state.notificationSettings.reminder_hours}
                             onChange={(e) => updateNotificationSetting('reminder_hours', (parseInt(e.target.value) || 24).toString())}
                           />
                           <p className="text-xs text-gray-500">
-                            How many hours before the appointment to send the reminder
+                            How many hours before the appointment to send the reminder (0 = send immediately)
                           </p>
                         </div>
                       )}
@@ -1195,46 +1145,7 @@ const SuperAdmin: React.FC = () => {
                       </div>
                     </div>
 
-                    <Separator />
 
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Testing & Monitoring</h4>
-                      
-                      <div className="p-4 bg-blue-50 rounded-lg border">
-                        <h5 className="font-medium text-blue-900">Test Reminder System</h5>
-                        <p className="text-sm text-blue-700 mb-3">
-                          Manually trigger reminders for testing
-                        </p>
-                        <Button 
-                          onClick={testReminderSystem}
-                          disabled={state.isLoading}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          {state.isLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Testing...
-                            </>
-                          ) : (
-                            'Test Reminder System'
-                          )}
-                        </Button>
-                      </div>
-
-                      <div className="p-4 bg-green-50 rounded-lg border">
-                        <h5 className="font-medium text-green-900">Check Reminder Status</h5>
-                        <p className="text-sm text-green-700 mb-3">
-                          View upcoming appointments and reminder status
-                        </p>
-                        <Button 
-                          onClick={checkReminderStatus}
-                          disabled={state.isLoading}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Check Status
-                        </Button>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
