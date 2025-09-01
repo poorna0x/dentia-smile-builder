@@ -18,13 +18,14 @@ import { useClinic } from '@/contexts/ClinicContext';
 import { useSettings } from '@/hooks/useSettings';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { sendAppointmentConfirmation } from '@/lib/email';
+import { sendNewAppointmentNotification } from '@/lib/appointment-notifications';
 import CaptchaModal from '@/components/CaptchaModal';
 import { 
   checkSecurityStatus, 
   recordAppointmentAttempt, 
   resetSecurityOnSuccess 
 } from '@/lib/security';
-import { sendNewAppointmentNotification } from '@/lib/push-notifications';
+import { sendNewAppointmentNotification } from '@/lib/appointment-notifications';
 
 
 

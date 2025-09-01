@@ -1,110 +1,196 @@
-// Push Notification Utilities
+// Push Notifications Service
 import { supabase } from './supabase';
 
-interface PushNotificationData {
-  title: string;
-  body: string;
-  url?: string;
-  appointmentId?: string;
+interface PushSubscription {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
 }
 
-// Send push notification to all subscribers
-export const sendPushNotification = async (data: PushNotificationData) => {
+interface NotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  data?: any;
+}
+
+// Check if push notifications are supported
+export const isPushSupported = (): boolean => {
+  return 'serviceWorker' in navigator && 'PushManager' in window;
+};
+
+// Request notification permission
+export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
+  if (!('Notification' in window)) {
+    console.log('This browser does not support notifications');
+    return 'denied';
+  }
+
+  const permission = await Notification.requestPermission();
+  console.log('Notification permission:', permission);
+  return permission;
+};
+
+// Subscribe to push notifications
+export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
   try {
-    // Get all push subscriptions from database
-    const { data: subscriptions, error } = await supabase
-      .from('push_subscriptions')
-      .select('*');
-
-    if (error) {
-      console.error('Error fetching push subscriptions:', error);
-      return;
+    if (!isPushSupported()) {
+      console.log('Push notifications not supported');
+      return false;
     }
 
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log('No push subscriptions found');
-      return;
+    // Request permission first
+    const permission = await requestNotificationPermission();
+    if (permission !== 'granted') {
+      console.log('Notification permission denied');
+      return false;
     }
 
-    // Send notification to each subscription
-    const promises = subscriptions.map(async (subscription) => {
-      try {
-        const response = await fetch('/api/send-push-notification', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            subscription: {
-              endpoint: subscription.endpoint,
-              keys: {
-                p256dh: subscription.p256dh,
-                auth: subscription.auth
-              }
-            },
-            data: data
-          })
-        });
+    // Register service worker
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+    // Get VAPID public key from environment
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      console.error('VAPID public key not found in environment variables');
+      return false;
+    }
 
-        console.log('Push notification sent successfully');
-      } catch (error) {
-        console.error('Error sending push notification:', error);
-        
-        // Remove invalid subscription
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('endpoint', subscription.endpoint);
-      }
+    // Subscribe to push manager
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
     });
 
-    await Promise.all(promises);
+    // Save subscription to database
+    const subscriptionData = {
+      clinic_id: clinicId,
+      endpoint: subscription.endpoint,
+      p256dh_key: subscription.keys.p256dh,
+      auth_key: subscription.keys.auth,
+      user_agent: navigator.userAgent,
+      created_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert(subscriptionData, {
+        onConflict: 'endpoint'
+      });
+
+    if (error) {
+      console.error('Error saving push subscription:', error);
+      return false;
+    }
+
+    console.log('Successfully subscribed to push notifications');
+    return true;
+
   } catch (error) {
-    console.error('Error in sendPushNotification:', error);
+    console.error('Error subscribing to push notifications:', error);
+    return false;
   }
 };
 
-// Send notification for new appointment
-export const sendNewAppointmentNotification = async (appointment: any) => {
-  const notificationData: PushNotificationData = {
-    title: '🆕 New Appointment Booked!',
-    body: `${appointment.name} - ${appointment.date} at ${appointment.time}`,
-    url: '/admin',
-    appointmentId: appointment.id
-  };
+// Unsubscribe from push notifications
+export const unsubscribeFromPush = async (): Promise<boolean> => {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
 
-  await sendPushNotification(notificationData);
+    if (subscription) {
+      // Unsubscribe from push manager
+      await subscription.unsubscribe();
+
+      // Remove from database
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('endpoint', subscription.endpoint);
+
+      if (error) {
+        console.error('Error removing push subscription:', error);
+        return false;
+      }
+    }
+
+    console.log('Successfully unsubscribed from push notifications');
+    return true;
+
+  } catch (error) {
+    console.error('Error unsubscribing from push notifications:', error);
+    return false;
+  }
 };
 
-// Send notification for appointment status change
-export const sendAppointmentStatusNotification = async (appointment: any, status: string) => {
-  const statusEmoji = {
-    'Confirmed': '✅',
-    'Cancelled': '❌',
-    'Rescheduled': '🔄'
-  };
+// Check if user is subscribed
+export const isPushSubscribed = async (): Promise<boolean> => {
+  try {
+    if (!isPushSupported()) return false;
 
-  const notificationData: PushNotificationData = {
-    title: `${statusEmoji[status as keyof typeof statusEmoji] || '📋'} Appointment ${status}`,
-    body: `${appointment.name} - ${appointment.date} at ${appointment.time}`,
-    url: '/admin',
-    appointmentId: appointment.id
-  };
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
 
-  await sendPushNotification(notificationData);
+    return !!subscription;
+  } catch (error) {
+    console.error('Error checking push subscription status:', error);
+    return false;
+  }
 };
 
-// Send notification for disabled time slot
-export const sendDisabledSlotNotification = async (slot: any) => {
-  const notificationData: PushNotificationData = {
-    title: '🚫 Time Slot Disabled',
-    body: `${slot.date} from ${slot.start_time} to ${slot.end_time}`,
-    url: '/admin'
-  };
+// Send push notification (called from server)
+export const sendPushNotification = async (
+  clinicId: string,
+  payload: NotificationPayload
+): Promise<boolean> => {
+  try {
+    // This will be called from a Netlify function
+    const response = await fetch('/.netlify/functions/send-push-notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        clinicId,
+        payload
+      })
+    });
 
-  await sendPushNotification(notificationData);
+    return response.ok;
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+    return false;
+  }
+};
+
+// Utility function to convert VAPID key
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Show local notification (for testing)
+export const showLocalNotification = (payload: NotificationPayload): void => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(payload.title, {
+      body: payload.body,
+      icon: payload.icon || '/favicon.png',
+      badge: payload.badge || '/favicon.png',
+      data: payload.data
+    });
+  }
 };
