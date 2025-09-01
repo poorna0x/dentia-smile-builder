@@ -175,21 +175,27 @@ export const sendWhatsAppDentistNotification = async (
       return false;
     }
 
-    // Get clinic and dentist phone number
+    // Get dentist phone number from settings
+    if (!settings.dentist_phone_number) {
+      console.log('❌ No dentist phone number configured in SuperAdmin');
+      return false;
+    }
+
+    // Get clinic name
     const { data: clinic, error } = await supabase
       .from('clinics')
-      .select('name, dentist_phone')
+      .select('name')
       .eq('id', clinicId)
       .single();
 
-    if (error || !clinic?.dentist_phone) {
-      console.log('❌ No dentist phone found for clinic:', clinicId);
+    if (error || !clinic?.name) {
+      console.log('❌ No clinic found:', clinicId);
       return false;
     }
 
     // Format phone number
-    const formattedPhone = formatPhoneNumber(clinic.dentist_phone);
-    console.log('📱 Dentist notification - Original phone:', clinic.dentist_phone, 'Formatted phone:', formattedPhone);
+    const formattedPhone = formatPhoneNumber(settings.dentist_phone_number);
+    console.log('📱 Dentist notification - Original phone:', settings.dentist_phone_number, 'Formatted phone:', formattedPhone);
 
     const message = `🦷 New Appointment Alert!
 

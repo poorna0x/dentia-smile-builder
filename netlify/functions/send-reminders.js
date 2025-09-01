@@ -94,27 +94,18 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Get WhatsApp settings
-    const { data: settings } = await supabase
-      .from('system_settings')
-      .select('settings')
-      .eq('setting_type', 'whatsapp_notifications')
-      .single();
+    // For Netlify functions, we can't access localStorage directly
+    // So we'll use environment variables or default settings
+    const whatsappSettings = {
+      enabled: process.env.WHATSAPP_ENABLED === 'true',
+      send_reminders: process.env.SEND_REMINDERS === 'true',
+      reminder_hours: parseInt(process.env.REMINDER_HOURS) || 24,
+      whatsapp_phone_number: process.env.WHATSAPP_PHONE_NUMBER || '',
+      send_to_dentist: process.env.SEND_TO_DENTIST === 'true',
+      dentist_phone_number: process.env.DENTIST_PHONE_NUMBER || ''
+    };
 
-    if (!settings?.settings) {
-      console.log('❌ No WhatsApp settings found');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          success: true, 
-          message: 'WhatsApp not configured',
-          count: 0
-        })
-      };
-    }
-
-    const whatsappSettings = settings.settings;
+    console.log('📱 WhatsApp settings:', whatsappSettings);
 
     // Check if reminders are enabled
     if (!whatsappSettings.enabled || !whatsappSettings.send_reminders) {

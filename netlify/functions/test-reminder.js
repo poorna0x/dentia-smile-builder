@@ -31,24 +31,20 @@ exports.handler = async (event, context) => {
     console.log('🔍 Testing reminder system...');
     console.log('📅 Today:', today, 'Tomorrow:', tomorrow);
 
-    // Check WhatsApp settings
-    const { data: settings, error: settingsError } = await supabase
-      .from('system_settings')
-      .select('settings')
-      .eq('setting_type', 'whatsapp_notifications')
-      .single();
+    // For Netlify functions, we can't access localStorage directly
+    // So we'll use environment variables or default settings
+    const settings = {
+      settings: {
+        enabled: process.env.WHATSAPP_ENABLED === 'true',
+        send_reminders: process.env.SEND_REMINDERS === 'true',
+        reminder_hours: parseInt(process.env.REMINDER_HOURS) || 24,
+        whatsapp_phone_number: process.env.WHATSAPP_PHONE_NUMBER || '',
+        send_to_dentist: process.env.SEND_TO_DENTIST === 'true',
+        dentist_phone_number: process.env.DENTIST_PHONE_NUMBER || ''
+      }
+    };
 
-    if (settingsError) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Failed to fetch WhatsApp settings',
-          details: settingsError.message
-        })
-      };
-    }
+    console.log('📱 WhatsApp settings:', settings);
 
     // Get appointments for tomorrow
     const { data: appointments, error: appointmentsError } = await supabase

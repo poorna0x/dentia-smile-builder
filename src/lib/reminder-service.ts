@@ -66,20 +66,15 @@ const processAppointmentReminder = async (appointment: AppointmentForReminder): 
     const appointmentDateTime = new Date(`${appointment.date}T${appointment.time}`);
     const now = new Date();
     
-    // Get reminder settings
-    const { data: settings } = await supabase
-      .from('system_settings')
-      .select('settings')
-      .eq('setting_type', 'whatsapp_notifications')
-      .single();
-
-    if (!settings?.settings) {
-      console.log('❌ No WhatsApp settings found');
+    // Get reminder settings from localStorage
+    const stored = localStorage.getItem('notification_settings');
+    if (!stored) {
+      console.log('❌ No notification settings found in localStorage');
       return;
     }
 
-    const whatsappSettings = settings.settings;
-    const reminderHours = whatsappSettings.reminder_hours || 24;
+    const settings = JSON.parse(stored);
+    const reminderHours = settings.reminder_hours || 24;
     const reminderTime = addHours(appointmentDateTime, -reminderHours);
 
     // Check if it's time to send the reminder
@@ -89,7 +84,7 @@ const processAppointmentReminder = async (appointment: AppointmentForReminder): 
     }
 
     // Check if reminders are enabled
-    if (!whatsappSettings.enabled || !whatsappSettings.send_reminders) {
+    if (!settings.whatsapp_enabled || !settings.send_reminders) {
       console.log('📱 Reminders disabled, marking as sent to avoid re-checking');
       await markReminderAsSent(appointment.id);
       return;

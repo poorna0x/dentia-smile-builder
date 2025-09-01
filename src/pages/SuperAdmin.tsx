@@ -57,6 +57,7 @@ interface SuperAdminState {
     send_reviews: boolean;
     reminder_hours: number;
     send_to_dentist: boolean;
+    dentist_phone_number: string;
     review_requests_enabled: boolean;
     review_message_template: string;
   };
@@ -102,6 +103,7 @@ const SuperAdmin: React.FC = () => {
     send_reviews: false,
     reminder_hours: 24,
     send_to_dentist: true,
+    dentist_phone_number: '',
     review_requests_enabled: false,
     review_message_template: 'Thank you for choosing our clinic! We hope your visit was great. Please share your experience: {review_link}',
   },
@@ -1134,6 +1136,22 @@ const SuperAdmin: React.FC = () => {
                           onCheckedChange={(enabled) => updateNotificationSetting('send_to_dentist', enabled)}
                         />
                       </div>
+
+                      {state.notificationSettings.send_to_dentist && (
+                        <div className="space-y-2">
+                          <Label htmlFor="dentist_phone">Dentist Phone Number</Label>
+                          <Input
+                            id="dentist_phone"
+                            type="tel"
+                            placeholder="6361631253"
+                            value={state.notificationSettings.dentist_phone_number}
+                            onChange={(e) => updateNotificationSetting('dentist_phone_number', e.target.value)}
+                          />
+                          <p className="text-xs text-gray-500">
+                            Phone number for dentist notifications (WhatsApp format)
+                          </p>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
                         <div>
