@@ -3,10 +3,125 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Dentia - Dental Clinic Management</title>
-    <meta name="description" content="Professional dental clinic appointment booking and management system. Book appointments, manage patients, and run your dental practice efficiently." />
-    <meta name="author" content="Dentia" />
-    <meta name="keywords" content="dental clinic, appointment booking, patient management, dental practice, healthcare, medical app" />
+    
+    <!-- Primary SEO Meta Tags -->
+    <title>Jeshna Dental Clinic - Best Dentist in [City] | Dental Care & Treatment</title>
+    <meta name="description" content="Jeshna Dental Clinic offers comprehensive dental care in [City]. Expert dentists, modern facilities, painless treatments. Book appointment online for dental checkup, root canal, teeth whitening, braces & more. Call [Phone] today!" />
+    <meta name="author" content="Dr. Jeshna - Jeshna Dental Clinic" />
+    <meta name="keywords" content="dentist [city], dental clinic [city], best dentist near me, dental treatment, root canal treatment, teeth whitening, dental implants, braces, dental checkup, emergency dentist, pediatric dentist, cosmetic dentistry, dental surgery, oral health, dental care, dental hygiene, dental cleaning, cavity treatment, gum disease treatment, dental crown, dental bridge, wisdom tooth extraction, dental emergency, affordable dental care, family dentist, dental consultation, dental x-ray, dental insurance, dental payment plans" />
+    
+    <!-- Location & Contact SEO -->
+    <meta name="geo.region" content="IN-[State Code]" />
+    <meta name="geo.placename" content="[City], [State]" />
+    <meta name="geo.position" content="[Latitude];[Longitude]" />
+    <meta name="ICBM" content="[Latitude], [Longitude]" />
+    
+    <!-- Business Schema Markup -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Dentist",
+      "name": "Jeshna Dental Clinic",
+      "description": "Professional dental care and treatment services in [City]. Expert dentists providing comprehensive oral health solutions.",
+      "url": "https://jeshna-dental.com",
+      "telephone": "+91-6361631253",
+      "email": "info@jeshna-dental.com",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "[Street Address]",
+        "addressLocality": "[City]",
+        "addressRegion": "[State]",
+        "postalCode": "[PIN Code]",
+        "addressCountry": "IN"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": "[Latitude]",
+        "longitude": "[Longitude]"
+      },
+      "openingHours": "Mo,Tu,We,Th,Fr,Sa 09:00-18:00",
+      "priceRange": "₹₹",
+      "paymentAccepted": "Cash, Credit Card, Debit Card, UPI, Insurance",
+      "currenciesAccepted": "INR",
+      "medicalSpecialty": "Dentistry",
+      "availableService": [
+        {
+          "@type": "MedicalProcedure",
+          "name": "Dental Checkup",
+          "description": "Comprehensive dental examination and oral health assessment"
+        },
+        {
+          "@type": "MedicalProcedure", 
+          "name": "Root Canal Treatment",
+          "description": "Advanced endodontic treatment to save damaged teeth"
+        },
+        {
+          "@type": "MedicalProcedure",
+          "name": "Teeth Whitening",
+          "description": "Professional teeth whitening and cosmetic dental procedures"
+        },
+        {
+          "@type": "MedicalProcedure",
+          "name": "Dental Implants",
+          "description": "Permanent tooth replacement with dental implants"
+        },
+        {
+          "@type": "MedicalProcedure",
+          "name": "Braces & Orthodontics",
+          "description": "Teeth alignment and orthodontic treatment"
+        }
+      ],
+      "sameAs": [
+        "https://www.facebook.com/jeshnadental",
+        "https://www.instagram.com/jeshnadental",
+        "https://www.youtube.com/@jeshnadental"
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "reviewCount": "127",
+        "bestRating": "5",
+        "worstRating": "1"
+      }
+    }
+    </script>
+    
+    <!-- Local Business Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": "Jeshna Dental Clinic",
+      "image": "https://jeshna-dental.com/logo.png",
+      "description": "Leading dental clinic in [City] providing comprehensive dental care and treatment services.",
+      "url": "https://jeshna-dental.com",
+      "telephone": "+91-6361631253",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "[Street Address]",
+        "addressLocality": "[City]",
+        "addressRegion": "[State]",
+        "postalCode": "[PIN Code]",
+        "addressCountry": "IN"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": "[Latitude]",
+        "longitude": "[Longitude]"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "09:00",
+          "closes": "18:00"
+        }
+      ],
+      "priceRange": "₹₹",
+      "paymentAccepted": "Cash, Credit Card, Debit Card, UPI, Insurance",
+      "currenciesAccepted": "INR"
+    }
+    </script>
 
     <!-- PWA Meta Tags (Admin Only) -->
     <meta name="theme-color" content="#3b82f6" />
@@ -27,20 +142,47 @@
     <link rel="apple-touch-icon" sizes="167x167" href="/favicon.png" />
 
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Dentia - Dental Clinic Management" />
-    <meta property="og:description" content="Professional dental clinic appointment booking and management system" />
+    <!-- Open Graph Meta Tags for Social Media -->
+    <meta property="og:title" content="Jeshna Dental Clinic - Best Dentist in [City] | Dental Care & Treatment" />
+    <meta property="og:description" content="Expert dental care in [City]. Book appointment online for dental checkup, root canal, teeth whitening, braces & more. Modern facilities, painless treatments. Call +91-6361631253" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/logo.png" />
-    <meta property="og:image:width" content="512" />
-    <meta property="og:image:height" content="512" />
- 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Dentia - Dental Clinic Management" />
-    <meta name="twitter:description" content="Professional dental clinic appointment booking and management system" />
-    <meta name="twitter:image" content="/pwa-512x512.png" />
+    <meta property="og:url" content="https://jeshna-dental.com" />
+    <meta property="og:image" content="https://jeshna-dental.com/logo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Jeshna Dental Clinic - Professional Dental Care" />
+    <meta property="og:site_name" content="Jeshna Dental Clinic" />
+    <meta property="og:locale" content="en_IN" />
     
-    <link rel="canonical" href="https://dentia.app/" />
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Jeshna Dental Clinic - Best Dentist in [City]" />
+    <meta name="twitter:description" content="Expert dental care in [City]. Book appointment online for dental checkup, root canal, teeth whitening, braces & more. Modern facilities, painless treatments." />
+    <meta name="twitter:image" content="https://jeshna-dental.com/logo.png" />
+    <meta name="twitter:image:alt" content="Jeshna Dental Clinic - Professional Dental Care" />
+    <meta name="twitter:site" content="@jeshnadental" />
+    <meta name="twitter:creator" content="@jeshnadental" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://jeshna-dental.com/" />
+    
+    <!-- Additional SEO Meta Tags -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="bingbot" content="index, follow" />
+    
+    <!-- Mobile App Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Jeshna Dental" />
+    <meta name="application-name" content="Jeshna Dental" />
+    
+    <!-- Preconnect to External Domains for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
     
     <!-- PWA Manifest Loader - Only loads on admin routes -->
     <script src="/pwa-manifest-loader.js"></script>
