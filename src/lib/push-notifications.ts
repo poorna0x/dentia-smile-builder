@@ -37,21 +37,34 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
 // Subscribe to push notifications
 export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
   try {
+    console.log('🔔 Starting push notification subscription process...');
+    
     if (!isPushSupported()) {
-      console.log('Push notifications not supported');
+      console.log('❌ Push notifications not supported');
       return false;
     }
+
+    console.log('✅ Push notifications supported');
 
     // Request permission first
     const permission = await requestNotificationPermission();
+    console.log('📱 Notification permission result:', permission);
+    
     if (permission !== 'granted') {
-      console.log('Notification permission denied');
+      console.log('❌ Notification permission denied');
       return false;
     }
 
-    // Register service worker
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ Notification permission granted');
+
+    // Register service worker for push notifications
+    console.log('🔧 Registering service worker...');
+    const registration = await navigator.serviceWorker.register('/sw-push.js');
+    console.log('✅ Service worker registered:', registration);
+    
+    console.log('⏳ Waiting for service worker to be ready...');
     await navigator.serviceWorker.ready;
+    console.log('✅ Service worker is ready');
 
     // Get VAPID public key from environment
     const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
@@ -61,10 +74,14 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
     }
 
     // Subscribe to push manager
+    console.log('Attempting to subscribe with VAPID key:', vapidPublicKey.substring(0, 20) + '...');
+    
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
     });
+    
+    console.log('Push subscription created:', subscription);
 
     // Save subscription to database
     const subscriptionData = {
@@ -99,7 +116,11 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
 // Unsubscribe from push notifications
 export const unsubscribeFromPush = async (): Promise<boolean> => {
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.getRegistration('/sw-push.js');
+    if (!registration) {
+      console.log('No service worker registration found');
+      return true;
+    }
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
@@ -132,7 +153,8 @@ export const isPushSubscribed = async (): Promise<boolean> => {
   try {
     if (!isPushSupported()) return false;
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.getRegistration('/sw-push.js');
+    if (!registration) return false;
     const subscription = await registration.pushManager.getSubscription();
 
     return !!subscription;

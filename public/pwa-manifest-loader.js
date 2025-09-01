@@ -15,7 +15,7 @@
       
       // Register service worker on admin routes
       if ('serviceWorker' in navigator && !swRegistration) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        navigator.serviceWorker.register('/sw-push.js', { scope: '/' })
           .then(registration => {
             swRegistration = registration;
             console.log('Service Worker registered for admin route:', registration);
