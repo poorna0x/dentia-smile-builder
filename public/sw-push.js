@@ -1,5 +1,20 @@
-// Service Worker for Push Notifications
-self.addEventListener('push', event => {
+// Simple Service Worker for Push Notifications
+console.log('Push notification service worker loading...');
+
+// Install event
+self.addEventListener('install', (event) => {
+  console.log('Push notification service worker installed');
+  self.skipWaiting();
+});
+
+// Activate event
+self.addEventListener('activate', (event) => {
+  console.log('Push notification service worker activated');
+  event.waitUntil(self.clients.claim());
+});
+
+// Push event
+self.addEventListener('push', (event) => {
   console.log('Push event received:', event);
 
   if (!event.data) {
@@ -49,8 +64,8 @@ self.addEventListener('push', event => {
   }
 });
 
-// Handle notification click
-self.addEventListener('notificationclick', event => {
+// Notification click event
+self.addEventListener('notificationclick', (event) => {
   console.log('Notification clicked:', event);
 
   event.notification.close();
@@ -75,7 +90,18 @@ self.addEventListener('notificationclick', event => {
   }
 });
 
-// Handle notification close
-self.addEventListener('notificationclose', event => {
+// Notification close event
+self.addEventListener('notificationclose', (event) => {
   console.log('Notification closed:', event);
 });
+
+// Message event for debugging
+self.addEventListener('message', (event) => {
+  console.log('Message received in service worker:', event.data);
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+console.log('Push notification service worker loaded successfully');

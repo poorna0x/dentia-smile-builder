@@ -57,29 +57,33 @@ export const subscribeToPush = async (clinicId: string): Promise<boolean> => {
 
     console.log('✅ Notification permission granted');
 
-    // Register service worker for push notifications
+    // Simple service worker registration
     console.log('🔧 Registering service worker...');
     
-    // Check if service worker is already registered
-    let registration = await navigator.serviceWorker.getRegistration('/sw-push.js');
-    
-    if (!registration) {
-      registration = await navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
-      console.log('✅ New service worker registered:', registration);
-    } else {
-      console.log('✅ Existing service worker found:', registration);
+    try {
+      const registration = await navigator.serviceWorker.register('/sw-push.js');
+      console.log('✅ Service worker registered:', registration);
+      
+      // Wait for it to be ready
+      await navigator.serviceWorker.ready;
+      console.log('✅ Service worker is ready');
+    } catch (swError) {
+      console.error('❌ Service worker registration failed:', swError);
+      return false;
     }
-    
-    console.log('⏳ Waiting for service worker to be ready...');
-    await navigator.serviceWorker.ready;
-    console.log('✅ Service worker is ready');
 
     // Get VAPID public key from environment
     const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    console.log('🔍 Checking VAPID key from environment...');
+    console.log('Environment keys available:', Object.keys(import.meta.env).filter(key => key.includes('VAPID')));
+    
     if (!vapidPublicKey) {
-      console.error('VAPID public key not found in environment variables');
+      console.error('❌ VAPID public key not found in environment variables');
+      console.log('Available env vars:', import.meta.env);
       return false;
     }
+    
+    console.log('✅ VAPID key found, length:', vapidPublicKey.length);
 
     // Subscribe to push manager
     console.log('Attempting to subscribe with VAPID key:', vapidPublicKey.substring(0, 20) + '...');
@@ -212,18 +216,27 @@ export const sendPushNotification = async (
 
 // Utility function to convert VAPID key
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
+  try {
+    console.log('🔑 Converting VAPID key:', base64String.substring(0, 20) + '...');
+    
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
 
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
 
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    
+    console.log('✅ VAPID key converted successfully, length:', outputArray.length);
+    return outputArray;
+  } catch (error) {
+    console.error('❌ Error converting VAPID key:', error);
+    throw new Error('Invalid VAPID key format');
   }
-  return outputArray;
 }
 
 // Show local notification (for testing)
