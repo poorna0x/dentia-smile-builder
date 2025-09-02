@@ -57,7 +57,7 @@ const Appointment = () => {
           localStorage.setItem('appointmentPatientId', patientData.id);
         }
         
-        console.log('Pre-filled patient data:', patientData);
+        // Pre-filled patient data
       } catch (error) {
         console.error('Error parsing patient data from URL:', error);
       }
@@ -170,16 +170,10 @@ const Appointment = () => {
   // Update date to next available date when settings load
   useEffect(() => {
     if (settings && !settingsLoading) {
-      console.log('📅 Appointment Debug - Settings loaded, calculating next available date:', {
-        minimumAdvanceNotice: getMinimumAdvanceNotice(settings),
-        currentDate: new Date(),
-        settingsLoaded: !!settings,
-        settingsId: settings.id, // To track if settings object changes
-        timestamp: new Date().toISOString()
-      });
+      // Appointment Debug - Settings loaded, calculating next available date
       
       const nextAvailableDate = getNextAvailableDate();
-      console.log('📅 Appointment Debug - Next available date calculated:', nextAvailableDate);
+      // Appointment Debug - Next available date calculated
       setDate(nextAvailableDate);
     }
   }, [settings, settingsLoading]);
@@ -210,13 +204,13 @@ const Appointment = () => {
     const minRefreshInterval = 1000; // 1 second minimum between refreshes
     
     if (!forceRefresh && timeSinceLastRefresh < minRefreshInterval) {
-      console.log('Skipping refresh - too soon since last refresh');
+      // Skipping refresh - too soon since last refresh
       return;
     }
     
     // Prevent concurrent refreshes
     if (isRefreshing) {
-      console.log('Skipping refresh - already refreshing');
+      // Skipping refresh - already refreshing
       return;
     }
     
@@ -330,7 +324,7 @@ const Appointment = () => {
 
         // Subscribe to disabled slots with date-specific polling
         const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
-          console.log('🔄 Disabled slots update received:', update);
+          // Disabled slots update received
           
           // Disabled slots lightweight update
           if (update.type === 'UPDATED') {
@@ -341,13 +335,13 @@ const Appointment = () => {
             );
             
             if (hasRelevantChanges) {
-              console.log('🔄 Refreshing disabled slots due to changes for date:', currentDate);
+              // Refreshing disabled slots due to changes for date
               // Force refresh disabled slots
               loadDisabledSlots(date);
             }
           } else if (update.type === 'INSERTED' || update.type === 'DELETED') {
             // For insert/delete operations, always refresh to be safe
-            console.log('🔄 Refreshing disabled slots due to insert/delete operation');
+            // Refreshing disabled slots due to insert/delete operation
             loadDisabledSlots(date);
           }
         }, format(date, 'yyyy-MM-dd'));
@@ -519,9 +513,9 @@ const Appointment = () => {
     try {
       setIsLoadingDisabledSlots(true);
       const dateString = format(targetDate, 'yyyy-MM-dd');
-      console.log('🔄 Loading disabled slots for date:', dateString);
+      // Loading disabled slots for date
       const slots = await disabledSlotsApi.getByClinicAndDate(clinic.id, dateString);
-      console.log('✅ Disabled slots loaded:', slots.length, 'slots');
+              // Disabled slots loaded
       setDisabledSlots(slots);
     } catch (error) {
       console.error('❌ Error loading disabled slots:', error);
@@ -555,9 +549,7 @@ const Appointment = () => {
     
     // Debug logging for disabled slots
     if (disabledSlotsForDate.length > 0) {
-      console.log('🚫 Disabled slots for', dateString, ':', disabledSlotsForDate.map(slot => 
-        `${slot.start_time}-${slot.end_time}`
-      ));
+      // Disabled slots for dateString
     }
 
     const [startH, startM] = daySettings.startTime.split(':').map(Number);
@@ -587,13 +579,7 @@ const Appointment = () => {
     
     // Debug logging for break periods
     if (breakPeriods.length > 1) {
-      console.log('📅 Break Periods Debug:', {
-        date: dateForSlots.toDateString(),
-        breakPeriods: breakPeriods.map(bp => ({
-          start: bp.start.toLocaleTimeString(),
-          end: bp.end.toLocaleTimeString()
-        }))
-      });
+      // Break Periods Debug
     }
 
     const intervalMs = daySettings.slotIntervalMinutes * 60 * 1000;
@@ -622,10 +608,7 @@ const Appointment = () => {
         
         // Debug logging for slot overlap
         if (overlaps) {
-          console.log('🚫 Slot disabled due to overlap:', {
-            slot: `${slotStart.toLocaleTimeString()}-${slotEnd.toLocaleTimeString()}`,
-            disabledSlot: `${disabledSlot.start_time}-${disabledSlot.end_time}`
-          });
+          // Slot disabled due to overlap
         }
         
         return overlaps;
@@ -640,13 +623,7 @@ const Appointment = () => {
       
       // Debug logging for time slots
       if (isToday && slotStart.getTime() > now.getTime() && slotStart.getTime() <= earliestAllowedTime.getTime()) {
-        console.log('📅 Time Slot Debug - Slot being disabled:', {
-          slotTime: slotStart.toLocaleTimeString(),
-          minimumAdvanceNotice,
-          earliestAllowedTime: earliestAllowedTime.toLocaleTimeString(),
-          isPast,
-          timeDifference: Math.round((earliestAllowedTime.getTime() - slotStart.getTime()) / (1000 * 60)) + ' minutes'
-        });
+        // Time Slot Debug - Slot being disabled
       }
 
       if (!overlapsBreak && slotEnd <= end) {
@@ -666,7 +643,7 @@ const Appointment = () => {
       }
     }
 
-    console.log('📅 Generated', slots.length, 'time slots for', dateForSlots.toDateString());
+    // Generated time slots for date
     return slots;
   };
 
@@ -674,15 +651,10 @@ const Appointment = () => {
   const timeSlots = useMemo(() => {
     // Don't generate slots if disabled slots are still loading
     if (isLoadingDisabledSlots) {
-      console.log('⏳ Skipping time slot generation - disabled slots still loading');
+      // Skipping time slot generation - disabled slots still loading
       return [];
     }
-    console.log('🔄 Regenerating time slots - dependencies changed:', {
-      date: date.toDateString(),
-      disabledSlotsCount: disabledSlots.length,
-      bookedSlotsCount: bookedSlots.length,
-      settingsLoaded: !!settings
-    });
+    // Regenerating time slots - dependencies changed
     return generateTimeSlots(date);
   }, [date, disabledSlots, bookedSlots, settings, isLoadingDisabledSlots]);
 
@@ -764,14 +736,14 @@ const Appointment = () => {
         let patientId = localStorage.getItem('appointmentPatientId');
         
         if (patientId) {
-          console.log('Using patient ID from URL parameters:', patientId);
+          // Using patient ID from URL parameters
           // Clear the stored patient ID after use
           localStorage.removeItem('appointmentPatientId');
         } else {
           // Don't pre-link patients by phone - let the database trigger handle it
           // This ensures proper name matching and new patient creation
           patientId = null;
-          console.log('No pre-existing patient ID, letting database trigger handle patient linking');
+          // No pre-existing patient ID, letting database trigger handle patient linking
         }
 
         const newAppointment = await appointmentsApi.create({
@@ -1112,25 +1084,9 @@ const Appointment = () => {
                             
                             // Debug logging for specific dates
                             if (day.getDate() === new Date().getDate()) { // Today
-                              console.log('📅 Calendar Debug - Today check:', {
-                                day: day.toDateString(),
-                                minimumAdvanceNotice,
-                                earliestBookingDate: earliestBookingDate.toDateString(),
-                                isPast,
-                                isTooSoon,
-                                isHoliday,
-                                willBeDisabled: isPast || isTooSoon || isHoliday
-                              });
+                              // Calendar Debug - Today check
                             } else if (day.getDate() === new Date().getDate() + 1) { // Tomorrow
-                              console.log('📅 Calendar Debug - Tomorrow check:', {
-                                day: day.toDateString(),
-                                minimumAdvanceNotice,
-                                earliestBookingDate: earliestBookingDate.toDateString(),
-                                isPast,
-                                isTooSoon,
-                                isHoliday,
-                                willBeDisabled: isPast || isTooSoon || isHoliday
-                              });
+                              // Calendar Debug - Tomorrow check
                             }
                             
                             return isPast || isTooSoon || isHoliday;

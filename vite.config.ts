@@ -18,6 +18,7 @@ export default defineConfig({
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn']
       }
     },
+
     rollupOptions: {
       output: {
         manualChunks: {

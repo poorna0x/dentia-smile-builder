@@ -267,9 +267,9 @@ const Admin = () => {
     if (!clinic || !clinic.id) return;
     
     try {
-      console.log('🔄 Loading staff permissions for clinic:', clinic.id);
+      // Loading staff permissions for clinic
       const permissions = await staffPermissionsApi.getByClinic(clinic.id);
-      console.log('📥 Raw permissions from API:', permissions);
+              // Raw permissions from API
       
       if (permissions) {
         const newPermissions = {
@@ -278,10 +278,10 @@ const Admin = () => {
           canAccessPaymentAnalytics: permissions.can_access_payment_analytics ?? false
         };
         
-        console.log('🔧 Setting staff permissions state:', newPermissions);
+        // Setting staff permissions state
         setStaffPermissions(newPermissions);
       } else {
-        console.log('⚠️ No permissions found, using defaults');
+                  // No permissions found, using defaults
         setStaffPermissions({
           canAccessSettings: false,
           canAccessPatientPortal: false,
@@ -459,12 +459,7 @@ const Admin = () => {
       canAccessPaymentAnalytics: newPermissions?.canAccessPaymentAnalytics ?? staffPermissions.canAccessPaymentAnalytics
     };
     
-    console.log('💾 Saving staff permissions:', {
-      clinicId: clinic.id,
-      permissions: permissionsToSave,
-      newPermissions: newPermissions,
-      currentState: staffPermissions
-    });
+          // Saving staff permissions
     
     try {
       const result = await staffPermissionsApi.upsert(clinic.id, {
@@ -473,7 +468,7 @@ const Admin = () => {
         can_access_payment_analytics: permissionsToSave.canAccessPaymentAnalytics
       });
       
-      console.log('✅ Staff permissions saved successfully:', result);
+      // Staff permissions saved successfully
       
       // Refresh permissions in usePermissions hook
       await refreshPermissions();
@@ -560,12 +555,7 @@ const Admin = () => {
       // Syncing settings from database
       
       // Convert database format to frontend format
-      console.log('🔧 Settings Debug - Raw settings from DB:', {
-        minimum_advance_notice: settings.minimum_advance_notice,
-        type: typeof settings.minimum_advance_notice,
-        isNull: settings.minimum_advance_notice === null,
-        isUndefined: settings.minimum_advance_notice === undefined
-      });
+      // Settings Debug - Raw settings from DB
       
       const convertedSettings: SchedulingSettings = {
         appointmentsDisabled: settings.disabled_appointments || false,
@@ -1276,15 +1266,7 @@ Jeshna Dental Clinic Team`;
     setIsCreatingClientAppointment(true);
 
     try {
-      console.log('🔍 Creating appointment for same client with data:', {
-        clinic_id: clinic.id,
-        name: selectedAppointment.name,
-        phone: selectedAppointment.phone,
-        email: selectedAppointment.email,
-        date: format(newAppointmentForClient.selectedDate, 'yyyy-MM-dd'),
-        time: newAppointmentForClient.time,
-        status: 'Confirmed'
-      });
+      // Creating appointment for same client with data
 
       // Create new appointment with same client data but new date/time
       const newAppointment = {
@@ -1298,9 +1280,9 @@ Jeshna Dental Clinic Team`;
         patient_id: null  // Automatic patient linking: Database trigger will find existing patient by phone/name or create new one
       };
 
-      console.log('🚀 Calling appointmentsApi.create for same client with:', newAppointment);
+      // Calling appointmentsApi.create for same client
       const result = await appointmentsApi.create(newAppointment);
-      console.log('✅ Appointment for same client created successfully:', result);
+              // Appointment for same client created successfully
       
       // Clear cache to ensure fresh data
       QueryOptimizer.clearCache('appointments');
@@ -1325,9 +1307,9 @@ Jeshna Dental Clinic Team`;
         });
         
         if (emailSent) {
-          console.log('✅ Email confirmation sent successfully');
+          // Email confirmation sent successfully
         } else {
-          console.warn('⚠️ Failed to send email confirmation');
+          // Failed to send email confirmation
         }
       } catch (emailError) {
         console.error('❌ Error sending email confirmation:', emailError);
@@ -1442,15 +1424,7 @@ Jeshna Dental Clinic Team`;
     setIsCreatingGeneralAppointment(true);
 
     try {
-      console.log('🔍 Creating appointment with data:', {
-        clinic_id: clinic.id,
-        name: formatName(generalNewAppointment.name),
-        phone: formatPhoneNumber(generalNewAppointment.phone),
-        email: generalNewAppointment.email.trim(),
-        date: format(generalNewAppointment.selectedDate, 'yyyy-MM-dd'),
-        time: generalNewAppointment.time,
-        status: 'Confirmed'
-      });
+      // Creating appointment with data
 
       const newAppointment = {
         clinic_id: clinic.id,
@@ -1463,9 +1437,9 @@ Jeshna Dental Clinic Team`;
         patient_id: null  // Automatic patient linking: Database trigger will find existing patient by phone/name or create new one
       };
 
-      console.log('🚀 Calling appointmentsApi.create with:', newAppointment);
+      // Calling appointmentsApi.create
       const result = await appointmentsApi.create(newAppointment);
-      console.log('✅ Appointment created successfully:', result);
+              // Appointment created successfully
       
       // Clear cache to ensure fresh data
       QueryOptimizer.clearCache('appointments');
@@ -1490,9 +1464,9 @@ Jeshna Dental Clinic Team`;
         });
         
         if (emailSent) {
-          console.log('✅ Email confirmation sent successfully');
+          // Email confirmation sent successfully
         } else {
-          console.warn('⚠️ Failed to send email confirmation');
+          // Failed to send email confirmation
         }
       } catch (emailError) {
         console.error('❌ Error sending email confirmation:', emailError);
@@ -1756,10 +1730,7 @@ Jeshna Dental Clinic Team`;
               
               // Debug logging for breaks
               if (schedule.breakStart.length > 1) {
-                console.log('🔧 Saving multiple breaks for', day, ':', {
-                  breakStart: schedule.breakStart,
-                  breakEnd: schedule.breakEnd
-                });
+                // Saving multiple breaks for day
               }
             }
             return acc;
@@ -1926,7 +1897,7 @@ Jeshna Dental Clinic Team`;
   // Listen for appointment completion events from other pages
   useEffect(() => {
     const handleAppointmentCompleted = (event: CustomEvent) => {
-      console.log('🔄 Admin page received appointment completion event:', event.detail);
+      // Admin page received appointment completion event
       // Trigger refresh to update appointments list
       if (refreshAppointments) {
         refreshAppointments();
@@ -2765,14 +2736,7 @@ Jeshna Dental Clinic Team`;
           </Card>
 
           {/* Settings Section - Always render when showSettings is true */}
-          {console.log('🔧 Settings Section Debug:', {
-            showSettings,
-            isDentist,
-            isStaff,
-            hasPermissionChangeSettings: hasPermission('change_settings'),
-            userRole,
-            shouldRender: showSettings && (isDentist || hasPermission('change_settings'))
-          })}
+          {/* Settings Section Debug */}
           {showSettings && (
             <Card id="settings-section" className="mt-6 md:mt-8 bg-gradient-to-br from-emerald-50 to-teal-100 border-emerald-200 shadow-lg">
             <CardHeader>
@@ -3055,12 +3019,6 @@ Jeshna Dental Clinic Team`;
                               const currentBreakEnds = schedulingSettings.daySchedules[selectedDay].breakEnd;
                               const newBreaks = [...currentBreaks, '13:00'];
                               const newBreakEnds = [...currentBreakEnds, '14:00'];
-                              console.log('🔧 Adding break:', {
-                                day: selectedDay,
-                                currentBreaks,
-                                newBreaks,
-                                newBreakEnds
-                              });
                               
                               // Update both arrays in a single state update
                               const updatedSettings = {
@@ -3085,7 +3043,7 @@ Jeshna Dental Clinic Team`;
                           </Button>
                         </div>
                         
-                        {console.log('🔧 Rendering breaks for', selectedDay, ':', schedulingSettings.daySchedules[selectedDay].breakStart)}
+                        {/* Rendering breaks for selectedDay */}
                         {schedulingSettings.daySchedules[selectedDay].breakStart.map((breakStart, index) => (
                           <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div className="space-y-2">
@@ -3148,12 +3106,7 @@ Jeshna Dental Clinic Team`;
                                 onClick={() => {
                                   const newBreaks = schedulingSettings.daySchedules[selectedDay].breakStart.filter((_, i) => i !== index);
                                   const newBreakEnds = schedulingSettings.daySchedules[selectedDay].breakEnd.filter((_, i) => i !== index);
-                                  console.log('🔧 Removing break:', {
-                                    day: selectedDay,
-                                    index,
-                                    newBreaks,
-                                    newBreakEnds
-                                  });
+                                  // Removing break
                                   
                                   // Update both arrays in a single state update
                                   const updatedSettings = {
@@ -3287,18 +3240,11 @@ Jeshna Dental Clinic Team`;
                           }));
                           // Auto-save after state update
                           setTimeout(async () => {
-                            console.log('🔧 Before save - Patient Portal Access:', {
-                              currentState: staffPermissions.canAccessPatientPortal,
-                              newValue: checked,
-                              allPermissions: staffPermissions
-                            });
+                            // Before save - Patient Portal Access
                             await saveStaffPermissions({
                               canAccessPatientPortal: checked
                             });
-                            console.log('🔧 Staff permissions after save:', {
-                              canAccessSettings: staffPermissions.canAccessSettings,
-                              canAccessPatientPortal: checked
-                            });
+                            // Staff permissions after save
                             toastHook({
                               title: "✅ Patient Portal Access Updated",
                               description: checked ? "Staff can now access patient management" : "Staff patient portal access disabled",

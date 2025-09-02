@@ -14,17 +14,15 @@ export const usePWA = () => {
 
   // Register service worker (temporarily disabled to test navigation)
   const updateSW = () => {
-    console.log('Service Worker registration disabled for testing')
+    // Service Worker registration disabled for testing
   }
   // const updateSW = registerSW({
   //   onNeedRefresh() {
   //     setUpdateAvailable(true)
   //   },
   //   onOfflineReady() {
-  //     console.log('App is ready for offline use')
   //   },
   //   onRegistered(swRegistration) {
-  //     console.log('Service Worker registered:', swRegistration)
   //   },
   //   onRegisterError(error) {
   //     console.error('Service Worker registration error:', error)
@@ -56,9 +54,9 @@ export const usePWA = () => {
       if (isAdminRoute) {
         setDeferredPrompt(e)
         setCanInstall(true)
-        console.log('PWA install prompt available on admin route')
+        // PWA install prompt available on admin route
       } else {
-        console.log('PWA install prompt ignored on non-admin route')
+        // PWA install prompt ignored on non-admin route
       }
     }
 
@@ -81,12 +79,12 @@ export const usePWA = () => {
       const { outcome } = await deferredPrompt.userChoice
       
       if (outcome === 'accepted') {
-        console.log('App installed successfully')
+        // App installed successfully
         setCanInstall(false)
         setDeferredPrompt(null)
         return true
       } else {
-        console.log('App installation declined')
+        // App installation declined
         return false
       }
     } catch (error) {

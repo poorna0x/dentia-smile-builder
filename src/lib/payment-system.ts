@@ -61,7 +61,6 @@ export interface PaymentFormData {
 export const paymentApi = {
   // Create a new treatment payment record
   createTreatmentPayment: async (payment: Omit<TreatmentPayment, 'id' | 'created_at' | 'updated_at' | 'remaining_amount'>): Promise<TreatmentPayment> => {
-    console.log('API: Creating treatment payment:', payment)
     
     const { data, error } = await supabase
       .from('treatment_payments')
@@ -74,13 +73,11 @@ export const paymentApi = {
       throw new Error(`Failed to create treatment payment: ${error.message}`)
     }
 
-    console.log('API: Treatment payment created successfully:', data)
     return data
   },
 
   // Get payment summary for a treatment
   getPaymentSummary: async (treatmentId: string): Promise<PaymentSummary | null> => {
-    console.log('API: Getting payment summary for treatment:', treatmentId)
     
     const { data, error } = await supabase
       .rpc('get_treatment_payment_summary', { treatment_uuid: treatmentId })
@@ -90,13 +87,11 @@ export const paymentApi = {
       throw new Error(`Failed to get payment summary: ${error.message}`)
     }
 
-    console.log('API: Payment summary retrieved:', data)
     return data?.[0] || null
   },
 
   // Get treatment payment record
   getTreatmentPayment: async (treatmentId: string): Promise<TreatmentPayment | null> => {
-    console.log('API: Getting treatment payment for treatment:', treatmentId)
     
     const { data, error } = await supabase
       .from('treatment_payments')
@@ -109,13 +104,11 @@ export const paymentApi = {
       throw new Error(`Failed to get treatment payment: ${error.message}`)
     }
 
-    console.log('API: Treatment payment retrieved:', data)
     return data
   },
 
   // Add a payment transaction
   addPaymentTransaction: async (transaction: Omit<PaymentTransaction, 'id' | 'created_at'>): Promise<PaymentTransaction> => {
-    console.log('API: Adding payment transaction:', transaction)
     
     const { data, error } = await supabase
       .from('payment_transactions')
@@ -128,13 +121,11 @@ export const paymentApi = {
       throw new Error(`Failed to add payment transaction: ${error.message}`)
     }
 
-    console.log('API: Payment transaction added successfully:', data)
     return data
   },
 
   // Get payment transactions for a treatment payment
   getPaymentTransactions: async (treatmentPaymentId: string): Promise<PaymentTransaction[]> => {
-    console.log('API: Getting payment transactions for payment:', treatmentPaymentId)
     
     const { data, error } = await supabase
       .from('payment_transactions')
@@ -147,13 +138,11 @@ export const paymentApi = {
       throw new Error(`Failed to get payment transactions: ${error.message}`)
     }
 
-    console.log('API: Payment transactions retrieved:', data)
     return data || []
   },
 
   // Get overdue payments for a clinic
   getOverduePayments: async (clinicId: string): Promise<OverduePayment[]> => {
-    console.log('API: Getting overdue payments for clinic:', clinicId)
     
     const { data, error } = await supabase
       .rpc('get_overdue_payments', { clinic_uuid: clinicId })
@@ -163,13 +152,11 @@ export const paymentApi = {
       throw new Error(`Failed to get overdue payments: ${error.message}`)
     }
 
-    console.log('API: Overdue payments retrieved:', data)
     return data || []
   },
 
   // Update treatment payment
   updateTreatmentPayment: async (id: string, updates: Partial<TreatmentPayment>): Promise<TreatmentPayment> => {
-    console.log('API: Updating treatment payment:', id, updates)
     
     const { data, error } = await supabase
       .from('treatment_payments')
@@ -183,7 +170,6 @@ export const paymentApi = {
       throw new Error(`Failed to update treatment payment: ${error.message}`)
     }
 
-    console.log('API: Treatment payment updated successfully:', data)
     return data
   }
 }

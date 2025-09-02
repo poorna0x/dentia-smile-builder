@@ -33,7 +33,6 @@ export const setupFirebaseNotifications = async (clinicId: string) => {
     const permission = await Notification.requestPermission();
     
     if (permission !== 'granted') {
-      console.log('Notification permission denied');
       return null;
     }
 
@@ -43,7 +42,6 @@ export const setupFirebaseNotifications = async (clinicId: string) => {
     });
 
     if (token) {
-      console.log('FCM Token:', token);
       
       // Save token to database
       await saveFCMToken(token, clinicId);
@@ -73,7 +71,6 @@ const saveFCMToken = async (token: string, clinicId: string) => {
     if (error) {
       console.error('Error saving FCM token:', error);
     } else {
-      console.log('FCM token saved to database');
     }
   } catch (error) {
     console.error('Error saving FCM token:', error);
@@ -96,7 +93,6 @@ const getPlatform = () => {
 // Handle foreground messages (when app is open)
 export const setupForegroundHandler = () => {
   onMessage(messaging, (payload) => {
-    console.log('Foreground message received:', payload);
     
     const notificationData = payload.data;
     
@@ -136,7 +132,6 @@ export const sendFirebaseNotification = async (data: NotificationData) => {
     }
 
     if (!tokens || tokens.length === 0) {
-      console.log('No FCM tokens found');
       return;
     }
 
@@ -159,7 +154,6 @@ export const sendFirebaseNotification = async (data: NotificationData) => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        console.log('Firebase notification sent successfully');
       } catch (error) {
         console.error('Error sending Firebase notification:', error);
         

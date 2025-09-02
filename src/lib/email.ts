@@ -297,15 +297,14 @@ export const sendEmail = async (
     // Check if we're in development mode
     if (import.meta.env.DEV) {
       // Development Mode - Simulating email send
-      console.log('📧 Development mode: Simulating email send');
-      console.log('📧 To:', to);
-      console.log('📧 Subject:', subject);
+          // Development mode: Simulating email send
+    // To and Subject
       
       // Simulate email sending delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Email simulation completed successfully
-      console.log('✅ Development mode: Email simulation completed');
+              // Development mode: Email simulation completed
       return true;
     }
 
@@ -354,19 +353,13 @@ export const sendAppointmentConfirmation = async (
   appointmentData: AppointmentEmailData
 ): Promise<boolean> => {
   try {
-    console.log('📧 Preparing to send appointment confirmation email...');
-    console.log('📧 Patient data:', {
-      name: appointmentData.name,
-      email: appointmentData.email,
-      date: appointmentData.date,
-      time: appointmentData.time,
-      clinicName: appointmentData.clinicName
-    });
+    // Preparing to send appointment confirmation email
+    // Patient data
     
     const template = emailTemplates.confirmation(appointmentData);
     
-    console.log('📧 Email template generated successfully');
-    console.log('📧 Subject:', template.subject);
+          // Email template generated successfully
+      // Subject
     
     // Send email
     const emailResult = await sendEmail(
@@ -376,12 +369,12 @@ export const sendAppointmentConfirmation = async (
       template.text
     );
     
-    console.log('📧 Email send result:', emailResult);
+          // Email send result
 
     // Send WhatsApp message if phone number is available
     if (appointmentData.phone) {
       try {
-        console.log('📱 Attempting to send WhatsApp confirmation...');
+        // Attempting to send WhatsApp confirmation
         const whatsappResult = await sendWhatsAppAppointmentConfirmation(
           appointmentData.phone,
           {
@@ -394,9 +387,9 @@ export const sendAppointmentConfirmation = async (
         );
         
         if (whatsappResult) {
-          console.log('✅ WhatsApp confirmation sent successfully');
+          // WhatsApp confirmation sent successfully
         } else {
-          console.log('⚠️ WhatsApp confirmation not sent (likely disabled or failed)');
+          // WhatsApp confirmation not sent (likely disabled or failed)
         }
       } catch (whatsappError) {
         console.error('❌ Error sending WhatsApp confirmation:', whatsappError);
@@ -407,7 +400,7 @@ export const sendAppointmentConfirmation = async (
     // Send notification to dentist if clinic ID is available
     if (appointmentData.clinicId) {
       try {
-        console.log('🦷 Attempting to send dentist notification...');
+        // Attempting to send dentist notification
         const dentistResult = await sendWhatsAppDentistNotification(
           appointmentData.clinicId,
           {
@@ -419,9 +412,9 @@ export const sendAppointmentConfirmation = async (
           }
         );
         if (dentistResult) {
-          console.log('✅ Dentist notification sent successfully');
+          // Dentist notification sent successfully
         } else {
-          console.log('⚠️ Dentist notification not sent (likely disabled or failed)');
+          // Dentist notification not sent (likely disabled or failed)
         }
       } catch (dentistError) {
         console.error('❌ Error sending dentist notification:', dentistError);

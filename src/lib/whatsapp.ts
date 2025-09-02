@@ -35,7 +35,7 @@ export const getNotificationSettings = async (): Promise<NotificationSettings | 
 // Send WhatsApp message via Netlify function
 export const sendWhatsAppMessage = async (messageData: WhatsAppMessage): Promise<boolean> => {
   try {
-    console.log('📱 Sending WhatsApp message:', messageData);
+    // Sending WhatsApp message
     
     const response = await fetch('/.netlify/functions/send-whatsapp', {
       method: 'POST',
@@ -48,7 +48,7 @@ export const sendWhatsAppMessage = async (messageData: WhatsAppMessage): Promise
     const result = await response.json();
     
     if (result.success) {
-      console.log('✅ WhatsApp message sent successfully');
+      // WhatsApp message sent successfully
       return true;
     } else {
       console.error('❌ Failed to send WhatsApp message:', result.error);
@@ -99,13 +99,13 @@ export const sendWhatsAppAppointmentConfirmation = async (
     // Check if WhatsApp is enabled and confirmations are enabled
     const settings = await getNotificationSettings();
     if (!settings?.whatsapp_enabled || !settings?.send_confirmation) {
-      console.log('📱 WhatsApp confirmations disabled');
+      // WhatsApp confirmations disabled
       return false;
     }
 
     // Format phone number
     const formattedPhone = formatPhoneNumber(phone);
-    console.log('📱 Original phone:', phone, 'Formatted phone:', formattedPhone);
+    // Original phone and formatted phone
 
     const message = `Hi ${appointmentData.name}! Your appointment at ${appointmentData.clinicName} is confirmed for ${appointmentData.date} at ${appointmentData.time}. For any changes, call ${appointmentData.clinicPhone}. Thank you!`;
 
@@ -135,13 +135,11 @@ export const sendWhatsAppAppointmentReminder = async (
     // Check if reminders are enabled
     const settings = await getNotificationSettings();
     if (!settings?.whatsapp_enabled || !settings?.send_reminders) {
-      console.log('📱 Reminders disabled');
       return false;
     }
 
     // Format phone number
     const formattedPhone = formatPhoneNumber(phone);
-    console.log('📱 Reminder - Original phone:', phone, 'Formatted phone:', formattedPhone);
 
     const message = `Hi ${appointmentData.name}! This is a friendly reminder for your appointment at ${appointmentData.clinicName} tomorrow at ${appointmentData.time}. Please arrive 10 minutes early. For any changes, call ${appointmentData.clinicPhone}. Thank you!`;
 
@@ -168,24 +166,22 @@ export const sendWhatsAppDentistNotification = async (
   }
 ): Promise<boolean> => {
   try {
-    console.log('🦷 Starting dentist notification process...');
-    console.log('🦷 Clinic ID:', clinicId);
-    console.log('🦷 Appointment data:', appointmentData);
+    // Starting dentist notification process
+    // Clinic ID and appointment data
     
     // Check if dentist notifications are enabled
     const settings = await getNotificationSettings();
-    console.log('🦷 Notification settings:', settings);
+          // Notification settings
     
     if (!settings?.whatsapp_enabled || !settings?.send_to_dentist) {
-      console.log('📱 Dentist notifications disabled');
-      console.log('🦷 WhatsApp enabled:', settings?.whatsapp_enabled);
-      console.log('🦷 Send to dentist:', settings?.send_to_dentist);
+              // Dentist notifications disabled
+        // WhatsApp enabled and send to dentist status
       return false;
     }
 
     // Get dentist phone number from settings
     if (!settings.dentist_phone_number) {
-      console.log('❌ No dentist phone number configured in SuperAdmin');
+      // No dentist phone number configured in SuperAdmin
       return false;
     }
 
@@ -197,13 +193,13 @@ export const sendWhatsAppDentistNotification = async (
       .single();
 
     if (error || !clinic?.name) {
-      console.log('❌ No clinic found:', clinicId);
+      // No clinic found
       return false;
     }
 
     // Format phone number
     const formattedPhone = formatPhoneNumber(settings.dentist_phone_number);
-    console.log('📱 Dentist notification - Original phone:', settings.dentist_phone_number, 'Formatted phone:', formattedPhone);
+          // Dentist notification - Original phone and formatted phone
 
     const message = `🦷 New Appointment Alert!
 
@@ -238,13 +234,13 @@ export const sendWhatsAppReviewRequest = async (
     // Check if review requests are enabled
     const settings = await getNotificationSettings();
     if (!settings?.whatsapp_enabled || !settings?.send_reviews) {
-      console.log('📱 Review requests disabled');
+      // Review requests disabled
       return false;
     }
 
     // Format phone number
     const formattedPhone = formatPhoneNumber(phone);
-    console.log('📱 Review request - Original phone:', phone, 'Formatted phone:', formattedPhone);
+    // Review request - Original phone and formatted phone
 
     const message = settings.review_message_template
       .replace('{review_link}', reviewLink)

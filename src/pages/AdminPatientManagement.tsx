@@ -334,10 +334,8 @@ export default function AdminPatientManagement() {
     const formattedFirstName = formatName(patientForm.first_name.trim());
     const formattedLastName = patientForm.last_name.trim() ? formatName(patientForm.last_name.trim()) : '';
 
-    console.log('Checking for duplicates:');
-    console.log('Formatted phone:', formattedPhone);
-    console.log('Formatted first name:', formattedFirstName);
-    console.log('Formatted last name:', formattedLastName);
+    // Checking for duplicates
+    // Formatted phone, first name, last name
 
     try {
       // Optimized query: Get all patients with same phone number
@@ -351,11 +349,11 @@ export default function AdminPatientManagement() {
       if (error) throw error;
 
       if (!phoneMatches || phoneMatches.length === 0) {
-        console.log('No phone matches found');
+        // No phone matches found
         return { patients: [], type: null, similarity: 0 };
       }
 
-      console.log('Phone matches found:', phoneMatches);
+      // Phone matches found
 
       // Check name similarity for each phone match
       let bestMatch: Patient | null = null;
@@ -369,7 +367,7 @@ export default function AdminPatientManagement() {
         // Calculate similarity
         const similarity = calculateNameSimilarity(existingFullName, newFullName);
         
-        console.log(`Comparing: "${existingFullName}" vs "${newFullName}" = ${similarity}%`);
+        // Comparing names for similarity
 
         if (similarity > bestSimilarity) {
           bestSimilarity = similarity;
@@ -385,7 +383,7 @@ export default function AdminPatientManagement() {
         }
       }
 
-      console.log('Best match:', bestMatch, 'Similarity:', bestSimilarity, 'Type:', matchType);
+      // Best match found
 
       return { 
         patients: phoneMatches, 
@@ -425,7 +423,7 @@ export default function AdminPatientManagement() {
   // Create new patient function
   const createNewPatient = async () => {
     try {
-      console.log('Component: Validation passed, preparing data');
+      // Component: Validation passed, preparing data
       
       // Clean up the data before sending
       const cleanPatientData = {
@@ -440,8 +438,8 @@ export default function AdminPatientManagement() {
         current_medications: patientForm.current_medications.filter(item => item.trim() !== '')
       };
       
-      console.log('Component: Sending patient data:', cleanPatientData);
-      console.log('Component: Clinic ID being used:', clinic.id);
+          // Component: Sending patient data
+    // Component: Clinic ID being used
       
       const newPatient = await patientApi.create(cleanPatientData, clinic.id);
       toast({
@@ -722,7 +720,7 @@ export default function AdminPatientManagement() {
 
       // Send review request via WhatsApp if enabled
       try {
-        console.log('🔍 Starting review request process...');
+        // Starting review request process
         
         // Get patient phone number from the appointment
         const { data: appointmentData } = await supabase
@@ -731,21 +729,20 @@ export default function AdminPatientManagement() {
           .eq('id', appointmentId)
           .single();
 
-        console.log('📱 Appointment data:', appointmentData);
-        console.log('📱 Patient phone:', appointmentData?.phone);
+                  // Appointment data and patient phone
 
         if (appointmentData?.phone) {
           const reviewLink = `${window.location.origin}/review?patient=${patientName}`;
-          console.log('🔗 Review link:', reviewLink);
+                      // Review link
           
-          console.log('📱 Sending review request...');
+                      // Sending review request
           const reviewSent = await sendWhatsAppReviewRequest(
             appointmentData.phone,
             patientName,
             reviewLink
           );
 
-          console.log('📱 Review request result:', reviewSent);
+                      // Review request result
 
           if (reviewSent) {
             toast({
@@ -753,10 +750,10 @@ export default function AdminPatientManagement() {
               description: `Review request sent to ${patientName} via WhatsApp`,
             });
           } else {
-            console.log('⚠️ Review request failed or disabled');
+            // Review request failed or disabled
           }
         } else {
-          console.log('❌ No patient phone number found in appointment data');
+                      // No patient phone number found in appointment data
         }
       } catch (reviewError) {
         console.error('❌ Error sending review request:', reviewError);
@@ -778,7 +775,7 @@ export default function AdminPatientManagement() {
       // Trigger a small delay to ensure real-time updates propagate
       setTimeout(() => {
         // This ensures the Admin page real-time updates pick up the change
-        console.log('✅ Appointment completed - real-time updates should propagate');
+        // Appointment completed - real-time updates should propagate
       }, 100);
 
       setShowAppointmentActionsDialog(false);
@@ -998,14 +995,7 @@ export default function AdminPatientManagement() {
       
       setMedicalHistoryRecords(medicalRecordsData || []);
       
-      console.log('Medical History Data Loaded:', {
-        patientId: patient.id,
-        clinicId: clinic?.id,
-        dentalTreatments: dentalData?.length || 0,
-        appointments: appointmentsData?.length || 0,
-        prescriptions: prescriptionsData?.length || 0,
-        medicalRecords: medicalRecordsData?.length || 0
-      });
+      // Medical History Data Loaded
     } catch (error) {
       console.error('Error loading medical history data:', error);
     }
@@ -1051,14 +1041,14 @@ export default function AdminPatientManagement() {
 
   // Handle status update
   const handleStatusUpdate = (order: any) => {
-    console.log('handleStatusUpdate called with order:', order);
+    // handleStatusUpdate called with order
     setSelectedLabOrder(order);
     setStatusUpdateForm({
       new_status: order.status,
       notes: ''
     });
     setShowStatusUpdateDialog(true);
-    console.log('Dialog should be opening now');
+    // Dialog should be opening now
   };
 
   // Save status update
@@ -1216,17 +1206,13 @@ export default function AdminPatientManagement() {
   const handleSavePrescription = async () => {
     // Prevent double-click using both state and ref
     if (isSavingPrescription || isSavingRef.current) {
-      console.log('Save already in progress, ignoring click');
-      console.log('isSavingPrescription:', isSavingPrescription);
-      console.log('isSavingRef.current:', isSavingRef.current);
+          // Save already in progress, ignoring click
+    // isSavingPrescription and isSavingRef.current
       return;
     }
 
-    console.log('handleSavePrescription called');
-    console.log('multipleMedications count:', multipleMedications.length);
-    console.log('selectedPatientForPrescription:', selectedPatientForPrescription);
-    console.log('clinic?.id:', clinic?.id);
-    console.log('multipleMedications:', multipleMedications);
+    // handleSavePrescription called
+    // multipleMedications count, selectedPatientForPrescription, clinic?.id, multipleMedications
 
     if (!selectedPatientForPrescription || !clinic?.id) {
       toast({
@@ -1268,14 +1254,14 @@ export default function AdminPatientManagement() {
     }
 
     try {
-      console.log('Starting to save medications...');
+      // Starting to save medications
       
       // Save each medication
       for (const medication of multipleMedications) {
-        console.log('Saving medication:', medication);
+        // Saving medication
         
         // Use direct insert (simpler and more reliable)
-        console.log('Using direct insert...');
+        // Using direct insert
         
         const { data: insertData, error: insertError } = await supabase
           .from('prescriptions')
@@ -1298,12 +1284,7 @@ export default function AdminPatientManagement() {
           .select()
           .single();
 
-        console.log('Direct insert response:', { insertData, insertError });
-        console.log('Direct insert error details:', insertError);
-        console.log('Full error object:', JSON.stringify(insertError, null, 2));
-        console.log('Error message:', insertError?.message);
-        console.log('Error code:', insertError?.code);
-        console.log('Error details:', insertError?.details);
+        // Direct insert response and error details
 
         if (insertError) {
           console.error('Direct insert failed:', insertError);
@@ -1311,7 +1292,7 @@ export default function AdminPatientManagement() {
         }
       }
 
-      console.log('All medications saved successfully');
+              // All medications saved successfully
 
       // Close dialog immediately
       setShowPrescriptionDialog(false);
@@ -1733,9 +1714,9 @@ export default function AdminPatientManagement() {
 
   // Load patients on component mount - auto-load patients with appointments today
   useEffect(() => {
-    console.log('Component: Clinic context changed:', clinic);
+    // Component: Clinic context changed
     if (clinic?.id) {
-      console.log('Component: Ready to load patients with appointments today for clinic:', clinic.id);
+              // Component: Ready to load patients with appointments today for clinic
       // Load patients with appointments today by default
       loadPatientsWithAppointmentsToday();
       // Load follow-up appointments
@@ -1743,7 +1724,7 @@ export default function AdminPatientManagement() {
       // Load last searched patient
       loadLastSearchedPatient();
     } else {
-      console.log('Component: No clinic ID available');
+              // Component: No clinic ID available
     }
   }, [clinic?.id]);
 
@@ -1755,7 +1736,7 @@ export default function AdminPatientManagement() {
   // Listen for appointment completion events from other pages
   useEffect(() => {
     const handleAppointmentCompleted = (event: CustomEvent) => {
-      console.log('🔄 AdminPatientManagement page received appointment completion event:', event.detail);
+      // AdminPatientManagement page received appointment completion event
       // Trigger refresh to update patients list
       loadPatientsWithAppointmentsToday();
     };
@@ -1964,7 +1945,7 @@ export default function AdminPatientManagement() {
         });
       } else {
         // No appointments today - show empty state instead of loading all patients
-        console.log('🔍 No appointments today - showing empty state');
+        // No appointments today - showing empty state
         setPatients([]);
         setFilteredPatients([]);
         setTotalPatients(0);
@@ -2376,9 +2357,8 @@ export default function AdminPatientManagement() {
     // Prevent multiple submissions
     if (isSubmittingPatient) return;
     
-    console.log('Component: Starting to add patient');
-    console.log('Component: Clinic object:', clinic);
-    console.log('Component: Clinic ID:', clinic?.id);
+    // Component: Starting to add patient
+    // Component: Clinic object and Clinic ID
     
     if (!clinic?.id) {
       console.error('Component: No clinic ID available');
@@ -2427,12 +2407,12 @@ export default function AdminPatientManagement() {
     
     try {
       // Check for duplicates
-      console.log('Starting duplicate check...');
+      // Starting duplicate check
       const duplicateCheck = await checkForDuplicates();
-      console.log('Duplicate check result:', duplicateCheck);
+              // Duplicate check result
       
       if (duplicateCheck.patients.length > 0) {
-        console.log('Duplicate found, showing dialog');
+                  // Duplicate found, showing dialog
         // Show duplicate dialog
         setExistingPatients(duplicateCheck.patients);
         setDuplicateType(duplicateCheck.type || 'phone');
@@ -2442,7 +2422,7 @@ export default function AdminPatientManagement() {
         return;
       }
       
-      console.log('No duplicates found, creating new patient');
+              // No duplicates found, creating new patient
       // No duplicates found, create new patient
       await createNewPatient();
     } catch (error) {
@@ -4215,7 +4195,7 @@ export default function AdminPatientManagement() {
         <Dialog 
           open={showPrescriptionDialog} 
           onOpenChange={(open) => {
-            console.log('Dialog onOpenChange called with:', open);
+            // Dialog onOpenChange called
             setShowPrescriptionDialog(open);
           }}
         >
@@ -4635,7 +4615,7 @@ export default function AdminPatientManagement() {
                   <h3 className="text-lg font-semibold">Lab Work Orders</h3>
                   {labWorkOrders
                     .sort((a, b) => {
-                      console.log('Sorting by created_at:', a.created_at, b.created_at, new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                      // Sorting by created_at
                       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                     }) // Last ordered first
                     .map((order) => (
@@ -4691,7 +4671,7 @@ export default function AdminPatientManagement() {
                             size="sm" 
                             variant="outline"
                             onClick={() => {
-                              console.log('Update Status button clicked for order:', order);
+                              // Update Status button clicked for order
                               handleStatusUpdate(order);
                             }}
                           >

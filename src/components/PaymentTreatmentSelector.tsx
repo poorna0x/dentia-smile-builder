@@ -33,7 +33,6 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
               summaries[treatment.id] = summary
             }
           } catch (error) {
-            console.log(`🦷 No payment data for treatment ${treatment.id}:`, error)
             // Continue with other treatments even if one fails
           }
         }
@@ -41,7 +40,6 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
         console.error('🦷 Error loading payment summaries:', error)
       }
       
-      console.log('🦷 Loaded payment summaries:', summaries)
       setPaymentSummaries(summaries)
       setLoading(false)
     }
@@ -110,8 +108,6 @@ const PaymentTreatmentSelector: React.FC<PaymentTreatmentSelectorProps> = ({
                 hasPayment ? 'border-green-300 hover:border-green-400' : 'hover:border-blue-300'
               }`}
               onClick={() => {
-                console.log('🦷 Treatment selected for payment:', treatment)
-                console.log('🦷 Treatment cost:', treatment.cost)
                 onSelectTreatment(treatment)
               }}
             >

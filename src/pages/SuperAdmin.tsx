@@ -464,7 +464,6 @@ Please check your appointment schedule.`,
   // Test real appointment booking flow
   const testRealAppointmentBooking = async () => {
     try {
-      console.log('🧪 Testing real appointment booking flow...');
       
       // Import the functions dynamically
       const { sendWhatsAppAppointmentConfirmation, sendWhatsAppDentistNotification } = await import('@/lib/whatsapp');
@@ -481,7 +480,6 @@ Please check your appointment schedule.`,
         clinicId: 'c1ca557d-ca85-4905-beb7-c3985692d463' // Your clinic ID
       };
 
-      console.log('🧪 Sending patient confirmation...');
       const patientResult = await sendWhatsAppAppointmentConfirmation(
         appointmentData.phone,
         {
@@ -493,7 +491,6 @@ Please check your appointment schedule.`,
         }
       );
 
-      console.log('🧪 Sending dentist notification...');
       const dentistResult = await sendWhatsAppDentistNotification(
         appointmentData.clinicId,
         {
@@ -505,7 +502,6 @@ Please check your appointment schedule.`,
         }
       );
 
-      console.log('🧪 Results:', { patientResult, dentistResult });
 
       if (patientResult && dentistResult) {
         toast.success("✅ Real Appointment Test Success - Both patient and dentist notifications sent!");
@@ -615,7 +611,6 @@ Please check your appointment schedule.`,
         }
       } catch (error) {
         console.error('Failed to get Cloudinary stats directly:', error);
-        console.log('This is expected if Netlify functions are not deployed yet. Using database stats as fallback.');
       }
 
       // Fallback to database stats
@@ -778,7 +773,6 @@ Please check your appointment schedule.`,
         const result = await response.json();
         if (result.success) {
           toast.success('Netlify function is working!');
-          console.log('Function test result:', result);
         } else {
           toast.error(`Function test failed: ${result.error}`);
           console.error('Function test error:', result);
@@ -801,7 +795,6 @@ Please check your appointment schedule.`,
         const result = await response.json();
         if (result.success) {
           toast.success('Cloudinary connection successful!');
-          console.log('Cloudinary test result:', result);
         } else {
           toast.error(`Cloudinary test failed: ${result.error}`);
           console.error('Cloudinary test error:', result);
@@ -854,7 +847,6 @@ Please check your appointment schedule.`,
         }
       }
 
-      console.log(`Cleaned up ${totalDeleted} database records`);
     } catch (error) {
       console.error('Error cleaning up database records:', error);
     }

@@ -63,12 +63,10 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('🦷 Loading dentists and treatment types for clinic:', clinicId)
         
         // Load dentists
         setLoadingDentists(true)
         const dentistsData = await dentistsApi.getAll(clinicId)
-        console.log('✅ Dentists loaded:', dentistsData)
         setDentists(dentistsData)
         
         // Auto-select if only one dentist
@@ -79,7 +77,6 @@ const DentalTreatmentForm: React.FC<DentalTreatmentFormProps> = ({
         // Load treatment types
         setLoadingTreatmentTypes(true)
         const treatmentTypesData = await treatmentTypesApi.getAll(clinicId)
-        console.log('✅ Treatment types loaded:', treatmentTypesData)
         setTreatmentTypes(treatmentTypesData)
         
       } catch (error) {

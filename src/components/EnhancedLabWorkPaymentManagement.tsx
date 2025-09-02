@@ -155,7 +155,6 @@ const EnhancedLabWorkPaymentManagement: React.FC<EnhancedLabWorkPaymentManagemen
 
       // TODO: Implement lab work payment API calls
       // For now, using mock data
-      console.log('Lab work payment details:', {
         labWorkId: labWork.id,
         paymentSummary: !!paymentSummary,
         paymentType: formData.payment_type,
@@ -234,7 +233,6 @@ const EnhancedLabWorkPaymentManagement: React.FC<EnhancedLabWorkPaymentManagemen
       setLoading(true)
       
       // TODO: Implement cost update API
-      console.log('Updating lab work cost:', editCostData)
       
       // Mock successful update
       await new Promise(resolve => setTimeout(resolve, 1000))

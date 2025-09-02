@@ -156,9 +156,7 @@ let isTabActive = true
 document.addEventListener('visibilitychange', () => {
   isTabActive = !document.hidden
   if (!isTabActive) {
-    console.log('📱 Tab inactive - pausing polling to save calls')
   } else {
-    console.log('📱 Tab active - resuming polling')
   }
 })
 

@@ -85,9 +85,6 @@ export interface MedicalRecord {
 export const patientApi = {
   // Create a new patient
   async create(patientData: Omit<Patient, 'id' | 'clinic_id' | 'created_at' | 'updated_at'>, clinicId: string): Promise<Patient> {
-    console.log('API: Creating patient with data:', JSON.stringify(patientData, null, 2));
-    console.log('API: Clinic ID:', clinicId);
-    console.log('API: Clinic ID type:', typeof clinicId);
     
     // Validate clinic ID
     if (!clinicId || clinicId === 'undefined' || clinicId === 'null') {
@@ -119,14 +116,12 @@ export const patientApi = {
       is_active: true
     };
     
-    console.log('API: Cleaned data:', JSON.stringify(cleanData, null, 2));
     
     const insertData = {
       ...cleanData,
       clinic_id: clinicId
     };
     
-    console.log('API: Final insert data:', JSON.stringify(insertData, null, 2));
     
     const { data, error } = await supabase
       .from('patients')
@@ -140,7 +135,6 @@ export const patientApi = {
       throw error;
     }
     
-    console.log('API: Patient created successfully:', data);
     return data;
   },
 
@@ -159,8 +153,6 @@ export const patientApi = {
 
   // Get patient by phone number (using new patient_phones table)
   async getByPhone(phone: string, clinicId: string): Promise<Patient | null> {
-    console.log('API: Searching for patient with phone:', phone);
-    console.log('API: Clinic ID:', clinicId);
     
     try {
       // Use the new database function to search by phone (handles multiple phones)
@@ -170,8 +162,6 @@ export const patientApi = {
           p_clinic_id: clinicId
         });
 
-      console.log('API: Database function result:', data);
-      console.log('API: Database function error:', error);
       
       if (error) {
         console.error('API: Database function error:', error);
@@ -179,7 +169,6 @@ export const patientApi = {
       }
 
       if (!data || data.length === 0) {
-        console.log('API: No patient found with phone:', phone);
         return null;
       }
 
@@ -190,8 +179,6 @@ export const patientApi = {
         .eq('id', data[0].patient_id)
         .single();
 
-      console.log('API: Patient data result:', patientData);
-      console.log('API: Patient data error:', patientError);
       
       if (patientError) {
         console.error('API: Error getting patient data:', patientError);

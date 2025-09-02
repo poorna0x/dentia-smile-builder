@@ -170,7 +170,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
   // Debug treatment form changes
   useEffect(() => {
-    console.log('🦷 Treatment form changed:', treatmentForm)
   }, [treatmentForm])
   
   // Condition form state
@@ -183,7 +182,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
   // Load tooth data
   useEffect(() => {
-    console.log(`🦷 ToothChart: Loading FDI dental chart`)
     // Run test to verify FDI system is working
     testToothNumbering()
     loadToothData()
@@ -195,7 +193,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
     if (selectedTreatmentToContinue && teeth.length > 0) {
       const targetTooth = teeth.find(tooth => tooth.number === selectedTreatmentToContinue.tooth_number)
       if (targetTooth) {
-        console.log(`🦷 Auto-selecting tooth ${selectedTreatmentToContinue.tooth_number} for continuing treatment`)
         setSelectedTooth(targetTooth)
         setShowAddTreatmentDialog(true)
         
@@ -226,12 +223,10 @@ const ToothChart: React.FC<ToothChartProps> = ({
   // Load dentists and treatment types for the clinic
   const loadDentists = async () => {
     try {
-      console.log('🦷 Loading dentists and treatment types for clinic:', clinicId)
       
       // Load dentists
       setLoadingDentists(true)
       const dentistsData = await dentistsApi.getAll(clinicId)
-      console.log('✅ Dentists loaded:', dentistsData)
       setDentists(dentistsData)
       
       // Auto-select if only one dentist
@@ -242,12 +237,9 @@ const ToothChart: React.FC<ToothChartProps> = ({
       // Load treatment types
       setLoadingTreatmentTypes(true)
       let treatmentTypesData = await treatmentTypesApi.getAll(clinicId)
-      console.log('✅ Treatment types loaded:', treatmentTypesData)
-      console.log('✅ Treatment types count:', treatmentTypesData.length)
       
       // Fallback to hardcoded treatment types if none found in database
       if (!treatmentTypesData || treatmentTypesData.length === 0) {
-        console.log('🦷 No treatment types found in database, using fallback')
         treatmentTypesData = [
           { id: '1', clinic_id: clinicId, name: 'Root Canal', description: 'Endodontic treatment', default_cost: 5000, is_active: true },
           { id: '2', clinic_id: clinicId, name: 'Dental Filling', description: 'Cavity filling', default_cost: 1500, is_active: true },
@@ -257,9 +249,7 @@ const ToothChart: React.FC<ToothChartProps> = ({
           { id: '6', clinic_id: clinicId, name: 'Consultation', description: 'Initial consultation', default_cost: 500, is_active: true },
           { id: '7', clinic_id: clinicId, name: 'X-Ray', description: 'Dental imaging', default_cost: 300, is_active: true }
         ]
-        console.log('🦷 Using fallback treatment types:', treatmentTypesData)
       } else {
-        console.log('🦷 Using database treatment types:', treatmentTypesData)
       }
       
       setTreatmentTypes(treatmentTypesData)
@@ -315,10 +305,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const loadToothData = async () => {
     setLoading(true)
     try {
-      console.log(`🦷 Loading FDI dental chart`)
       // Get all teeth in FDI system
       const allTeeth = toothChartUtils.getAllTeeth()
-      console.log(`🦷 All teeth in FDI system:`, allTeeth)
       
       // Load real data from database (images will be loaded lazily)
       const [treatments, conditions] = await Promise.all([
@@ -348,7 +336,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
         }
       })
 
-      console.log('🦷 Created teeth data:', teethWithImages.map(t => t.number))
 
       setTeeth(teethWithImages)
     } catch (error) {
@@ -402,9 +389,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
   const selectAllTeeth = () => {
     const allTeethNumbers = teeth.map(t => t.number)
-    console.log('🦷 selectAllTeeth - Total teeth array length:', teeth.length)
-    console.log('🦷 selectAllTeeth - Selected teeth count:', allTeethNumbers.length)
-    console.log('🦷 selectAllTeeth - Selected teeth:', allTeethNumbers)
     setSelectedTeeth(allTeethNumbers)
   }
 
@@ -415,9 +399,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
   const selectLowerJaw = () => {
     const lowerTeeth = teeth.slice(16, 32)
     const lowerTeethNumbers = lowerTeeth.map(t => t.number)
-    console.log('🦷 selectLowerJaw - Total teeth array length:', teeth.length)
-    console.log('🦷 selectLowerJaw - Lower teeth slice (16, 32):', lowerTeeth.length)
-    console.log('🦷 selectLowerJaw - Lower teeth numbers:', lowerTeethNumbers)
     setSelectedTeeth(lowerTeethNumbers)
   }
 
@@ -565,7 +546,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
     try {
       // For now, we'll skip the Cloudinary delete since it requires server-side authentication
       // The image will remain in Cloudinary but won't be accessible without the public_id
-      console.log('Skipping Cloudinary delete for:', publicId);
     } catch (error) {
       console.warn('Failed to delete from Cloudinary:', error);
       // Don't throw error to avoid breaking the rollback process
@@ -695,17 +675,8 @@ const ToothChart: React.FC<ToothChartProps> = ({
         })
       )
 
-      console.log(`🦷 Attempting to create treatments for ${selectedTeeth.length} teeth:`, selectedTeeth)
       
       const createdTreatments = await Promise.all(treatmentPromises)
-      
-      console.log(`🦷 Successfully created ${createdTreatments.length} treatments out of ${selectedTeeth.length} selected teeth`)
-      console.log('🦷 Created treatments:', createdTreatments.map(t => ({
-        id: t.id,
-        tooth: t.tooth_number,
-        type: t.treatment_type,
-        cost: t.cost
-      })))
       
       if (createdTreatments.length !== selectedTeeth.length) {
         console.warn(`⚠️  Warning: Only ${createdTreatments.length} treatments created out of ${selectedTeeth.length} selected teeth`)
@@ -714,7 +685,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
       
       // Note: Payment records are automatically created by database triggers when treatments are created
       // No need to manually create payment records here - they will be created automatically
-      console.log('🦷 Multi-tooth treatments created. Payment records will be auto-created by database triggers.')
       
       // Refresh tooth data to show the new treatments and their payment records
       setProcessingMessage('Finalizing...')
@@ -985,16 +955,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
     if (!selectedTooth) return
     
     try {
-      console.log('Starting image upload to database...', {
-        clinic_id: clinicId,
-        patient_id: patientId,
-        tooth_number: selectedTooth.number,
-        image_type: image.type,
-        description: image.description,
-        cloudinary_url: image.url,
-        cloudinary_public_id: image.public_id,
-        file_size_bytes: image.size
-      })
 
       // Save to database
       const dbImage = await toothImageApi.create({
@@ -1008,7 +968,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
         file_size_bytes: image.size
       })
 
-      console.log('Database save successful:', dbImage)
 
       // Convert database image to component format
       const componentImage: ToothImage = {
@@ -1040,7 +999,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
         images: [...(prev.images || []), componentImage]
       } : null)
       
-      console.log('Image uploaded and saved to database:', componentImage)
     } catch (error) {
       console.error('Error uploading image:', error)
       // Show error to user
@@ -1087,7 +1045,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
       // Update tooth images state
       setToothImages(prev => prev.filter(img => img.id !== imageId))
       
-      console.log('Image deleted from database:', imageId)
     } catch (error) {
       console.error('Error deleting image:', error)
       throw error
@@ -1641,7 +1598,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <TabsContent value="payments" className="space-y-4 overflow-y-auto p-0 scrollbar-transparent" style={{ height: '400px', minHeight: '400px', maxHeight: '400px' }}>
                   {selectedPaymentTreatment ? (
                     <div>
-                      {console.log('🦷 Rendering EnhancedPaymentManagement with treatment:', selectedPaymentTreatment)}
                       <EnhancedPaymentManagement
                         treatment={selectedPaymentTreatment}
                         treatments={selectedTooth.treatments}
@@ -1686,7 +1642,6 @@ const ToothChart: React.FC<ToothChartProps> = ({
 
         {/* Add Treatment Dialog */}
         <Dialog open={showAddTreatmentDialog} onOpenChange={(open) => {
-          console.log('🦷 Treatment dialog open state:', open)
           setShowAddTreatmentDialog(open)
         }}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-auto rounded-2xl border-2">
@@ -1707,40 +1662,27 @@ const ToothChart: React.FC<ToothChartProps> = ({
                 <div>
                   <Label htmlFor="treatment_type">Treatment Type *</Label>
                   <Select value={treatmentForm.treatment_type} onValueChange={(value) => {
-                    console.log('🦷 Treatment type selected:', value)
-                    console.log('🦷 Available treatment types:', treatmentTypes)
-                    console.log('🦷 Treatment types length:', treatmentTypes.length)
-                    console.log('🦷 Current treatment form:', treatmentForm)
                     
                     setTreatmentForm(prev => {
-                      console.log('🦷 Setting treatment type in form:', value)
                       return { ...prev, treatment_type: value }
                     })
                     
                     // Auto-fill cost when treatment type is selected
                     if (value && value !== 'Other') {
-                      console.log('🦷 Looking for treatment type:', value)
                       const selectedType = treatmentTypes.find(type => type.name === value)
-                      console.log('🦷 Selected treatment type object:', selectedType)
                       
                       if (selectedType) {
-                        console.log('🦷 Found treatment type, default_cost:', selectedType.default_cost)
-                        console.log('🦷 Auto-filling cost:', selectedType.default_cost)
                         setTreatmentForm(prev => {
                           const newForm = { 
                             ...prev, 
                             treatment_type: value,
                             total_cost: selectedType.default_cost.toString()
                           }
-                          console.log('🦷 Updated treatment form:', newForm)
                           return newForm
                         })
                       } else {
-                        console.log('🦷 No matching treatment type found for:', value)
-                        console.log('🦷 Available names:', treatmentTypes.map(t => t.name))
                       }
                     } else {
-                      console.log('🦷 Value is empty or "Other", skipping cost auto-fill')
                     }
                   }}>
                     <SelectTrigger>
@@ -1818,13 +1760,11 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   step="0.01"
                   value={treatmentForm.total_cost}
                   onChange={(e) => {
-                    console.log('🦷 Cost input changed:', e.target.value)
                     setTreatmentForm(prev => ({ ...prev, total_cost: e.target.value }))
                   }}
                   placeholder="Enter treatment cost"
                   className={treatmentForm.total_cost ? "border-blue-200 bg-blue-50" : ""}
                 />
-                {console.log('🦷 Rendering cost input with value:', treatmentForm.total_cost)}
                 {treatmentForm.total_cost && (
                   <p className="text-xs text-blue-600 mt-1">
                     💡 Cost auto-filled from treatment type. You can modify this amount.
@@ -2165,37 +2105,27 @@ const ToothChart: React.FC<ToothChartProps> = ({
                   <div>
                     <Label htmlFor="treatment_type">Treatment Type *</Label>
                     <Select value={treatmentForm.treatment_type} onValueChange={(value) => {
-                      console.log('🦷 Multi-tooth treatment type selected:', value)
                       
                       setTreatmentForm(prev => {
-                        console.log('🦷 Setting multi-tooth treatment type in form:', value)
                         return { ...prev, treatment_type: value }
                       })
                       
                       // Auto-fill cost when treatment type is selected
                       if (value && value !== 'Other') {
-                        console.log('🦷 Looking for treatment type:', value)
                         const selectedType = treatmentTypes.find(type => type.name === value)
-                        console.log('🦷 Selected treatment type object:', selectedType)
                         
                         if (selectedType) {
-                          console.log('🦷 Found treatment type, default_cost:', selectedType.default_cost)
-                          console.log('🦷 Auto-filling cost:', selectedType.default_cost)
                           setTreatmentForm(prev => {
                             const newForm = { 
                               ...prev, 
                               treatment_type: value,
                               total_cost: selectedType.default_cost.toString()
                             }
-                            console.log('🦷 Updated multi-tooth treatment form:', newForm)
                             return newForm
                           })
                         } else {
-                          console.log('🦷 No matching treatment type found for:', value)
-                          console.log('🦷 Available names:', treatmentTypes.map(t => t.name))
                         }
                       } else {
-                        console.log('🦷 Value is empty or "Other", skipping cost auto-fill')
                       }
                     }}>
                       <SelectTrigger>

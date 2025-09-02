@@ -96,7 +96,7 @@ export const useOptimizedAppointments = () => {
         const { subscribeToAppointments } = useLightweightRealtime(clinic.id)
         
         const unsubscribe = await subscribeToAppointments((update: any) => {
-          console.log('📊 Appointments lightweight update:', update.type)
+          // Appointments lightweight update
           
           if (update.type === 'UPDATED') {
             // Refresh appointments data

@@ -88,13 +88,9 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
     try {
       setLoading(true)
       
-      console.log('🦷 Loading payment data for treatment:', treatment.id)
-      console.log('🦷 Treatment object:', treatment)
-      console.log('🦷 Treatment cost:', treatment.cost)
       
       // Get payment summary from API
       const summary = await simplePaymentApi.getPaymentSummary(treatment.id)
-      console.log('🦷 Payment summary from API:', summary)
       setPaymentSummary(summary)
       
       // Get payment transactions from API
@@ -102,7 +98,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         const treatmentPayment = await simplePaymentApi.getTreatmentPayment(treatment.id)
         if (treatmentPayment) {
           const transactions = await simplePaymentApi.getPaymentTransactions(treatmentPayment.id)
-          console.log('🦷 Payment transactions from API:', transactions)
           setTransactions(transactions)
         }
       } else {
@@ -110,7 +105,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       }
 
       // Set form data with treatment cost or existing payment data
-      console.log('🦷 Setting form data with treatment cost:', treatment.cost)
       setFormData(prev => {
         const newFormData = {
           ...prev,
@@ -120,7 +114,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
           payment_method: 'Cash',
           notes: ''
         }
-        console.log('🦷 New form data:', newFormData)
         return newFormData
       })
 
@@ -158,19 +151,12 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
 
   // Ensure cost is set when component mounts or treatment changes
   useEffect(() => {
-    console.log('🦷 ===== COST DEBUGGING =====')
-    console.log('🦷 Treatment object:', treatment)
-    console.log('🦷 Treatment cost:', treatment.cost)
-    console.log('🦷 Treatment type:', treatment.treatment_type)
-    console.log('🦷 Treatment ID:', treatment.id)
     
     // Try to get cost from treatment object first
     let cost = treatment.cost || 0
-    console.log('🦷 Initial cost from treatment object:', cost)
     
     // If no cost in treatment object, try to get from treatment type
     if (!cost || cost === 0) {
-      console.log('🦷 No cost in treatment object, checking treatment type')
       // You can add a mapping here for common treatment costs
       const treatmentCosts: { [key: string]: number } = {
         'Root Canal': 5000,
@@ -211,28 +197,20 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         'Smoking Cessation Counseling': 500
       }
       
-      console.log('🦷 Available treatment types in mapping:', Object.keys(treatmentCosts))
-      console.log('🦷 Looking for treatment type:', treatment.treatment_type)
       
       cost = treatmentCosts[treatment.treatment_type] || 0
-      console.log('🦷 Cost from treatment type mapping:', cost)
     }
     
     if (cost && cost > 0) {
-      console.log('🦷 Setting cost in form:', cost)
       setFormData(prev => {
         const newForm = {
           ...prev,
           total_amount: cost
         }
-        console.log('🦷 Updated form data:', newForm)
         return newForm
       })
     } else {
-      console.log('🦷 No cost found, setting to 0')
-      console.log('🦷 Final cost value:', cost)
     }
-    console.log('🦷 ===== END COST DEBUGGING =====')
   }, [treatment.cost, treatment.treatment_type])
 
   // Remove the force refresh - it's causing unnecessary lag
@@ -288,17 +266,14 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       const isMultiTooth = relatedTreatments.length > 0
 
       if (!isMultiTooth) {
-        console.log('🦷 No related treatments found for multi-tooth sync')
         return
       }
 
       // Get total count of all treatments in this multi-tooth procedure
       const totalTeethInProcedure = relatedTreatments.length
-      console.log(`🦷 Found ${totalTeethInProcedure} teeth in this multi-tooth procedure`)
 
       // Filter out the current treatment for syncing (it gets payment directly)
       const treatmentsToSync = relatedTreatments.filter(t => t.id !== treatment.id)
-      console.log(`🦷 Will sync payment to ${treatmentsToSync.length} other teeth`)
 
       // Additional safety check: verify these are truly part of the same multi-tooth procedure
       // by checking if they have similar payment patterns
@@ -311,20 +286,16 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
             if (relatedPayment.total_amount === paymentSummary?.total_amount) {
               validRelatedTreatments.push(relatedTreatment)
             } else {
-              console.log(`🦷 Skipping tooth ${relatedTreatment.tooth_number} - different total amount`)
             }
           } else {
-            console.log(`🦷 No payment record for tooth ${relatedTreatment.tooth_number}`)
           }
         } catch (error) {
           console.error(`🦷 Error checking payment for tooth ${relatedTreatment.tooth_number}:`, error)
         }
       }
 
-      console.log(`🦷 Valid treatments for sync: ${validRelatedTreatments.length}`)
 
       if (validRelatedTreatments.length === 0) {
-        console.log('🦷 No valid related treatments found for sync after payment amount verification')
         return
       }
 
@@ -370,7 +341,6 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         }
       }
 
-      console.log(`🦷 Successfully synced to ${actuallySyncedCount} teeth`)
 
       // Show completion notification
       toast.success(`✅ Payment synced across teeth successfully!`)

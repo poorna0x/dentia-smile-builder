@@ -2,7 +2,6 @@ import { supabase } from './supabase'
 
 export const testToothImagesTable = async () => {
   try {
-    console.log('Testing tooth_images table...')
     
     // Try to query the table
     const { data, error } = await supabase
@@ -15,8 +14,6 @@ export const testToothImagesTable = async () => {
       return false
     }
     
-    console.log('✅ tooth_images table exists and is accessible')
-    console.log('Sample data:', data)
     return true
   } catch (error) {
     console.error('❌ Error testing tooth_images table:', error)
@@ -26,7 +23,6 @@ export const testToothImagesTable = async () => {
 
 export const testToothImagesFunctions = async () => {
   try {
-    console.log('Testing tooth_images functions...')
     
     // Test the get_tooth_images function
     const { data, error } = await supabase
@@ -40,8 +36,6 @@ export const testToothImagesFunctions = async () => {
       return false
     }
     
-    console.log('✅ get_tooth_images function exists and is accessible')
-    console.log('Function result:', data)
     return true
   } catch (error) {
     console.error('❌ Error testing tooth_images functions:', error)

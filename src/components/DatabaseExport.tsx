@@ -326,7 +326,6 @@ const DatabaseExport: React.FC = () => {
 
       const availableTables: string[] = [];
       
-      console.log('🔍 Starting comprehensive table discovery...');
       
       // Test all tables to discover which ones exist
       for (const tableName of allTables) {
@@ -338,15 +337,12 @@ const DatabaseExport: React.FC = () => {
           
           if (!error) {
             availableTables.push(tableName);
-            console.log(`✅ Found table: ${tableName}`);
           }
         } catch (e) {
           // Silently ignore errors - table doesn't exist
         }
       }
 
-      console.log(`🎯 Total tables discovered: ${availableTables.length}`);
-      console.log('📋 Tables found:', availableTables);
 
       const tableInfos: TableInfo[] = availableTables.map(tableName => ({
         name: tableName,

@@ -81,7 +81,7 @@ const loadFeatureTogglesFromStorage = (): FeatureToggles => {
 const saveFeatureTogglesToStorage = (features: FeatureToggles) => {
   try {
     localStorage.setItem('feature_toggles', JSON.stringify(features));
-    console.log('🔍 Saved feature toggles to localStorage:', features);
+    // Saved feature toggles to localStorage
   } catch (error) {
     console.warn('Failed to save feature toggles to localStorage:', error);
   }
@@ -97,11 +97,11 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
       setIsLoading(true);
       setError(null);
 
-      console.log('🔍 Loading feature toggles from storage...');
+      // Loading feature toggles from storage
 
       const loadedFeatures = loadFeatureTogglesFromStorage();
       
-      console.log('🔍 Loaded feature toggles:', loadedFeatures);
+      // Loaded feature toggles
       setFeatures(loadedFeatures);
     } catch (err) {
       console.error('Error loading feature toggles:', err);
@@ -118,7 +118,7 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
   };
 
   const refreshToggles = async () => {
-    console.log('🔄 Manually refreshing feature toggles...');
+    // Manually refreshing feature toggles
     await loadFeatureToggles();
   };
 
@@ -126,7 +126,7 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
     const updatedFeatures = { ...features, [feature]: enabled };
     setFeatures(updatedFeatures);
     saveFeatureTogglesToStorage(updatedFeatures);
-    console.log(`🔍 Updated feature toggle ${feature}: ${enabled}`);
+    // Updated feature toggle
   };
 
   useEffect(() => {
@@ -134,7 +134,7 @@ export const useFeatureToggles = (): UseFeatureTogglesReturn => {
     
     // Subscribe to feature toggle change events
     const unsubscribe = featureToggleEvents.subscribe(() => {
-      console.log('🔄 Received feature toggle change event, refreshing...');
+      // Received feature toggle change event, refreshing
       loadFeatureToggles();
     });
 

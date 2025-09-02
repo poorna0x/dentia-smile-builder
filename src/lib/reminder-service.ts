@@ -16,7 +16,6 @@ export interface AppointmentForReminder {
 // Check for appointments that need reminders
 export const checkAndSendReminders = async (): Promise<void> => {
   try {
-    console.log('🔍 Checking for appointments that need reminders...');
 
     // Get current time
     const now = new Date();
@@ -44,7 +43,6 @@ export const checkAndSendReminders = async (): Promise<void> => {
       return;
     }
 
-    console.log(`📅 Found ${appointments?.length || 0} appointments that might need reminders`);
 
     if (!appointments || appointments.length === 0) {
       return;
@@ -69,7 +67,6 @@ const processAppointmentReminder = async (appointment: AppointmentForReminder): 
     // Get reminder settings from localStorage
     const stored = localStorage.getItem('notification_settings');
     if (!stored) {
-      console.log('❌ No notification settings found in localStorage');
       return;
     }
 
@@ -79,18 +76,15 @@ const processAppointmentReminder = async (appointment: AppointmentForReminder): 
 
     // Check if it's time to send the reminder
     if (isBefore(now, reminderTime)) {
-      console.log(`⏰ Appointment ${appointment.id} reminder not due yet`);
       return;
     }
 
     // Check if reminders are enabled
     if (!settings.whatsapp_enabled || !settings.send_reminders) {
-      console.log('📱 Reminders disabled, marking as sent to avoid re-checking');
       await markReminderAsSent(appointment.id);
       return;
     }
 
-    console.log(`📱 Sending reminder for appointment ${appointment.id}`);
 
     // Send WhatsApp reminder
     const reminderSent = await sendWhatsAppAppointmentReminder(
@@ -105,10 +99,8 @@ const processAppointmentReminder = async (appointment: AppointmentForReminder): 
     );
 
     if (reminderSent) {
-      console.log(`✅ Reminder sent successfully for appointment ${appointment.id}`);
       await markReminderAsSent(appointment.id);
     } else {
-      console.log(`❌ Failed to send reminder for appointment ${appointment.id}`);
     }
 
   } catch (error) {

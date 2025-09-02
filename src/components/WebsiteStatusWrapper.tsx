@@ -12,12 +12,6 @@ const WebsiteStatusWrapper: React.FC<WebsiteStatusWrapperProps> = ({ children })
   const location = useLocation();
 
   // Debug logging
-  console.log('🔍 WebsiteStatusWrapper Debug:', {
-    isLoading,
-    websiteEnabled: isFeatureEnabled('websiteEnabled'),
-    allFeatures: features,
-    currentPath: location.pathname
-  });
 
   // Show loading while checking feature toggles
   if (isLoading) {
@@ -36,13 +30,11 @@ const WebsiteStatusWrapper: React.FC<WebsiteStatusWrapperProps> = ({ children })
 
   // Always allow access to Super Admin page, even when website is disabled
   if (location.pathname === '/super-admin') {
-    console.log('🔓 Super Admin page - always accessible');
     return <>{children}</>;
   }
 
   // If website is disabled, show the disabled page
   if (!websiteEnabled) {
-    console.log('🚨 WEBSITE IS DISABLED - Showing disabled page');
     return (
       <WebsiteDisabled 
         message="The website has been temporarily disabled by the system administrator."
@@ -50,8 +42,6 @@ const WebsiteStatusWrapper: React.FC<WebsiteStatusWrapperProps> = ({ children })
       />
     );
   }
-
-  console.log('✅ Website is enabled - showing normal content');
   // If website is enabled, show the normal content
   return <>{children}</>;
 };

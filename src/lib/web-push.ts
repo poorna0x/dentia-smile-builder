@@ -57,7 +57,6 @@ export const sendFirebaseNotification = async (
   try {
     // This would integrate with Firebase Cloud Messaging
     // For now, we'll use a placeholder implementation
-    console.log('Sending Firebase notification:', { subscription, data });
     
     // In a real implementation, you would:
     // 1. Send the notification to Firebase

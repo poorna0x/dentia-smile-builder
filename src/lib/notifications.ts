@@ -20,7 +20,6 @@ export interface NotificationData {
 // Request notification permission
 export const requestNotificationPermission = async (): Promise<boolean> => {
   if (!('Notification' in window)) {
-    console.log('This browser does not support notifications');
     return false;
   }
 
@@ -29,7 +28,6 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
   }
 
   if (Notification.permission === 'denied') {
-    console.log('Notification permission denied');
     return false;
   }
 
@@ -41,7 +39,6 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 export const subscribeToPushNotifications = async (): Promise<boolean> => {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.log('Push notifications not supported');
       return false;
     }
 
@@ -50,7 +47,6 @@ export const subscribeToPushNotifications = async (): Promise<boolean> => {
     // Check if already subscribed
     const existingSubscription = await registration.pushManager.getSubscription();
     if (existingSubscription) {
-      console.log('Already subscribed to push notifications');
       return true;
     }
 
@@ -60,7 +56,6 @@ export const subscribeToPushNotifications = async (): Promise<boolean> => {
       applicationServerKey: VAPID_PUBLIC_KEY
     });
 
-    console.log('Push notification subscription:', subscription);
     
     // Save subscription to database (implement this)
     await saveSubscriptionToDatabase(subscription);
@@ -138,7 +133,6 @@ export const sendPushNotification = async (data: NotificationData): Promise<bool
   try {
     // This would typically be done from your backend
     // For now, we'll simulate it
-    console.log('Sending push notification:', data);
     
     // In a real implementation, you would:
     // 1. Get all subscriptions from database
@@ -173,7 +167,6 @@ const saveSubscriptionToDatabase = async (subscription: PushSubscription): Promi
     if (error) {
       console.error('Failed to save subscription to database:', error);
     } else {
-      console.log('Subscription saved to database successfully');
     }
   } catch (error) {
     console.error('Failed to save subscription:', error);
@@ -190,13 +183,11 @@ export const isPWAInstalled = (): boolean => {
 export const installPWA = async (): Promise<boolean> => {
   try {
     if (!('BeforeInstallPromptEvent' in window)) {
-      console.log('PWA install not supported');
       return false;
     }
 
     // This would trigger the install prompt
     // The actual implementation depends on the browser's install prompt
-    console.log('PWA install requested');
     return true;
   } catch (error) {
     console.error('Failed to install PWA:', error);
@@ -210,7 +201,6 @@ export const initializeNotifications = async (): Promise<void> => {
     // Register service worker
     if ('serviceWorker' in navigator) {
       await navigator.serviceWorker.register('/sw.js');
-      console.log('Service Worker registered');
     }
 
     // Request notification permission

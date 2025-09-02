@@ -109,8 +109,6 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
         ]);
 
         // Get prescriptions (including expired ones)
-        console.log('SimpleActiveTreatments: Fetching prescriptions for patient:', patientData.id);
-        console.log('SimpleActiveTreatments: Clinic ID:', clinic?.id);
         
         const { data: prescriptionsData, error: prescriptionsError } = await supabase
           .from('prescriptions')
@@ -120,8 +118,6 @@ const SimpleActiveTreatments: React.FC<SimpleActiveTreatmentsProps> = ({ patient
           .in('status', ['Active', 'Completed'])
           .order('prescribed_date', { ascending: false });
 
-        console.log('SimpleActiveTreatments: Prescriptions data:', prescriptionsData);
-        console.log('SimpleActiveTreatments: Prescriptions error:', prescriptionsError);
         
         setPrescriptions(prescriptionsData || []);
 

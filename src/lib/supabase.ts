@@ -269,8 +269,6 @@ export const appointmentsApi = {
 
   // Create new appointment
   async create(appointment: Omit<Appointment, 'id' | 'created_at' | 'updated_at'>) {
-    console.log('📝 appointmentsApi.create called with:', appointment);
-    
     const { data, error } = await supabase
       .from('appointments')
       .insert([appointment])
@@ -287,7 +285,6 @@ export const appointmentsApi = {
       throw error;
     }
     
-    console.log('✅ appointmentsApi.create success:', data);
     return data
   },
 
