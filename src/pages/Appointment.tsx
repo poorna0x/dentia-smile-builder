@@ -24,6 +24,7 @@ import {
   recordAppointmentAttempt, 
   resetSecurityOnSuccess 
 } from '@/lib/security';
+import { QueryOptimizer } from '@/lib/db-optimizations';
 
 
 
@@ -101,6 +102,9 @@ const Appointment = () => {
   // Add debounce mechanism to prevent duplicate refreshes
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // 🚀 NEW: Track initial loading state for better UX
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
 
   // Get next available booking date (skip holidays and respect minimum advance notice)
@@ -198,10 +202,10 @@ const Appointment = () => {
   const checkBookedSlots = useCallback(async (forceRefresh = false) => {
     if (!clinic?.id) return;
     
-    // Debounce mechanism: prevent multiple rapid refreshes
+    // 🚀 OPTIMIZED: Reduced debounce for better responsiveness
     const now = Date.now();
     const timeSinceLastRefresh = now - lastRefreshTime;
-    const minRefreshInterval = 1000; // 1 second minimum between refreshes
+    const minRefreshInterval = forceRefresh ? 0 : 300; // 300ms for normal, 0 for force refresh
     
     if (!forceRefresh && timeSinceLastRefresh < minRefreshInterval) {
       // Skipping refresh - too soon since last refresh
@@ -215,8 +219,8 @@ const Appointment = () => {
     }
     
     setIsRefreshing(true);
-    // Only show loading for initial load when no slots exist
-    if (bookedSlots.length === 0 && forceRefresh) {
+    // 🚀 IMPROVED: Show loading immediately for better UX
+    if (forceRefresh) {
       setIsLoadingSlots(true);
     }
     setLastRefreshTime(now);
@@ -224,49 +228,53 @@ const Appointment = () => {
     try {
       const appointmentDate = format(date, 'yyyy-MM-dd');
       
-      // Force refresh to get latest data (bypass cache)
-      const existingAppointments = await appointmentsApi.getByDate(clinic.id, appointmentDate);
+      // 🚀 IMPROVED: Clear cache before fetching to ensure fresh data
+      if (forceRefresh && typeof QueryOptimizer !== 'undefined') {
+        try {
+          QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
+          QueryOptimizer.clearCache('appointments');
+        } catch (error) {
+          console.warn('Failed to clear cache:', error);
+        }
+      }
+      
+      // 🚀 OPTIMIZED: Load appointments and disabled slots in parallel for faster loading
+      const [existingAppointments, disabledSlotsData] = await Promise.all([
+        appointmentsApi.getByDate(clinic.id, appointmentDate),
+        loadDisabledSlots(date)
+      ]);
       
       // Get booked time slots (exclude cancelled appointments)
       const booked = existingAppointments
         .filter(apt => apt.status !== 'Cancelled')
         .map(apt => apt.time);
       
-      // Seamless update: only update if there are actual changes
-      setBookedSlots(prevBooked => {
-        const prevSet = new Set(prevBooked);
-        const newSet = new Set(booked);
-        
-        // Check if there are any differences
-        if (prevBooked.length !== booked.length) return booked;
-        
-        for (const slot of booked) {
-          if (!prevSet.has(slot)) return booked;
-        }
-        
-        for (const slot of prevBooked) {
-          if (!newSet.has(slot)) return booked;
-        }
-        
-        // No changes, return previous state to prevent unnecessary re-render
-        return prevBooked;
-      });
-      
-      // Load disabled slots for this date
-      await loadDisabledSlots(date);
+      // 🚀 OPTIMIZED: Immediate state update for better responsiveness
+      setBookedSlots(booked);
     } catch (error) {
       console.error('Error checking booked slots:', error);
       setBookedSlots([]);
     } finally {
       setIsLoadingSlots(false);
       setIsRefreshing(false);
+      // 🚀 NEW: Mark initial load as complete
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     }
-  }, [clinic?.id, date, lastRefreshTime, isRefreshing, bookedSlots.length]);
+  }, [clinic?.id, date, lastRefreshTime, isRefreshing]);
 
   // Initial load when date or clinic changes
   useEffect(() => {
-    checkBookedSlots(true); // Force refresh for initial load
-  }, [date, clinic?.id]);
+    if (clinic?.id) {
+      // Add debounce to prevent rapid API calls when changing dates
+      const timeoutId = setTimeout(() => {
+        checkBookedSlots(true); // Force refresh for initial load
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [date, clinic?.id]); // Removed checkBookedSlots to prevent circular dependency
 
   // Lightweight real-time simulation for slot availability
   useEffect(() => {
@@ -283,66 +291,32 @@ const Appointment = () => {
         
         const { subscribeToAppointments, subscribeToDisabledSlots } = useLightweightRealtime(clinic.id);
 
-        // Subscribe to appointments with seamless updates
+        // Subscribe to appointments with simple updates
         const unsubscribeAppointments = await subscribeToAppointments((update) => {
-          // Appointment lightweight update
-          if (update.type === 'UPDATED') {
-            // Check if any changes affect the current date
+          if (update.type === 'UPDATED' || update.type === 'INSERTED') {
+            // Simple refresh when appointments change
             const currentDate = format(date, 'yyyy-MM-dd');
-            const relevantAppointments = update.data.filter((appointment: any) => 
+            const hasRelevantChanges = update.data.some((appointment: any) => 
               appointment.date === currentDate
             );
             
-            if (relevantAppointments.length > 0) {
-              // Seamless update: directly update booked slots without full refresh
-              const newBookedSlots = relevantAppointments
-                .filter((apt: any) => apt.status !== 'Cancelled')
-                .map((apt: any) => apt.time);
-              
-              setBookedSlots(prevBooked => {
-                const prevSet = new Set(prevBooked);
-                const newSet = new Set(newBookedSlots);
-                
-                // Only update if there are actual changes
-                if (prevBooked.length !== newBookedSlots.length) return newBookedSlots;
-                
-                for (const slot of newBookedSlots) {
-                  if (!prevSet.has(slot)) return newBookedSlots;
-                }
-                
-                for (const slot of prevBooked) {
-                  if (!newSet.has(slot)) return newBookedSlots;
-                }
-                
-                // No changes, return previous state to prevent unnecessary re-render
-                return prevBooked;
-              });
+            if (hasRelevantChanges) {
+              // Simple approach: just refresh the data
+              setTimeout(() => {
+                checkBookedSlots(true);
+              }, 100);
             }
           }
           setRealtimeStatus('connected');
         });
 
-        // Subscribe to disabled slots with date-specific polling
+        // Subscribe to disabled slots with simple updates
         const unsubscribeDisabledSlots = await subscribeToDisabledSlots((update) => {
-          // Disabled slots update received
-          
-          // Disabled slots lightweight update
-          if (update.type === 'UPDATED') {
-            // Check if any changes affect the current date
-            const currentDate = format(date, 'yyyy-MM-dd');
-            const hasRelevantChanges = update.data.some((slot: any) => 
-              slot.date === currentDate
-            );
-            
-            if (hasRelevantChanges) {
-              // Refreshing disabled slots due to changes for date
-              // Force refresh disabled slots
+          if (update.type === 'UPDATED' || update.type === 'INSERTED' || update.type === 'DELETED') {
+            // Simple refresh when disabled slots change
+            setTimeout(() => {
               loadDisabledSlots(date);
-            }
-          } else if (update.type === 'INSERTED' || update.type === 'DELETED') {
-            // For insert/delete operations, always refresh to be safe
-            // Refreshing disabled slots due to insert/delete operation
-            loadDisabledSlots(date);
+            }, 100);
           }
         }, format(date, 'yyyy-MM-dd'));
 
@@ -377,7 +351,7 @@ const Appointment = () => {
       };
       cleanupManager();
     };
-  }, [clinic?.id, date]);
+  }, [clinic?.id]); // Removed date dependency to prevent re-initialization on every date change
 
   // Phone number formatting function
   const formatPhoneNumber = (phoneNumber: string): string => {
@@ -757,7 +731,30 @@ const Appointment = () => {
           patient_id: patientId
         });
         
-
+        // 🚀 CRITICAL FIX: Invalidate cache immediately after appointment creation
+        // This ensures the booked slot appears immediately without requiring a refresh
+        if (clinic?.id && typeof QueryOptimizer !== 'undefined') {
+          try {
+            // Clear QueryOptimizer cache for this specific date
+            QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
+            // Also clear the general appointments cache
+            QueryOptimizer.clearCache('appointments');
+          } catch (error) {
+            console.warn('Failed to clear cache after appointment creation:', error);
+          }
+          
+          // Immediately update the local state to show the booked slot
+          setBookedSlots(prevBooked => {
+            const newBooked = [...prevBooked, selectedTime];
+            // Remove duplicates and sort
+            return Array.from(new Set(newBooked)).sort();
+          });
+          
+          // Force refresh the booked slots to ensure consistency
+          setTimeout(() => {
+            checkBookedSlots(true);
+          }, 100);
+        }
         
         // Send confirmation email to patient
         const patientEmailSent = await sendAppointmentConfirmation({
@@ -1106,68 +1103,80 @@ const Appointment = () => {
                     <Label className="text-base font-medium text-primary">
                       Available Time Slots
                     </Label>
-                                        <div className="min-h-[200px] transition-all duration-300">
-                      {currentSettings.disabledAppointments ? (
-                        <div className="text-sm text-destructive">
-                          Appointments are temporarily disabled.
+                    
+                    {/* 🚀 NEW: Better loading indicator for initial page load */}
+                    {isInitialLoad ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+                          <p className="text-base font-medium text-gray-700">Loading available time slots...</p>
+                          <p className="text-sm text-gray-500 mt-1">Please wait while we fetch the latest availability</p>
                         </div>
-                      ) : isLoadingDisabledSlots ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600 mx-auto mb-2"></div>
-                            <p className="text-sm text-muted-foreground">Loading available slots...</p>
+                      </div>
+                    ) : (
+                      <div className="min-h-[200px] transition-all duration-300">
+                        {currentSettings.disabledAppointments ? (
+                          <div className="text-sm text-destructive">
+                            Appointments are temporarily disabled.
                           </div>
-                        </div>
-                      ) : timeSlots.length === 0 ? (
-                        <div className="text-sm text-destructive">
-                          {(() => {
-                            const daySettings = getDaySettings(date);
-                            if (!daySettings.enabled) {
-                              return 'Clinic is closed on this day of the week.';
-                            } else if (isHoliday(date)) {
-                              return 'Clinic is closed on this date (holiday).';
-                            } else {
-                              return 'No available time slots for this date.';
-                            }
-                          })()}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-h-[120px]">
-                          {timeSlots.map((ts) => (
-                            <Button
-                              key={ts.value}
-                              type="button"
-                              variant={selectedTime === ts.value ? 'default' : 'outline'}
-                              className={cn(
-                                'justify-center transition-all duration-200', 
-                                selectedTime === ts.value ? 'btn-appointment' : '',
-                                ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
-                              )}
-                              disabled={ts.disabled || ts.booked}
-                              onClick={() => !ts.booked && setSelectedTime(ts.value)}
-                                                          >
-                                {ts.label}
-                              </Button>
-                            ))}
-                        </div>
-                        {bookedSlots.length > 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            Red slots are unavailable. Please select an available time.
+                        ) : isLoadingDisabledSlots ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600 mx-auto mb-2"></div>
+                              <p className="text-sm text-muted-foreground">Loading available slots...</p>
+                            </div>
+                          </div>
+                        ) : timeSlots.length === 0 ? (
+                          <div className="text-sm text-destructive">
+                            {(() => {
+                              const daySettings = getDaySettings(date);
+                              if (!daySettings.enabled) {
+                                return 'Clinic is closed on this day of the week.';
+                              } else if (isHoliday(date)) {
+                                return 'Clinic is closed on this date (holiday).';
+                              } else {
+                                return 'No available time slots for this date.';
+                              }
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-h-[120px]">
+                              {timeSlots.map((ts) => (
+                                <Button
+                                  key={ts.value}
+                                  type="button"
+                                  variant={selectedTime === ts.value ? 'default' : 'outline'}
+                                  className={cn(
+                                    'justify-center transition-all duration-200', 
+                                    selectedTime === ts.value ? 'btn-appointment' : '',
+                                    ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
+                                  )}
+                                  disabled={ts.disabled || ts.booked}
+                                  onClick={() => !ts.booked && setSelectedTime(ts.value)}
+                                >
+                                  {ts.label}
+                                </Button>
+                              ))}
+                            </div>
+                            {bookedSlots.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                Red slots are unavailable. Please select an available time.
+                              </div>
+                            )}
+                            {(() => {
+                              const dateString = format(date, 'yyyy-MM-dd');
+                              const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
+                              return disabledSlotsForDate.length > 0 ? (
+                                <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded-md border border-orange-200">
+                                  ⚠️ Some time slots are blocked by admin settings for this date.
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
                         )}
-                        {(() => {
-                          const dateString = format(date, 'yyyy-MM-dd');
-                          const disabledSlotsForDate = disabledSlots.filter(slot => slot.date === dateString);
-                          return disabledSlotsForDate.length > 0 ? (
-                            <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded-md border border-orange-200">
-                              ⚠️ Some time slots are blocked by admin settings for this date.
-                            </div>
-                          ) : null;
-                        })()}
                       </div>
                     )}
-                    </div>
                   </div>
 
                   {/* Submit Button */}
