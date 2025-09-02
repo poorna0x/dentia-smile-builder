@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Clinic, clinicsApi, isSupabaseConfigured } from '@/lib/supabase'
+import { Clinic, supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useSearchParams } from 'react-router-dom'
 
 interface ClinicContextType {
@@ -21,77 +21,87 @@ export const useClinic = () => {
 
 interface ClinicProviderProps {
   children: ReactNode
-  clinicSlug?: string
 }
 
-export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children, clinicSlug = 'jeshna-dental' }) => { // TODO: Change default clinic slug to your clinic
+export const ClinicProvider: React.FC<ClinicProviderProps> = ({ children }) => {
   const [clinic, setClinic] = useState<Clinic | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchParams] = useSearchParams()
 
-  // Get clinic slug from URL parameter, environment variable, or use default
-  const defaultClinicSlug = import.meta.env.VITE_DEFAULT_CLINIC_SLUG || clinicSlug
-  const currentClinicSlug = searchParams.get('clinic') || defaultClinicSlug
+  // Check if URL has specific clinic parameter (for testing different clinics)
+  const urlClinicSlug = searchParams.get('clinic')
 
   useEffect(() => {
     const loadClinic = async () => {
       try {
-        // Loading clinic data
         setLoading(true)
         setError(null)
         
-        // If Supabase is not configured, use default clinic
+        // If Supabase is not configured, show error
         if (!isSupabaseConfigured) {
-          // Supabase not configured, using default clinic data
-          const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
-          setClinic({
-            id: defaultClinicId,
-            name: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
-            slug: currentClinicSlug,
-            contact_phone: '6363116263', // TODO: Change to your clinic phone number
-            contact_email: 'poorn8105@gmail.com', // TODO: Change to your clinic email
-            address: 'Bangalore, Karnataka', // TODO: Change to your clinic address
-            working_hours: {},
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          setError('Supabase is not configured. Please check your environment variables.')
           setLoading(false)
           return
         }
-        
-        // Try to get clinic by slug
-        // Fetching clinic data from Supabase
-        const clinicData = await clinicsApi.getBySlug(currentClinicSlug)
-                  // Clinic data loaded
-        setClinic(clinicData)
+
+        let clinicData: Clinic | null = null
+
+        // If URL has specific clinic parameter, try to get that clinic
+        if (urlClinicSlug) {
+          try {
+            const { data, error } = await supabase
+              .from('clinics')
+              .select('*')
+              .eq('slug', urlClinicSlug)
+              .eq('is_active', true)
+              .single()
+            
+            if (error) {
+              console.warn(`Clinic with slug '${urlClinicSlug}' not found:`, error)
+            } else {
+              clinicData = data
+            }
+          } catch (err) {
+            console.warn(`Error finding clinic by slug '${urlClinicSlug}':`, err)
+          }
+        }
+
+        // If no specific clinic found or no URL parameter, get the first available clinic
+        if (!clinicData) {
+          try {
+            const { data, error } = await supabase
+              .from('clinics')
+              .select('*')
+              .eq('is_active', true)
+              .limit(1)
+              .single()
+            
+            if (error) {
+              throw error
+            } else {
+              clinicData = data
+            }
+          } catch (err) {
+            throw err
+          }
+        }
+
+        if (clinicData) {
+          setClinic(clinicData)
+        } else {
+          setError('No clinic found in database. Please set up your clinic first.')
+        }
       } catch (err) {
-        console.error('❌ Failed to load clinic:', err)
+        console.error('Failed to load clinic:', err)
         setError(err instanceof Error ? err.message : 'Failed to load clinic')
-        
-        // Fallback to default clinic data
-        const defaultClinicId = import.meta.env.VITE_DEFAULT_CLINIC_ID || 'default-clinic-id'
-        setClinic({
-          id: defaultClinicId,
-          name: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
-          slug: currentClinicSlug,
-          contact_phone: '6363116263', // TODO: Change to your clinic phone number
-          contact_email: 'poorn8105@gmail.com', // TODO: Change to your clinic email
-          address: 'Bangalore, Karnataka', // TODO: Change to your clinic address
-          working_hours: {},
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
       } finally {
-        // Clinic loading completed, setting loading to false
         setLoading(false)
       }
     }
 
     loadClinic()
-  }, [currentClinicSlug])
+  }, [urlClinicSlug])
 
   const value: ClinicContextType = {
     clinic,

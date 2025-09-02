@@ -1,26 +1,18 @@
 /**
  * CLINIC CONFIGURATION
  * 
- * This file manages all clinic-specific configurations.
- * To add a new clinic:
- * 1. Add a new entry to the CLINICS object
- * 2. Update the DEFAULT_CLINIC_SLUG if needed
- * 3. Set up the clinic in your Supabase database
+ * This file manages clinic-specific configurations for the frontend.
+ * The actual clinic data is now loaded directly from the database.
  * 
- * Each clinic can have:
- * - Unique slug for URL identification
- * - Custom domain (optional)
- * - Specific contact information
- * - Custom working hours
+ * This configuration file is used for:
+ * - Default working hours templates
  * - Email notification settings
+ * - Treatment cost defaults
  * 
  * TEMPLATE NOTES:
- * - Replace "Jeshna Dental Clinic" with your clinic name
- * - Replace "6363116263" with your clinic phone number
- * - Replace "contact@jeshnadentalclinic.com" with your clinic email
- * - Replace "Bangalore, Karnataka" with your clinic address
- * - Replace "jeshna-dental" with your clinic slug
- * - Replace "jeshna-dental.com" with your clinic domain
+ * - Update these defaults to match your clinic's preferences
+ * - Working hours can be customized per clinic in the database
+ * - Email settings are configured per clinic in the database
  */
 
 export interface ClinicConfig {
@@ -58,113 +50,36 @@ export interface ClinicConfig {
   }
 }
 
-// All available clinics
-export const CLINICS: Record<string, ClinicConfig> = {
-  'jeshna-dental': {
-    slug: 'jeshna-dental', // TODO: Change to your clinic slug (e.g., 'my-dental-clinic')
-    name: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
-    domain: 'jeshna-dental.com', // TODO: Change to your clinic domain (optional)
-    contactPhone: '6363116263', // TODO: Change to your clinic phone number
-    contactEmail: 'contact@jeshnadentalclinic.com', // TODO: Change to your clinic email
-    address: 'Bangalore, Karnataka', // TODO: Change to your clinic address
-    workingHours: {
-      monday: { start: '09:00', end: '20:00', enabled: true },
-      tuesday: { start: '09:00', end: '20:00', enabled: true },
-      wednesday: { start: '09:00', end: '20:00', enabled: true },
-      thursday: { start: '09:00', end: '20:00', enabled: true },
-      friday: { start: '09:00', end: '20:00', enabled: true },
-      saturday: { start: '09:00', end: '18:00', enabled: false },
-      sunday: { start: '10:00', end: '18:00', enabled: false }
-    },
-    emailSettings: {
-      fromEmail: 'poorn8105@gmail.com', // TODO: Change to your email for sending notifications
-      fromName: 'Jeshna Dental Clinic', // TODO: Change to your clinic name
-      replyTo: 'poorn8105@gmail.com' // TODO: Change to your reply-to email
-    },
-    notificationSettings: {
-      emailNotifications: true,
-      reminderHours: 24,
-      autoConfirm: true
-    }
-  },
-  
-  'smile-dental': {
-    slug: 'smile-dental', // TODO: Change to your clinic slug
-    name: 'Smile Dental Care', // TODO: Change to your clinic name
-    domain: 'smiledentalcare.com', // TODO: Change to your clinic domain
-    contactPhone: '9876543210', // TODO: Change to your clinic phone number
-    contactEmail: 'info@smiledentalcare.com', // TODO: Change to your clinic email
-    address: 'Mumbai, Maharashtra', // TODO: Change to your clinic address
-    workingHours: {
-      monday: { start: '08:00', end: '19:00', enabled: true },
-      tuesday: { start: '08:00', end: '19:00', enabled: true },
-      wednesday: { start: '08:00', end: '19:00', enabled: true },
-      thursday: { start: '08:00', end: '19:00', enabled: true },
-      friday: { start: '08:00', end: '19:00', enabled: true },
-      saturday: { start: '08:00', end: '17:00', enabled: true },
-      sunday: { start: '09:00', end: '16:00', enabled: false }
-    },
-    emailSettings: {
-      fromEmail: 'poorn8105@gmail.com', // TODO: Change to your email
-      fromName: 'Smile Dental Care', // TODO: Change to your clinic name
-      replyTo: 'poorn8105@gmail.com' // TODO: Change to your reply-to email
-    },
-    notificationSettings: {
-      emailNotifications: true,
-      reminderHours: 48,
-      autoConfirm: false
-    }
-  },
-  
-  'pearl-dental': {
-    slug: 'pearl-dental', // TODO: Change to your clinic slug
-    name: 'Pearl Dental Studio', // TODO: Change to your clinic name
-    domain: 'pearldentalstudio.com', // TODO: Change to your clinic domain
-    contactPhone: '8765432109', // TODO: Change to your clinic phone number
-    contactEmail: 'hello@pearldentalstudio.com', // TODO: Change to your clinic email
-    address: 'Delhi, NCR', // TODO: Change to your clinic address
-    workingHours: {
-      monday: { start: '10:00', end: '21:00', enabled: true },
-      tuesday: { start: '10:00', end: '21:00', enabled: true },
-      wednesday: { start: '10:00', end: '21:00', enabled: true },
-      thursday: { start: '10:00', end: '21:00', enabled: true },
-      friday: { start: '10:00', end: '21:00', enabled: true },
-      saturday: { start: '10:00', end: '20:00', enabled: true },
-      sunday: { start: '11:00', end: '18:00', enabled: true }
-    },
-    emailSettings: {
-      fromEmail: 'poorn8105@gmail.com', // TODO: Change to your email
-      fromName: 'Pearl Dental Studio', // TODO: Change to your clinic name
-      replyTo: 'poorn8105@gmail.com' // TODO: Change to your reply-to email
-    },
-    notificationSettings: {
-      emailNotifications: true,
-      reminderHours: 12,
-      autoConfirm: true
-    }
-  }
+// Default working hours template (can be overridden per clinic)
+export const DEFAULT_WORKING_HOURS = {
+  monday: { start: '09:00', end: '18:00', enabled: true },
+  tuesday: { start: '09:00', end: '18:00', enabled: true },
+  wednesday: { start: '09:00', end: '18:00', enabled: true },
+  thursday: { start: '09:00', end: '18:00', enabled: true },
+  friday: { start: '09:00', end: '18:00', enabled: true },
+  saturday: { start: '09:00', end: '17:00', enabled: false },
+  sunday: { start: '10:00', end: '16:00', enabled: false }
 }
 
-// Default clinic to use when no specific clinic is detected
-export const DEFAULT_CLINIC_SLUG = 'jeshna-dental' // TODO: Change to your default clinic slug
-
-// Get clinic config by slug
-export const getClinicConfig = (slug: string): ClinicConfig => {
-  return CLINICS[slug] || CLINICS[DEFAULT_CLINIC_SLUG]
+// Default email notification settings
+export const DEFAULT_EMAIL_SETTINGS = {
+  emailNotifications: true,
+  reminderHours: 24,
+  autoConfirm: true
 }
 
-// Get clinic config by domain
-export const getClinicByDomain = (domain: string): ClinicConfig | null => {
-  const clinic = Object.values(CLINICS).find(c => c.domain === domain)
-  return clinic || null
+// Default email configuration
+export const DEFAULT_EMAIL_CONFIG = {
+  fromEmail: 'noreply@yourclinic.com',
+  fromName: 'Your Clinic Name',
+  replyTo: 'contact@yourclinic.com'
 }
 
-// Get all available clinic slugs
-export const getAvailableClinicSlugs = (): string[] => {
-  return Object.keys(CLINICS)
-}
+// Helper function to get default working hours
+export const getDefaultWorkingHours = () => DEFAULT_WORKING_HOURS
 
-// Validate clinic slug
-export const isValidClinicSlug = (slug: string): boolean => {
-  return slug in CLINICS
-}
+// Helper function to get default email settings
+export const getDefaultEmailSettings = () => DEFAULT_EMAIL_SETTINGS
+
+// Helper function to get default email config
+export const getDefaultEmailConfig = () => DEFAULT_EMAIL_CONFIG
