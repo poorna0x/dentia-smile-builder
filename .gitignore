@@ -33,4 +33,4 @@ AUTOMATED_SETUP_GUIDE.md
 
 # Configuration files (not committed to repository)
 .env.local
-src/config/clinic.js
+
