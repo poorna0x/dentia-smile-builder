@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useClinic } from '@/contexts/ClinicContext';
-import { patientApi, treatmentPlanApi, medicalRecordApi } from '@/lib/patient-management';
+import { patientApi, treatmentPlanApi, medicalRecordApi, Patient } from '@/lib/patient-management';
 import { dentalTreatmentApi, toothConditionApi, dentalNoteApi, toothChartUtils } from '@/lib/dental-treatments';
 import { labWorkApi } from '@/lib/lab-work';
 import { supabase, dentistsApi, Dentist, followUpsApi } from '@/lib/supabase';
@@ -35,24 +35,7 @@ interface LabWorkOrder {
   updated_at: string
 }
 
-interface Patient {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  date_of_birth: string;
-  gender: string;
-  address: string;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  medical_history: any;
-  allergies: string[];
-  current_medications: string[];
-  notes: string;
-  is_active: boolean;
-  created_at: string;
-}
+// Using imported Patient interface from patient-management.ts
 
 interface TreatmentPlan {
   id: string;
@@ -81,6 +64,19 @@ interface MedicalRecord {
   created_at: string;
 }
 
+interface DentalTreatment {
+  id: string;
+  patient_id: string;
+  treatment_type: string;
+  tooth_number: string;
+  treatment_description: string;
+  cost: number;
+  treatment_status: string;
+  treatment_date: string;
+  clinic_id: string;
+  created_at: string;
+}
+
 export default function AdminPatientManagement() {
   const { clinic } = useClinic();
   const { toast } = useToast();
@@ -97,7 +93,7 @@ export default function AdminPatientManagement() {
   const [dataLoaded, setDataLoaded] = useState(false);
   
   // State for in-progress treatments
-  const [patientsInProgressTreatments, setPatientsInProgressTreatments] = useState<{[key: string]: any[]}>({});
+  const [patientsInProgressTreatments, setPatientsInProgressTreatments] = useState<{[key: string]: TreatmentPlan[]}>({});
   
   // State for today's appointment patient selection
   const [selectedTodayPatient, setSelectedTodayPatient] = useState<string | null>(null);
@@ -435,7 +431,8 @@ export default function AdminPatientManagement() {
         address: patientForm.address.trim() || null,
         notes: patientForm.notes.trim() || null,
         allergies: patientForm.allergies.filter(item => item.trim() !== ''),
-        current_medications: patientForm.current_medications.filter(item => item.trim() !== '')
+        current_medications: patientForm.current_medications.filter(item => item.trim() !== ''),
+        is_active: true
       };
       
           // Component: Sending patient data
@@ -455,7 +452,7 @@ export default function AdminPatientManagement() {
         date_of_birth: '',
         gender: '',
         address: '',
-        medical_history: { conditions: [], surgeries: [] },
+        medical_history: { conditions: [] as string[], surgeries: [] as string[] },
         allergies: [],
         current_medications: [],
         notes: ''
@@ -529,7 +526,7 @@ export default function AdminPatientManagement() {
   };
 
   // Handle continue treatment - opens dental chart and navigates to specific tooth
-  const handleContinueTreatment = async (patient: Patient, treatment: any) => {
+  const handleContinueTreatment = async (patient: Patient, treatment: DentalTreatment) => {
     // First open the dental chart for this patient
     await handleOpenDentalChart(patient);
     
