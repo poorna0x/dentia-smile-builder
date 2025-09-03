@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
 import { showLocalNotification, requestNotificationPermission } from '@/lib/notifications';
+
 import LogoutButton from '@/components/LogoutButton';
 import { sendAppointmentConfirmation } from '@/lib/email';
 
@@ -65,6 +66,28 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 
 // Types
+interface Patient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string;
+  gender: string;
+  address: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  medical_history: any;
+  allergies: string[];
+  current_medications: string[];
+  notes: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Partial patient type for search results (only fields we actually select)
+type PatientSearchResult = Pick<Patient, 'id' | 'first_name' | 'last_name' | 'phone' | 'email' | 'date_of_birth' | 'allergies'>;
+
 interface Appointment {
   id: string;
   name: string;
@@ -112,7 +135,7 @@ const Admin = () => {
     name: '',
     specialization: ''
   });
-  const [loadingDentists, setLoadingDentists] = useState(false);
+  const [isLoadingDentists, setIsLoadingDentists] = useState(false);
 
   // Treatment Types Management State
   const [treatmentTypes, setTreatmentTypes] = useState<TreatmentType[]>([]);
@@ -203,9 +226,9 @@ const Admin = () => {
 
   // Patient search and validation state
   const [showPatientSearch, setShowPatientSearch] = useState(false);
-  const [patientSearchResults, setPatientSearchResults] = useState<any[]>([]);
+  const [patientSearchResults, setPatientSearchResults] = useState<PatientSearchResult[]>([]);
   const [isSearchingPatients, setIsSearchingPatients] = useState(false);
-  const [selectedPatientForBooking, setSelectedPatientForBooking] = useState<any>(null);
+  const [selectedPatientForBooking, setSelectedPatientForBooking] = useState<PatientSearchResult | null>(null);
   const [showPatientSearchDialog, setShowPatientSearchDialog] = useState(false);
   
   // 🚀 OPTIMIZED SEARCH: Debounced search with minimum character limit
@@ -292,7 +315,7 @@ const Admin = () => {
         clearTimeout(searchTimeout);
       }
     };
-  }, [searchTerm]);
+  }, [searchTerm, searchTimeout]);
 
   // Trigger search when debounced term changes
   useEffect(() => {
@@ -337,14 +360,14 @@ const Admin = () => {
     if (!clinic || !clinic.id) return;
     
     try {
-      setLoadingDentists(true);
+      setIsLoadingDentists(true);
       const dentistsData = await dentistsApi.getAll(clinic.id);
       setDentists(dentistsData);
     } catch (error) {
       console.error('Error loading dentists:', error);
       toast.error('Failed to load dentists');
     } finally {
-      setLoadingDentists(false);
+      setIsLoadingDentists(false);
     }
   };
 
@@ -736,7 +759,7 @@ const Admin = () => {
     }
   };
 
-  const handleSelectPatientForBooking = (patient: any) => {
+  const handleSelectPatientForBooking = (patient: PatientSearchResult) => {
     setSelectedPatientForBooking(patient);
     setGeneralNewAppointment(prev => ({
       ...prev,
@@ -1378,7 +1401,7 @@ Jeshna Dental Clinic Team`;
   // Phone number formatting function (same as appointment page)
   const formatPhoneNumber = (phoneNumber: string): string => {
     // Remove all non-digit characters
-    let cleaned = phoneNumber.replace(/\D/g, '');
+    const cleaned = phoneNumber.replace(/\D/g, '');
     
     // Handle different input formats
     if (cleaned.startsWith('91') && cleaned.length === 12) {
@@ -2108,8 +2131,8 @@ Jeshna Dental Clinic Team`;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let startDate = new Date();
-    let endDate = new Date();
+    const startDate = new Date();
+    const endDate = new Date();
     
     // Set both to start of day
     startDate.setHours(0, 0, 0, 0);
@@ -3362,7 +3385,7 @@ Jeshna Dental Clinic Team`;
 
               {/* Dentists List */}
               <div className="space-y-4">
-                {loadingDentists ? (
+                {isLoadingDentists ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
                     <span className="text-gray-600">Loading dentists...</span>
