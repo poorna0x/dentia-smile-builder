@@ -207,6 +207,10 @@ const Admin = () => {
   const [isSearchingPatients, setIsSearchingPatients] = useState(false);
   const [selectedPatientForBooking, setSelectedPatientForBooking] = useState<any>(null);
   const [showPatientSearchDialog, setShowPatientSearchDialog] = useState(false);
+  
+  // 🚀 OPTIMIZED SEARCH: Debounced search with minimum character limit
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Multi-dentist support states
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -261,6 +265,41 @@ const Admin = () => {
       loadTreatmentTypes();
     }
   }, [clinic]);
+
+  // 🚀 OPTIMIZED SEARCH: Debounced search implementation
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for debounced search
+    if (searchTerm.trim().length >= 3) {
+      const timeout = setTimeout(() => {
+        setDebouncedSearchTerm(searchTerm);
+      }, 400); // 400ms delay after user stops typing
+      
+      setSearchTimeout(timeout);
+    } else {
+      // Clear results if search term is too short
+      setPatientSearchResults([]);
+      setDebouncedSearchTerm('');
+    }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTerm]);
+
+  // Trigger search when debounced term changes
+  useEffect(() => {
+    if (debouncedSearchTerm.trim() && clinic?.id) {
+      searchPatients(debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, clinic?.id]);
 
   // Load staff permissions from database
   const loadStaffPermissions = async () => {
@@ -672,6 +711,11 @@ const Admin = () => {
   // Patient search and validation functions
   const searchPatients = async (searchTerm: string) => {
     if (!searchTerm.trim() || !clinic?.id) return;
+    
+    // Prevent duplicate searches for the same term
+    if (searchTerm === debouncedSearchTerm && patientSearchResults.length > 0) {
+      return;
+    }
     
     setIsSearchingPatients(true);
     try {
@@ -4137,18 +4181,53 @@ Jeshna Dental Clinic Team`;
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Enter patient name, phone, or email..."
-                  onChange={(e) => {
-                    const searchTerm = e.target.value;
-                    if (searchTerm.length >= 2) {
-                      searchPatients(searchTerm);
-                    } else {
-                      setPatientSearchResults([]);
-                    }
-                  }}
-                  className="pl-10"
+                  placeholder="Enter patient name, phone, or email... (min. 3 characters)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-10"
                 />
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      setPatientSearchResults([]);
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
+            </div>
+
+            {/* Search Status Indicator */}
+            <div className="text-sm text-gray-500 mb-2">
+              {searchTerm.length > 0 && searchTerm.length < 3 && (
+                <span className="text-orange-600">
+                  ⚠️ Please enter at least 3 characters to search
+                </span>
+              )}
+              {searchTerm.length >= 3 && searchTerm !== debouncedSearchTerm && (
+                <span className="text-blue-600">
+                  ⏳ Waiting to search... (400ms delay)
+                </span>
+              )}
+              {searchTerm.length >= 3 && isSearchingPatients && searchTerm === debouncedSearchTerm && (
+                <span className="text-blue-600">
+                  🔍 Searching for patients...
+                </span>
+              )}
+              {searchTerm.length >= 3 && !isSearchingPatients && patientSearchResults.length > 0 && searchTerm === debouncedSearchTerm && (
+                <span className="text-green-600">
+                  ✅ Found {patientSearchResults.length} patient(s)
+                </span>
+              )}
+              {searchTerm.length >= 3 && !isSearchingPatients && patientSearchResults.length === 0 && debouncedSearchTerm && searchTerm === debouncedSearchTerm && (
+                <span className="text-gray-600">
+                  📭 No patients found matching "{debouncedSearchTerm}"
+                </span>
+              )}
             </div>
 
             {/* Search Results */}
@@ -4160,9 +4239,6 @@ Jeshna Dental Clinic Team`;
                 </div>
               ) : patientSearchResults.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-sm font-medium text-gray-700">
-                    Found {patientSearchResults.length} patient(s)
-                  </div>
                   {patientSearchResults.map((patient) => (
                     <div
                       key={patient.id}
