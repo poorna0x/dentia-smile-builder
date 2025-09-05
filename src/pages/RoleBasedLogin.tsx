@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSmartCaptcha } from '../hooks/useSmartCaptcha';
@@ -24,6 +24,14 @@ const RoleBasedLogin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Initialize selectedRole from sessionStorage on component mount
+  useEffect(() => {
+    const savedRole = sessionStorage.getItem('userRole') as 'dentist' | 'staff' | null;
+    if (savedRole && (savedRole === 'dentist' || savedRole === 'staff')) {
+      setSelectedRole(savedRole);
+    }
+  }, []);
+
   // Store the selected role in sessionStorage for access control
   const handleRoleSelect = (role: 'dentist' | 'staff') => {
     setSelectedRole(role);
