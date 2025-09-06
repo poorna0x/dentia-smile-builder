@@ -120,6 +120,12 @@ export default function AdminPatientManagement() {
   const [existingPatients, setExistingPatients] = useState<Patient[]>([]);
   const [followUpPatients, setFollowUpPatients] = useState<any[]>([]);
   const [showFollowUps, setShowFollowUps] = useState(false);
+  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [followUpReason, setFollowUpReason] = useState('');
+  const [customFollowUpReason, setCustomFollowUpReason] = useState('');
+  const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
+  const [followUpToComplete, setFollowUpToComplete] = useState<{id: string, patientName: string} | null>(null);
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
   const [nameSimilarity, setNameSimilarity] = useState(0);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -848,10 +854,47 @@ export default function AdminPatientManagement() {
     }
   };
 
-  const handleFollowUpAppointment = async (appointmentId: string, patientName: string) => {
+  const handleFollowUpAppointment = (appointmentId: string, patientName: string) => {
+    // Set default follow-up date to 1 week from today
+    const oneWeekFromToday = new Date();
+    oneWeekFromToday.setDate(oneWeekFromToday.getDate() + 7);
+    setFollowUpDate(oneWeekFromToday.toISOString().split('T')[0]);
+    
+    // Set default reason
+    setFollowUpReason('Patient follow-up required');
+    
+    // Open follow-up form
+    setShowFollowUpForm(true);
+    setShowAppointmentActionsDialog(false);
+  };
+
+  const handleCreateFollowUp = async () => {
+    if (!appointmentToComplete || !followUpDate || !followUpReason) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Use custom reason if "Custom reason..." is selected and custom text is provided
+    const finalReason = followUpReason === "Custom reason..." && customFollowUpReason.trim() 
+      ? customFollowUpReason.trim() 
+      : followUpReason;
+
+    if (!finalReason) {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for follow-up",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       // Find the patient data
-      const patient = patients.find(p => p.first_name === patientName);
+      const patient = patients.find(p => p.first_name === appointmentToComplete.patientName);
       if (!patient || !clinic?.id) {
         throw new Error('Patient or clinic not found');
       }
@@ -860,10 +903,11 @@ export default function AdminPatientManagement() {
       const newFollowUp = await followUpsApi.create({
         clinic_id: clinic.id,
         patient_id: patient.id,
-        reason: 'Patient follow-up required',
+        reason: finalReason,
         status: 'Pending',
         priority: 'Normal',
-        created_by: 'Admin'
+        created_by: 'Admin',
+        due_date: followUpDate
       });
 
       // Refresh follow-up list
@@ -871,10 +915,15 @@ export default function AdminPatientManagement() {
 
       toast({
         title: "Added to Follow-up List",
-        description: `${patientName} has been added to the follow-up list for patient care`,
+        description: `${appointmentToComplete.patientName} has been added to the follow-up list for ${new Date(followUpDate).toLocaleDateString()}`,
       });
 
-      setShowAppointmentActionsDialog(false);
+      // Reset form and close dialog
+      setShowFollowUpForm(false);
+      setFollowUpDate('');
+      setFollowUpReason('');
+      setCustomFollowUpReason('');
+      setAppointmentToComplete(null);
     } catch (error) {
       console.error('Error adding to follow-up:', error);
       toast({
@@ -910,8 +959,8 @@ export default function AdminPatientManagement() {
       }
 
       toast({
-        title: "Follow-up Deleted",
-        description: `${patientName} has been removed from the follow-up list`,
+        title: "Follow-up Completed",
+        description: `${patientName}'s follow-up has been completed`,
       });
     } catch (error) {
       console.error('Error removing from follow-up:', error);
@@ -3392,21 +3441,50 @@ export default function AdminPatientManagement() {
                     {/* Follow-ups Display (only when follow-ups filter is active) */}
                     {activeFilter === 'follow-ups' && followUpPatients.filter((fu) => fu.patient_id === patient.id).length > 0 && (
                       <div className="mt-4 pt-4 border-t border-gray-300 bg-gray-25 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Clock className="w-4 h-4 text-gray-700" />
+                          <span className="font-medium text-gray-700">Follow-ups</span>
+                        </div>
                         <div className="space-y-2">
                           {followUpPatients
                             .filter((fu) => fu.patient_id === patient.id)
-                            .map((followUp) => (
-                            <div key={followUp.id} className="flex items-center justify-end p-2 bg-white border border-gray-200 rounded-lg">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRemoveFromFollowUp(followUp.id, patient.first_name)}
-                                className="h-6 px-2 text-xs border-red-300 text-red-700 hover:bg-red-50"
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          ))}
+                            .map((followUp) => {
+                              const isOverdue = followUp.due_date && new Date(followUp.due_date) < new Date();
+                              const isDueSoon = followUp.due_date && new Date(followUp.due_date) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
+                              
+                              return (
+                                <div key={followUp.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className={`w-2 h-2 rounded-full ${isOverdue ? 'bg-red-500' : isDueSoon ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {followUp.due_date ? new Date(followUp.due_date).toLocaleDateString() : 'No date set'}
+                                      </span>
+                                      {isOverdue && (
+                                        <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                                      )}
+                                      {isDueSoon && !isOverdue && (
+                                        <Badge variant="secondary" className="text-xs">Due Soon</Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      {followUp.reason || 'No reason specified'}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setFollowUpToComplete({ id: followUp.id, patientName: patient.first_name });
+                                      setShowCompleteConfirmDialog(true);
+                                    }}
+                                    className="h-8 px-3 text-xs border-green-500 text-green-700 hover:bg-green-100 hover:border-green-600"
+                                  >
+                                    Complete
+                                  </Button>
+                                </div>
+                              );
+                            })}
                         </div>
                       </div>
                     )}
@@ -3581,13 +3659,27 @@ export default function AdminPatientManagement() {
               
               {displayedPatients.length === 0 && (
                 <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  {activeFilter === 'in-progress' ? (
+                    <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  ) : activeFilter === 'lab-orders' ? (
+                    <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  ) : activeFilter === 'follow-ups' ? (
+                    <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  ) : (
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  )}
                   <p className="text-gray-600 font-medium">
                     {!dataLoaded 
                       ? "Click 'Search' to load patients" 
                       : searchTerm 
                         ? "No patients found matching your search" 
-                        : "No appointments scheduled for today"
+                        : activeFilter === 'in-progress'
+                          ? "No patients with in-progress treatments"
+                          : activeFilter === 'lab-orders'
+                            ? "No patients with lab orders"
+                            : activeFilter === 'follow-ups'
+                              ? "No patients with follow-ups"
+                              : "No appointments scheduled for today"
                     }
                   </p>
                   <p className="text-sm text-gray-500 mt-2">
@@ -3595,7 +3687,13 @@ export default function AdminPatientManagement() {
                       ? "Load patient data to get started" 
                       : searchTerm
                         ? "Try a different search term or add a new patient"
-                        : "Use the search function to find specific patients or create new appointments"
+                        : activeFilter === 'in-progress'
+                          ? "Complete some treatments to see them here"
+                          : activeFilter === 'lab-orders'
+                            ? "Create lab orders for patients to see them here"
+                            : activeFilter === 'follow-ups'
+                              ? "Schedule follow-ups for patients to see them here"
+                              : "Use the search function to find specific patients or create new appointments"
                     }
                   </p>
 
@@ -5091,6 +5189,219 @@ export default function AdminPatientManagement() {
                 className="w-full"
               >
                 Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Follow-up Form Dialog */}
+        <Dialog open={showFollowUpForm} onOpenChange={setShowFollowUpForm}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-600" />
+                Schedule Follow-up
+              </DialogTitle>
+              <DialogDescription>
+                Set follow-up details for {appointmentToComplete?.patientName}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Follow-up Date */}
+              <div className="space-y-2">
+                <Label htmlFor="followUpDate">Follow-up Date</Label>
+                <Input
+                  id="followUpDate"
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+                
+                {/* Quick Date Buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 3);
+                      setFollowUpDate(date.toISOString().split('T')[0]);
+                    }}
+                    className="text-xs"
+                  >
+                    3 Days
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 5);
+                      setFollowUpDate(date.toISOString().split('T')[0]);
+                    }}
+                    className="text-xs"
+                  >
+                    5 Days
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 7);
+                      setFollowUpDate(date.toISOString().split('T')[0]);
+                    }}
+                    className="text-xs"
+                  >
+                    1 Week
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 10);
+                      setFollowUpDate(date.toISOString().split('T')[0]);
+                    }}
+                    className="text-xs"
+                  >
+                    10 Days
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setDate(date.getDate() + 14);
+                      setFollowUpDate(date.toISOString().split('T')[0]);
+                    }}
+                    className="text-xs"
+                  >
+                    2 Weeks
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const date = new Date();
+                      date.setMonth(date.getMonth() + 1);
+                      setFollowUpDate(date.toISOString().split('T')[0]);
+                    }}
+                    className="text-xs"
+                  >
+                    1 Month
+                  </Button>
+                </div>
+              </div>
+
+              {/* Follow-up Reason */}
+              <div className="space-y-2">
+                <Label htmlFor="followUpReason">Reason for Follow-up</Label>
+                
+                {/* Common Reasons Dropdown */}
+                <Select value={followUpReason} onValueChange={setFollowUpReason}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a common reason or enter custom..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Post-treatment check-up">Post-treatment check-up</SelectItem>
+                    <SelectItem value="Suture removal">Suture removal</SelectItem>
+                    <SelectItem value="Healing progress review">Healing progress review</SelectItem>
+                    <SelectItem value="Pain management follow-up">Pain management follow-up</SelectItem>
+                    <SelectItem value="Medication review">Medication review</SelectItem>
+                    <SelectItem value="Complication monitoring">Complication monitoring</SelectItem>
+                    <SelectItem value="Treatment outcome assessment">Treatment outcome assessment</SelectItem>
+                    <SelectItem value="Oral hygiene instruction">Oral hygiene instruction</SelectItem>
+                    <SelectItem value="Preventive care reminder">Preventive care reminder</SelectItem>
+                    <SelectItem value="Lab results review">Lab results review</SelectItem>
+                    <SelectItem value="Treatment plan discussion">Treatment plan discussion</SelectItem>
+                    <SelectItem value="Custom reason...">Custom reason...</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {/* Custom Reason Textarea (shown when "Custom reason..." is selected) */}
+                {followUpReason === "Custom reason..." && (
+                  <Textarea
+                    id="customFollowUpReason"
+                    value={customFollowUpReason}
+                    onChange={(e) => setCustomFollowUpReason(e.target.value)}
+                    placeholder="Enter custom reason for follow-up..."
+                    rows={2}
+                  />
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowFollowUpForm(false);
+                  setFollowUpDate('');
+                  setFollowUpReason('');
+                  setCustomFollowUpReason('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateFollowUp}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Schedule Follow-up
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Complete Follow-up Confirmation Dialog */}
+        <Dialog open={showCompleteConfirmDialog} onOpenChange={setShowCompleteConfirmDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                Complete Follow-up
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to complete this follow-up for {followUpToComplete?.patientName}?
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="py-4">
+              <p className="text-sm text-gray-600">
+                This will mark the follow-up as completed and remove it from the active list.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCompleteConfirmDialog(false);
+                  setFollowUpToComplete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (followUpToComplete) {
+                    handleRemoveFromFollowUp(followUpToComplete.id, followUpToComplete.patientName);
+                    setShowCompleteConfirmDialog(false);
+                    setFollowUpToComplete(null);
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Complete Follow-up
               </Button>
             </DialogFooter>
           </DialogContent>

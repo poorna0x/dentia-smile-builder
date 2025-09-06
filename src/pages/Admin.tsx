@@ -11,7 +11,7 @@ import { useScrollToTop } from '@/hooks/useScrollToTop';
 import { usePermissions } from '@/hooks/usePermissions';
 
 
-import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType, getMinimumAdvanceNotice } from '@/lib/supabase';
+import { appointmentsApi, settingsApi, disabledSlotsApi, DisabledSlot, dentistsApi, Dentist, staffPermissionsApi, treatmentTypesApi, TreatmentType, getMinimumAdvanceNotice, followUpsApi } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { QueryOptimizer } from '@/lib/db-optimizations';
@@ -37,13 +37,13 @@ import {
   Edit, 
   X, 
   User,
+  Clock,
+  CheckCircle,
   MessageCircle,
   Search,
   LogOut,
   Plus,
   Settings,
-  Clock,
-  CheckCircle,
   AlertCircle,
   Lock,
   Users,
@@ -191,6 +191,10 @@ const Admin = () => {
   const [isLoadingSlotsForNewAppointment, setIsLoadingSlotsForNewAppointment] = useState(false);
   const [showUpcomingAppointments, setShowUpcomingAppointments] = useState(false);
   const [upcomingPeriod, setUpcomingPeriod] = useState<'tomorrow' | 'next-week' | 'all'>('tomorrow');
+  const [showFollowUps, setShowFollowUps] = useState(false);
+  const [followUpPatients, setFollowUpPatients] = useState<any[]>([]);
+  const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
+  const [followUpToComplete, setFollowUpToComplete] = useState<{id: string, patientName: string} | null>(null);
   const [generalNewAppointment, setGeneralNewAppointment] = useState({
     name: '',
     phone: '',
@@ -2171,6 +2175,44 @@ Jeshna Dental Clinic Team`;
 
   const getUpcomingAppointments = () => upcomingAppointments;
 
+  // Load follow-ups for clinic
+  const loadFollowUps = async () => {
+    if (!clinic?.id) return;
+    
+    try {
+      const data = await followUpsApi.getByClinic(clinic.id);
+      setFollowUpPatients(data || []);
+    } catch (error) {
+      console.error('Error loading follow-ups:', error);
+    }
+  };
+
+  // Complete follow-up function
+  const handleCompleteFollowUp = async (followUpId: string, patientName: string) => {
+    try {
+      await followUpsApi.delete(followUpId);
+      await loadFollowUps();
+      toastHook({
+        title: "Follow-up Completed",
+        description: `${patientName}'s follow-up has been completed`,
+      });
+    } catch (error) {
+      console.error('Error completing follow-up:', error);
+      toastHook({
+        title: "Error",
+        description: "Failed to complete follow-up",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Load follow-ups when component mounts
+  useEffect(() => {
+    if (clinic?.id) {
+      loadFollowUps();
+    }
+  }, [clinic?.id]);
+
   // Show loading while data is being fetched
   if (isLoading || clinicLoading || appointmentsLoading || settingsLoading) {
     return (
@@ -2802,6 +2844,107 @@ Jeshna Dental Clinic Team`;
             )}
           </Card>
 
+          {/* Follow-ups Section */}
+          <Card className="mt-6 md:mt-8 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-green-800">Follow-ups</CardTitle>
+                  <CardDescription className="text-green-700">Patient follow-ups and reminders</CardDescription>
+                </div>
+                <div className="flex items-center space-x-3 bg-green-100/50 px-4 py-2 rounded-lg border border-green-300">
+                  <Label htmlFor="followups-toggle" className="text-sm font-medium text-green-800">Show Follow-ups</Label>
+                  <Switch
+                    id="followups-toggle"
+                    checked={showFollowUps}
+                    onCheckedChange={setShowFollowUps}
+                    className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-green-200"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            {showFollowUps && (
+              <CardContent>
+                <div className="space-y-3">
+                  {followUpPatients
+                    .filter(fu => fu.status !== 'Completed')
+                    .map((followUp) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const dueDate = followUp.due_date ? new Date(followUp.due_date) : null;
+                      const isOverdue = dueDate && dueDate < today;
+                      const isDueToday = dueDate && dueDate.getTime() === today.getTime();
+                      const isDueSoon = dueDate && dueDate > today && dueDate <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+                      
+                      return (
+                        <div key={followUp.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-green-100/50 rounded-lg border border-green-200 gap-3">
+                          <div className="flex items-start gap-3 flex-1">
+                            <Clock className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-gray-900 truncate">{followUp.patients?.first_name} {followUp.patients?.last_name}</div>
+                              <div className="text-sm text-gray-600 mt-1 line-clamp-2">{followUp.reason}</div>
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  isOverdue ? 'bg-red-500' : isDueToday ? 'bg-orange-500' : isDueSoon ? 'bg-yellow-500' : 'bg-blue-500'
+                                }`}></div>
+                                <span className="text-xs text-gray-500">
+                                  {followUp.due_date ? new Date(followUp.due_date).toLocaleDateString() : 'No date set'}
+                                </span>
+                                {isOverdue && <span className="text-xs text-red-600 font-medium">Overdue</span>}
+                                {isDueToday && <span className="text-xs text-orange-600 font-medium">Due Today</span>}
+                                {isDueSoon && !isDueToday && <span className="text-xs text-yellow-600 font-medium">Due Soon</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(`tel:${followUp.patients?.phone}`, '_self')}
+                              className="flex items-center gap-2 text-blue-600 border-2 border-blue-400 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-500 shadow-sm transition-all duration-200"
+                              title="Call patient"
+                            >
+                              <Phone className="h-4 w-4" />
+                              <span>Call</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(`https://wa.me/${followUp.patients?.phone}`, '_blank')}
+                              className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-100 hover:text-green-700 hover:border-green-500 shadow-sm transition-all duration-200"
+                              title="Send WhatsApp"
+                            >
+                              <WhatsAppIcon className="h-4 w-4" />
+                              <span>WhatsApp</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setFollowUpToComplete({ id: followUp.id, patientName: `${followUp.patients?.first_name} ${followUp.patients?.last_name}` });
+                                setShowCompleteConfirmDialog(true);
+                              }}
+                              className="flex items-center gap-2 text-green-600 border-2 border-green-400 hover:bg-green-100 hover:text-green-700 hover:border-green-500 shadow-sm transition-all duration-200"
+                              title="Complete follow-up"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              <span className="hidden sm:inline">Complete</span>
+                              <span className="sm:hidden">Done</span>
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  {followUpPatients.filter(fu => fu.status !== 'Completed').length === 0 && (
+                    <div className="text-center py-6 text-gray-500">
+                      No active follow-ups found.
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
           {/* Settings Section - Always render when showSettings is true */}
           {/* Settings Section Debug */}
           {showSettings && (
@@ -3213,16 +3356,6 @@ Jeshna Dental Clinic Team`;
                           onChange={(e) => handleScheduleUpdate(selectedDay, 'slotInterval', parseInt(e.target.value) || 30)}
                         />
                       </div>
-                      
-                      {/* Auto-save indicator */}
-                      <div className="pt-4">
-                        <div className="text-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                            <span>Changes will be saved automatically</span>
-                          </div>
-                        </div>
-                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -3508,31 +3641,6 @@ Jeshna Dental Clinic Team`;
           </Card>
           )}
 
-          {/* Status Notice */}
-          <Card className="mt-6">
-            <CardContent className="pt-6">
-              <div className={`border rounded-lg p-4 ${
-                appointmentsError 
-                  ? 'bg-red-50 border-red-200' 
-                  : 'bg-green-50 border-green-200'
-              }`}>
-                <div className="flex items-center">
-                  <div className={`mr-3 ${
-                    appointmentsError ? 'text-red-600' : 'text-green-600'
-                  }`}>
-                    {appointmentsError ? (
-                      <AlertCircle className="h-5 w-5" />
-                    ) : (
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
 
         </div>
@@ -4678,7 +4786,50 @@ Jeshna Dental Clinic Team`;
         </DialogContent>
       </Dialog>
 
+      {/* Complete Follow-up Confirmation Dialog */}
+      <Dialog open={showCompleteConfirmDialog} onOpenChange={setShowCompleteConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              Complete Follow-up
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to complete this follow-up for {followUpToComplete?.patientName}?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              This will mark the follow-up as completed and remove it from the active list.
+            </p>
+          </div>
 
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCompleteConfirmDialog(false);
+                setFollowUpToComplete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (followUpToComplete) {
+                  handleCompleteFollowUp(followUpToComplete.id, followUpToComplete.patientName);
+                  setShowCompleteConfirmDialog(false);
+                  setFollowUpToComplete(null);
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Complete Follow-up
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
