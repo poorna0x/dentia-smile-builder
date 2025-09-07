@@ -247,6 +247,10 @@ const Appointment = () => {
         .filter(apt => apt.status !== 'Cancelled')
         .map(apt => apt.time);
       
+      // Debug: Log booked slots to see the format
+      console.log('🔍 Booked slots from database:', booked);
+      console.log('🔍 Existing appointments:', existingAppointments.filter(apt => apt.status !== 'Cancelled'));
+      
       // 🚀 OPTIMIZED: Immediate state update for better responsiveness
       setBookedSlots(booked);
     } catch (error) {
@@ -599,12 +603,17 @@ const Appointment = () => {
         const isBooked = bookedSlots.includes(label);
         const isBlocked = overlapsDisabledSlot;
         
-        // Only add slots that are not blocked by admin settings AND not in the past
-        if (!isBlocked && !isPast) {
+        // Debug: Log slot generation
+        if (isBooked) {
+          console.log('🔍 Found booked slot:', label, 'in bookedSlots:', bookedSlots);
+        }
+        
+        // Only add slots that are not blocked by admin settings
+        if (!isBlocked) {
           slots.push({ 
             label, 
             value: label, 
-            disabled: isBooked,
+            disabled: isBooked || isPast,
             booked: isBooked
           });
         }
@@ -1067,7 +1076,8 @@ const Appointment = () => {
                                     className={cn(
                                       'justify-center h-12', 
                                       selectedTime === ts.value ? 'btn-appointment' : '',
-                                      ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
+                                      ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : '',
+                                      ts.disabled && !ts.booked ? 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed hover:bg-gray-300 hover:text-gray-500' : ''
                                     )}
                                     disabled={ts.disabled || ts.booked}
                                     onClick={() => !ts.booked && setSelectedTime(ts.value)}
@@ -1094,9 +1104,17 @@ const Appointment = () => {
                                 </div>
                               )}
                             </div>
-                            {bookedSlots.length > 0 && (
+                            {(bookedSlots.length > 0 || timeSlots.some(ts => ts.disabled && !ts.booked)) && (
                               <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-gray-200">
-                                Red slots are unavailable. Please select an available time.
+                                <div className="space-y-1">
+                                  {bookedSlots.length > 0 && (
+                                    <div>🔴 Red slots are booked and unavailable.</div>
+                                  )}
+                                  {timeSlots.some(ts => ts.disabled && !ts.booked) && (
+                                    <div>⚪ Gray slots are past times and unavailable.</div>
+                                  )}
+                                  <div>Please select an available time slot.</div>
+                                </div>
                               </div>
                             )}
                             {(() => {
