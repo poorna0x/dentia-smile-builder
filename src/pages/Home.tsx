@@ -2,7 +2,7 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import Hero from '@/components/Hero';
 import AboutUs from '@/components/AboutUs';
-import Services from '@/components/Services';
+import HomeServices from '@/components/HomeServices';
 import Stats from '@/components/Stats';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import Team from '@/components/Team';
@@ -78,7 +78,7 @@ const Home = () => {
       <main>
         <Hero />
         <AboutUs />
-        <Services />
+        <HomeServices />
         <Stats />
         <WhyChooseUs />
         <Team />
