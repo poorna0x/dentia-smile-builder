@@ -124,6 +124,7 @@ export default function AdminPatientManagement() {
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpReason, setFollowUpReason] = useState('');
   const [customFollowUpReason, setCustomFollowUpReason] = useState('');
+  const [followUpReasonError, setFollowUpReasonError] = useState(false);
   const [showCompleteConfirmDialog, setShowCompleteConfirmDialog] = useState(false);
   const [followUpToComplete, setFollowUpToComplete] = useState<{id: string, patientName: string} | null>(null);
   const [duplicateType, setDuplicateType] = useState<'phone' | 'name' | 'both'>('phone');
@@ -869,7 +870,13 @@ export default function AdminPatientManagement() {
   };
 
   const handleCreateFollowUp = async () => {
+    // Reset error states
+    setFollowUpReasonError(false);
+    
     if (!appointmentToComplete || !followUpDate || !followUpReason) {
+      if (!followUpReason) {
+        setFollowUpReasonError(true);
+      }
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -884,6 +891,7 @@ export default function AdminPatientManagement() {
       : followUpReason;
 
     if (!finalReason) {
+      setFollowUpReasonError(true);
       toast({
         title: "Error",
         description: "Please provide a reason for follow-up",
@@ -893,9 +901,30 @@ export default function AdminPatientManagement() {
     }
 
     try {
-      // Find the patient data
-      const patient = patients.find(p => p.first_name === appointmentToComplete.patientName);
+      // Find the patient data - handle both regular appointments and search follow-ups
+      let patient;
+      if (appointmentToComplete.patientId && selectedPatient) {
+        // For search follow-ups, use the selectedPatient directly
+        patient = selectedPatient;
+      } else if (appointmentToComplete.patientId) {
+        // Fallback: try to find in patients array
+        patient = patients.find(p => p.id === appointmentToComplete.patientId);
+      } else {
+        // For regular appointments, match by name
+        patient = patients.find(p => {
+          const fullName = `${p.first_name} ${p.last_name || ''}`.trim();
+          return fullName === appointmentToComplete.patientName;
+        });
+      }
+      
       if (!patient || !clinic?.id) {
+        console.error('Patient lookup failed:', {
+          patient,
+          clinic: clinic?.id,
+          appointmentToComplete,
+          selectedPatient,
+          patientsCount: patients.length
+        });
         throw new Error('Patient or clinic not found');
       }
 
@@ -913,6 +942,11 @@ export default function AdminPatientManagement() {
       // Refresh follow-up list
       await loadFollowUpAppointments();
 
+      // If follow-ups filter is active, refresh it to show the new follow-up
+      if (activeFilter === 'follow-ups') {
+        await handleFollowUpsFilter();
+      }
+
       toast({
         title: "Added to Follow-up List",
         description: `${appointmentToComplete.patientName} has been added to the follow-up list for ${new Date(followUpDate).toLocaleDateString()}`,
@@ -923,7 +957,9 @@ export default function AdminPatientManagement() {
       setFollowUpDate('');
       setFollowUpReason('');
       setCustomFollowUpReason('');
+      setFollowUpReasonError(false);
       setAppointmentToComplete(null);
+      setSelectedPatient(null);
     } catch (error) {
       console.error('Error adding to follow-up:', error);
       toast({
@@ -1060,6 +1096,30 @@ export default function AdminPatientManagement() {
     
     // Navigate to appointment page with pre-filled patient data
     window.location.href = `/appointment?clinic=${clinic?.slug || 'default'}&patient=${patientData}`;
+  };
+
+  // Follow up function - open follow-up form for patient from search
+  const handleFollowUpFromSearch = (patient: Patient) => {
+    // Store the patient data directly for follow-up creation
+    setSelectedPatient(patient);
+    
+    // Create a mock appointment object to trigger the follow-up form
+    const mockAppointment = {
+      id: 'search-followup',
+      patientName: `${patient.first_name} ${patient.last_name || ''}`.trim(),
+      patientId: patient.id,
+      date: new Date().toISOString().split('T')[0],
+      time: '12:00',
+      status: 'Completed'
+    };
+    
+    setAppointmentToComplete(mockAppointment);
+    setShowFollowUpForm(true);
+  };
+
+  const handleFollowUpReasonChange = (value: string) => {
+    setFollowUpReason(value);
+    setFollowUpReasonError(false); // Clear error when user selects a reason
   };
 
 
@@ -2253,9 +2313,37 @@ export default function AdminPatientManagement() {
       await loadFollowUpAppointments();
       
       if (followUpPatients.length > 0) {
-        // Get patient data for follow-up patients
-        const followUpPatientIds = followUpPatients.map(fu => fu.patient_id);
-        const followUpPatientData = patients.filter(p => followUpPatientIds.includes(p.id));
+        // Get unique patient IDs for follow-up patients (remove duplicates)
+        const followUpPatientIds = [...new Set(followUpPatients.map(fu => fu.patient_id))];
+        
+        // First, try to get patients from the current patients array
+        let followUpPatientData = patients.filter(p => followUpPatientIds.includes(p.id));
+        
+        // For any follow-up patients not in the current patients array, fetch them individually
+        const missingPatientIds = followUpPatientIds.filter(id => !patients.some(p => p.id === id));
+        
+        if (missingPatientIds.length > 0 && clinic?.id) {
+          try {
+            // Fetch missing patients from the database
+            const missingPatients = await Promise.all(
+              missingPatientIds.map(async (patientId) => {
+                try {
+                  const patientData = await patientApi.getById(patientId, clinic.id);
+                  return patientData;
+                } catch (error) {
+                  console.error(`Error fetching patient ${patientId}:`, error);
+                  return null;
+                }
+              })
+            );
+            
+            // Add the fetched patients to the list
+            const validMissingPatients = missingPatients.filter(p => p !== null);
+            followUpPatientData = [...followUpPatientData, ...validMissingPatients];
+          } catch (error) {
+            console.error('Error fetching missing patients:', error);
+          }
+        }
         
         setFilteredPatients(followUpPatientData);
         setDisplayedPatients(followUpPatientData);
@@ -2830,6 +2918,20 @@ export default function AdminPatientManagement() {
                                 >
                                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+                                  </svg>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFollowUpFromSearch(patient);
+                                  }}
+                                  className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                                  title="Follow Up"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                 </Button>
                               </div>
@@ -5307,8 +5409,8 @@ export default function AdminPatientManagement() {
                 <Label htmlFor="followUpReason">Reason for Follow-up</Label>
                 
                 {/* Common Reasons Dropdown */}
-                <Select value={followUpReason} onValueChange={setFollowUpReason}>
-                  <SelectTrigger>
+                <Select value={followUpReason} onValueChange={handleFollowUpReasonChange}>
+                  <SelectTrigger className={followUpReasonError ? "border-red-500 focus:border-red-500" : ""}>
                     <SelectValue placeholder="Select a common reason or enter custom..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -5335,7 +5437,15 @@ export default function AdminPatientManagement() {
                     onChange={(e) => setCustomFollowUpReason(e.target.value)}
                     placeholder="Enter custom reason for follow-up..."
                     rows={2}
+                    className={followUpReasonError && !customFollowUpReason.trim() ? "border-red-500 focus:border-red-500" : ""}
                   />
+                )}
+                
+                {/* Error message */}
+                {followUpReasonError && (
+                  <p className="text-sm text-red-600">
+                    Please select a reason for follow-up
+                  </p>
                 )}
               </div>
             </div>
@@ -5348,6 +5458,8 @@ export default function AdminPatientManagement() {
                   setFollowUpDate('');
                   setFollowUpReason('');
                   setCustomFollowUpReason('');
+                  setFollowUpReasonError(false);
+                  setSelectedPatient(null);
                 }}
               >
                 Cancel
