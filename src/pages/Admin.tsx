@@ -2118,9 +2118,14 @@ Jeshna Dental Clinic Team`;
 
   // Memoized appointment statistics for better performance
   const appointmentStats = useMemo(() => {
-    const completed = realAppointments.filter(apt => apt.status === 'Completed').length;
-    const cancelled = realAppointments.filter(apt => apt.status === 'Cancelled').length;
-    const total = realAppointments.length;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Filter appointments for today only
+    const todayAppointments = realAppointments.filter(apt => apt.date === today);
+    
+    const completed = todayAppointments.filter(apt => apt.status === 'Completed').length;
+    const cancelled = todayAppointments.filter(apt => apt.status === 'Cancelled').length;
+    const total = todayAppointments.length;
     return { completed, cancelled, total };
   }, [realAppointments]);
 
@@ -2348,12 +2353,12 @@ Jeshna Dental Clinic Team`;
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
               <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-800">Total Appointments</CardTitle>
+                  <CardTitle className="text-sm font-medium text-blue-800">Today's Appointments</CardTitle>
                   <CalendarIcon className="h-4 w-4 text-blue-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-900">{totalAppointments}</div>
-                  <p className="text-xs text-blue-700">All time</p>
+                  <p className="text-xs text-blue-700">Scheduled for today</p>
                 </CardContent>
               </Card>
 
