@@ -605,12 +605,12 @@ const Appointment = () => {
         const isBooked = bookedSlots.includes(label);
         const isBlocked = overlapsDisabledSlot;
         
-        // Only add slots that are not blocked by admin settings
-        if (!isBlocked) {
+        // Only add slots that are not blocked by admin settings AND not in the past
+        if (!isBlocked && !isPast) {
           slots.push({ 
             label, 
             value: label, 
-            disabled: isPast || isBooked,
+            disabled: isBooked,
             booked: isBooked
           });
         }
