@@ -1067,14 +1067,14 @@ const Appointment = () => {
                         ) : (
                           <div className="space-y-2 h-full flex flex-col">
                             <div className="relative">
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1 overflow-y-auto max-h-[200px]">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1 overflow-y-auto max-h-[200px] p-1">
                                 {timeSlots.map((ts) => (
                                   <Button
                                     key={ts.value}
                                     type="button"
                                     variant={selectedTime === ts.value ? 'default' : 'outline'}
                                     className={cn(
-                                      'justify-center h-12', 
+                                      'justify-center h-12 rounded-md transition-all duration-200 time-slot-button', 
                                       selectedTime === ts.value ? 'btn-appointment' : '',
                                       ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : '',
                                       ts.disabled && !ts.booked ? 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed hover:bg-gray-300 hover:text-gray-500' : ''

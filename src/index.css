@@ -221,10 +221,23 @@
   .btn-appointment {
     @apply bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:from-blue-600 hover:to-blue-700 hover:shadow-xl hover:scale-105 active:scale-95;
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    border-radius: 0.75rem !important;
   }
 
   .btn-appointment:hover {
     box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
+  }
+
+  /* Time slot buttons - ensure rounded corners are maintained */
+  .time-slot-button {
+    border-radius: 0.375rem !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  
+  .time-slot-button:hover,
+  .time-slot-button:focus,
+  .time-slot-button:active {
+    border-radius: 0.375rem !important;
   }
 
   .btn-call {
