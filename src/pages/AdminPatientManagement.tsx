@@ -2011,7 +2011,7 @@ export default function AdminPatientManagement() {
           .eq('date', today)
           .eq('status', 'Confirmed')
           .order('time', { ascending: true });
-
+      
       if (appointmentsError) throw appointmentsError;
 
       if (appointmentsData && appointmentsData.length > 0) {
@@ -3677,10 +3677,11 @@ export default function AdminPatientManagement() {
                               variant="outline"
                               onClick={() => {
                                 const firstAppointment = patient.today_appointments[0];
-                                handleCompleteAppointment(firstAppointment.id, patient.first_name);
+                                setAppointmentToComplete({ id: firstAppointment.id, patientName: patient.first_name });
+                                setShowAppointmentActionsDialog(true);
                               }}
                               className="h-10 px-3 flex items-center gap-2 justify-center bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 transition-all duration-200"
-                              title="Complete Today's Appointment"
+                              title="Manage Appointment"
                             >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
