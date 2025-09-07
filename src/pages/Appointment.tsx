@@ -85,10 +85,8 @@ const Appointment = () => {
   const [emailError, setEmailError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [disabledSlots, setDisabledSlots] = useState<DisabledSlot[]>([]);
-  const [isLoadingDisabledSlots, setIsLoadingDisabledSlots] = useState(false);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<{
     requiresCaptcha: boolean;
@@ -103,8 +101,8 @@ const Appointment = () => {
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // 🚀 NEW: Track initial loading state for better UX
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  // 🚀 OPTIMIZED: Single loading state for all time slot operations
+  const [isLoadingTimeSlots, setIsLoadingTimeSlots] = useState(true);
 
 
   // Get next available booking date (skip holidays and respect minimum advance notice)
@@ -219,9 +217,9 @@ const Appointment = () => {
     }
     
     setIsRefreshing(true);
-    // 🚀 IMPROVED: Show loading immediately for better UX
+    // 🚀 OPTIMIZED: Use single loading state
     if (forceRefresh) {
-      setIsLoadingSlots(true);
+      setIsLoadingTimeSlots(true);
     }
     setLastRefreshTime(now);
     
@@ -255,18 +253,17 @@ const Appointment = () => {
       console.error('Error checking booked slots:', error);
       setBookedSlots([]);
     } finally {
-      setIsLoadingSlots(false);
       setIsRefreshing(false);
-      // 🚀 NEW: Mark initial load as complete
-      if (isInitialLoad) {
-        setIsInitialLoad(false);
-      }
+      // 🚀 OPTIMIZED: Mark loading complete
+      setIsLoadingTimeSlots(false);
     }
   }, [clinic?.id, date, lastRefreshTime, isRefreshing]);
 
   // Initial load when date or clinic changes
   useEffect(() => {
     if (clinic?.id) {
+      // Set loading state and load data
+      setIsLoadingTimeSlots(true);
       // Add debounce to prevent rapid API calls when changing dates
       const timeoutId = setTimeout(() => {
         checkBookedSlots(true); // Force refresh for initial load
@@ -485,7 +482,6 @@ const Appointment = () => {
     if (!clinic?.id) return;
     
     try {
-      setIsLoadingDisabledSlots(true);
       const dateString = format(targetDate, 'yyyy-MM-dd');
       // Loading disabled slots for date
       const slots = await disabledSlotsApi.getByClinicAndDate(clinic.id, dateString);
@@ -495,8 +491,6 @@ const Appointment = () => {
       console.error('❌ Error loading disabled slots:', error);
       // Set empty array on error to prevent stale data
       setDisabledSlots([]);
-    } finally {
-      setIsLoadingDisabledSlots(false);
     }
   }, [clinic?.id]);
 
@@ -623,14 +617,14 @@ const Appointment = () => {
 
   // Memoize time slots to prevent unnecessary recalculations
   const timeSlots = useMemo(() => {
-    // Don't generate slots if disabled slots are still loading
-    if (isLoadingDisabledSlots) {
-      // Skipping time slot generation - disabled slots still loading
+    // Don't generate slots if still loading
+    if (isLoadingTimeSlots) {
+      // Skipping time slot generation - still loading
       return [];
     }
     // Regenerating time slots - dependencies changed
     return generateTimeSlots(date);
-  }, [date, disabledSlots, bookedSlots, settings, isLoadingDisabledSlots]);
+  }, [date, disabledSlots, bookedSlots, settings, isLoadingTimeSlots]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -838,60 +832,6 @@ const Appointment = () => {
     }
   };
 
-  // Show loading while clinic context is loading
-  if (clinicLoading) {
-    return (
-      <div className="min-h-screen">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading while clinic and settings are loading
-  if (clinicLoading || settingsLoading) {
-    return (
-      <div className="min-h-screen">
-        <main className="py-12 lg:py-20">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-center min-h-[50vh]">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading appointment page...</p>
-                {clinicLoading && <p className="text-sm text-gray-500 mt-2">Loading clinic data...</p>}
-                {settingsLoading && <p className="text-sm text-gray-500 mt-2">Loading settings...</p>}
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Show error if clinic failed to load
-  if (clinicLoading || settingsLoading) {
-    return (
-      <div className="min-h-screen">
-        <main className="py-12 lg:py-20">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-center min-h-[50vh]">
-              <div className="text-center">
-                <p className="text-muted-foreground">Loading appointment booking...</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Clinic loading: {clinicLoading ? 'Yes' : 'No'}, 
-                  Settings loading: {settingsLoading ? 'Yes' : 'No'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   if (clinicError) {
     return (
@@ -909,24 +849,6 @@ const Appointment = () => {
     );
   }
 
-  // Simple fallback if something goes wrong
-  if (!clinic && !clinicLoading) {
-    return (
-      <div className="min-h-screen">
-        <main className="py-12 lg:py-20">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-center min-h-[50vh]">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold mb-4">Appointment Booking</h1>
-                <p className="text-muted-foreground">Loading clinic data...</p>
-                <p className="text-sm text-gray-500 mt-2">If this persists, please refresh the page.</p>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
   
   return (
     <div className="min-h-screen">
@@ -1104,63 +1026,76 @@ const Appointment = () => {
                       Available Time Slots
                     </Label>
                     
-                    {/* 🚀 NEW: Better loading indicator for initial page load */}
-                    {isInitialLoad ? (
-                      <div className="flex items-center justify-center py-12">
+                    {/* 🚀 OPTIMIZED: Single loading state */}
+                    {isLoadingTimeSlots ? (
+                      <div className="h-[280px] flex items-center justify-center">
                         <div className="text-center">
-                          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
-                          <p className="text-base font-medium text-gray-700">Loading available time slots...</p>
-                          <p className="text-sm text-gray-500 mt-1">Please wait while we fetch the latest availability</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="min-h-[200px] transition-all duration-300">
+                      <div className="h-[280px] flex flex-col">
                         {currentSettings.disabledAppointments ? (
-                          <div className="text-sm text-destructive">
-                            Appointments are temporarily disabled.
-                          </div>
-                        ) : isLoadingDisabledSlots ? (
-                          <div className="flex items-center justify-center py-8">
-                            <div className="text-center">
-                              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600 mx-auto mb-2"></div>
-                              <p className="text-sm text-muted-foreground">Loading available slots...</p>
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-sm text-destructive">
+                              Appointments are temporarily disabled.
                             </div>
                           </div>
                         ) : timeSlots.length === 0 ? (
-                          <div className="text-sm text-destructive">
-                            {(() => {
-                              const daySettings = getDaySettings(date);
-                              if (!daySettings.enabled) {
-                                return 'Clinic is closed on this day of the week.';
-                              } else if (isHoliday(date)) {
-                                return 'Clinic is closed on this date (holiday).';
-                              } else {
-                                return 'No available time slots for this date.';
-                              }
-                            })()}
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-sm text-destructive">
+                              {(() => {
+                                const daySettings = getDaySettings(date);
+                                if (!daySettings.enabled) {
+                                  return 'Clinic is closed on this day of the week.';
+                                } else if (isHoliday(date)) {
+                                  return 'Clinic is closed on this date (holiday).';
+                                } else {
+                                  return 'No available time slots for this date.';
+                                }
+                              })()}
+                            </div>
                           </div>
                         ) : (
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 min-h-[120px]">
-                              {timeSlots.map((ts) => (
-                                <Button
-                                  key={ts.value}
-                                  type="button"
-                                  variant={selectedTime === ts.value ? 'default' : 'outline'}
-                                  className={cn(
-                                    'justify-center transition-all duration-200', 
-                                    selectedTime === ts.value ? 'btn-appointment' : '',
-                                    ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
-                                  )}
-                                  disabled={ts.disabled || ts.booked}
-                                  onClick={() => !ts.booked && setSelectedTime(ts.value)}
-                                >
-                                  {ts.label}
-                                </Button>
-                              ))}
+                          <div className="space-y-2 h-full flex flex-col">
+                            <div className="relative">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 flex-1 overflow-y-auto max-h-[200px]">
+                                {timeSlots.map((ts) => (
+                                  <Button
+                                    key={ts.value}
+                                    type="button"
+                                    variant={selectedTime === ts.value ? 'default' : 'outline'}
+                                    className={cn(
+                                      'justify-center h-12', 
+                                      selectedTime === ts.value ? 'btn-appointment' : '',
+                                      ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : ''
+                                    )}
+                                    disabled={ts.disabled || ts.booked}
+                                    onClick={() => !ts.booked && setSelectedTime(ts.value)}
+                                  >
+                                    {ts.label}
+                                  </Button>
+                                ))}
+                              </div>
+                              {/* Scroll indicator - only show if there are actually more slots */}
+                              {(() => {
+                                // Calculate how many slots fit in the visible area
+                                // Container height: 200px, slot height: 48px (h-12), gap: 8px
+                                // Roughly 3-4 rows visible = 9-12 slots (3 columns)
+                                const slotsPerRow = 3; // 3 columns
+                                const visibleRows = 3; // Conservative estimate for 200px height
+                                const visibleSlots = slotsPerRow * visibleRows; // 9 slots
+                                const hasMoreSlots = timeSlots.length > visibleSlots;
+                                return hasMoreSlots;
+                              })() && (
+                                <div className="absolute -bottom-4 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none flex items-end justify-center">
+                                  <div className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full shadow-sm border border-blue-200">
+                                    Scroll for more slots
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             {bookedSlots.length > 0 && (
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-gray-200">
                                 Red slots are unavailable. Please select an available time.
                               </div>
                             )}
@@ -1295,8 +1230,12 @@ const Appointment = () => {
               className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400"
             >
               {isSubmitting ? (
-                <div className="flex items-center space-x-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                <div className="flex items-center justify-center space-x-3">
+                  <div className="flex space-x-1">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
                   <span className="font-medium">Processing...</span>
                 </div>
               ) : (
