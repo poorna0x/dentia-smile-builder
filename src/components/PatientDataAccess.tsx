@@ -1207,6 +1207,21 @@ const PatientDataAccess = () => {
   const [dentalTreatments, setDentalTreatments] = useState<any[]>([]);
   const [toothConditions, setToothConditions] = useState<any[]>([]);
 
+  // Phone number formatting function (same as booking form)
+  const formatPhoneNumber = (phoneNumber: string): string => {
+    let cleaned = phoneNumber.replace(/\D/g, '');
+    
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+      return cleaned.substring(2);
+    } else if (cleaned.startsWith('0') && cleaned.length === 11) {
+      return cleaned.substring(1);
+    } else if (cleaned.length === 10) {
+      return cleaned;
+    }
+    
+    return cleaned;
+  };
+
   // Handle phone number input
   const handlePhoneChange = (value: string) => {
     const cleaned = value.replace(/\D/g, '');
@@ -1244,6 +1259,8 @@ const PatientDataAccess = () => {
   const performSearch = async () => {
     setIsLoading(true);
     try {
+      // Format the phone number before searching
+      const formattedPhone = formatPhoneNumber(phone);
       
       // Try RPC function first
       let data = null;
@@ -1252,7 +1269,7 @@ const PatientDataAccess = () => {
       try {
         const rpcResult = await supabase
           .rpc('get_patient_by_phone', {
-            p_phone: phone,
+            p_phone: formattedPhone,
             p_clinic_id: clinic.id
           });
         
@@ -1264,23 +1281,97 @@ const PatientDataAccess = () => {
         error = rpcError;
       }
 
-      // If RPC failed, try direct query as fallback
-      if (error) {
+      // If RPC returned no data or failed, try direct queries as fallback
+      if (error || !data || data.length === 0) {
         
-        const directResult = await supabase
-          .from('patients')
+        // First try searching in patient_phones table (same as RPC function)
+        const phoneResult = await supabase
+          .from('patient_phones')
           .select(`
-            id as patient_id,
-            first_name,
-            last_name,
-            email,
-            clinic_id
+            patient_id,
+            patients!inner(
+              id,
+              first_name,
+              last_name,
+              email,
+              clinic_id
+            )
           `)
-          .eq('clinic_id', clinic.id)
-          .eq('phone', phone);
+          .eq('phone', formattedPhone)
+          .eq('patients.clinic_id', clinic.id);
         
-        data = directResult.data;
-        error = directResult.error;
+        if (phoneResult.data && phoneResult.data.length > 0) {
+          // Transform the data to match expected format
+          data = phoneResult.data.map(item => ({
+            patient_id: item.patient_id,
+            first_name: item.patients.first_name,
+            last_name: item.patients.last_name,
+            email: item.patients.email,
+            clinic_id: item.patients.clinic_id
+          }));
+          error = null;
+        } else {
+          // Fallback to searching in patients table directly
+          const directResult = await supabase
+            .from('patients')
+            .select('id, first_name, last_name, email, clinic_id')
+            .eq('clinic_id', clinic.id)
+            .eq('phone', formattedPhone);
+          
+          if (directResult.data && directResult.data.length > 0) {
+            // Map the data to match expected format
+            data = directResult.data.map(item => ({
+              patient_id: item.id,
+              first_name: item.first_name,
+              last_name: item.last_name,
+              email: item.email,
+              clinic_id: item.clinic_id
+            }));
+            error = null;
+          } else {
+            // Try with different phone number formats
+            // Try with +91 prefix
+            const withCountryCode = `91${formattedPhone}`;
+            const countryCodeResult = await supabase
+              .from('patients')
+              .select('id, first_name, last_name, email, clinic_id')
+              .eq('clinic_id', clinic.id)
+              .eq('phone', withCountryCode);
+            
+            if (countryCodeResult.data && countryCodeResult.data.length > 0) {
+              data = countryCodeResult.data.map(item => ({
+                patient_id: item.id,
+                first_name: item.first_name,
+                last_name: item.last_name,
+                email: item.email,
+                clinic_id: item.clinic_id
+              }));
+              error = null;
+            } else {
+              // Try with 0 prefix
+              const withZeroPrefix = `0${formattedPhone}`;
+              const zeroPrefixResult = await supabase
+                .from('patients')
+                .select('id, first_name, last_name, email, clinic_id')
+                .eq('clinic_id', clinic.id)
+                .eq('phone', withZeroPrefix);
+              
+              if (zeroPrefixResult.data && zeroPrefixResult.data.length > 0) {
+                data = zeroPrefixResult.data.map(item => ({
+                  patient_id: item.id,
+                  first_name: item.first_name,
+                  last_name: item.last_name,
+                  email: item.email,
+                  clinic_id: item.clinic_id
+                }));
+                error = null;
+              } else {
+                data = null;
+                error = new Error('No patients found with any phone number format');
+              }
+            }
+          }
+        }
         
       }
 
