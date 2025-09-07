@@ -16,22 +16,22 @@ export interface TreatmentCost {
 export const TREATMENT_COSTS: Record<string, TreatmentCost> = {
   'Root Canal': {
     name: 'Root Canal',
-    defaultCost: 8000,
+    defaultCost: 12000,
     description: 'Complete root canal treatment'
   },
   'Dental Cleaning': {
     name: 'Dental Cleaning',
-    defaultCost: 1500,
+    defaultCost: 1200,
     description: 'Professional dental cleaning and scaling'
   },
   'Cavity Filling': {
     name: 'Cavity Filling',
-    defaultCost: 2000,
+    defaultCost: 2500,
     description: 'Tooth cavity filling treatment'
   },
   'Tooth Extraction': {
     name: 'Tooth Extraction',
-    defaultCost: 3000,
+    defaultCost: 2500,
     description: 'Simple tooth extraction'
   },
   'Wisdom Tooth Extraction': {
@@ -66,7 +66,7 @@ export const TREATMENT_COSTS: Record<string, TreatmentCost> = {
   },
   'Braces/Orthodontics': {
     name: 'Braces/Orthodontics',
-    defaultCost: 35000,
+    defaultCost: 50000,
     description: 'Orthodontic treatment with braces'
   },
   'Dentures': {
@@ -76,16 +76,17 @@ export const TREATMENT_COSTS: Record<string, TreatmentCost> = {
   },
   'Gum Treatment': {
     name: 'Gum Treatment',
+    defaultCost: 8000,
     description: 'Periodontal treatment for gum disease'
   },
   'Consultation': {
     name: 'Consultation',
-    defaultCost: 500,
+    defaultCost: 750,
     description: 'Initial consultation and examination'
   },
   'X-Ray': {
     name: 'X-Ray',
-    defaultCost: 800,
+    defaultCost: 500,
     description: 'Dental X-ray examination'
   },
   'Emergency Treatment': {

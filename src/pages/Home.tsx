@@ -7,7 +7,7 @@ import Stats from '@/components/Stats';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import Team from '@/components/Team';
 import Gallery from '@/components/Gallery';
-import FAQ from '@/components/FAQ';
+import FAQAndChatbot from '@/components/FAQAndChatbot';
 import Testimonials from '@/components/Testimonials';
 import CTA from '@/components/CTA';
 import CheckAppointmentStatus from '@/components/CheckAppointmentStatus';
@@ -83,7 +83,7 @@ const Home = () => {
         <WhyChooseUs />
         <Team />
         <Gallery />
-        <FAQ />
+        <FAQAndChatbot />
         <Testimonials />
         <CTA />
         
