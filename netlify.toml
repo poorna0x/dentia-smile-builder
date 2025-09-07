@@ -20,14 +20,12 @@
   for = "*.js"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    Content-Encoding = "gzip"
 
 # Cache CSS files for 1 year
 [[headers]]
   for = "*.css"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    Content-Encoding = "gzip"
 
 # Cache images for 1 year
 [[headers]]
@@ -71,7 +69,6 @@
   for = "*.html"
   [headers.values]
     Cache-Control = "public, max-age=3600"
-    Content-Encoding = "gzip"
 
 # API routes - no cache
 [[headers]]
