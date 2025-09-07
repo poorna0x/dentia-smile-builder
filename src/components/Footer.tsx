@@ -133,8 +133,8 @@ const Footer = () => {
             © {currentYear} Jeshna Dental Clinic. All rights reserved.
           </p>
           <div className="flex space-x-6 text-sm">
-            <span className="text-primary-foreground/60 hover:text-accent cursor-pointer transition-colors">Terms & Conditions</span>
-            <span className="text-primary-foreground/60 hover:text-accent cursor-pointer transition-colors">Privacy Policy</span>
+            <Link to="/terms-conditions" className="text-primary-foreground/60 hover:text-accent transition-colors">Terms & Conditions</Link>
+            <Link to="/privacy-policy" className="text-primary-foreground/60 hover:text-accent transition-colors">Privacy Policy</Link>
           </div>
         </div>
       </div>

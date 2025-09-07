@@ -23,6 +23,8 @@ const CheckAppointmentStatus = lazy(() => import('./components/CheckAppointmentS
 const PatientLogin = lazy(() => import('./pages/PatientLogin'))
 const PatientDashboard = lazy(() => import('./pages/PatientDashboard'))
 const RoleBasedLogin = lazy(() => import('./pages/RoleBasedLogin'))
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const TermsConditions = lazy(() => import('./pages/TermsConditions'))
 
 // Admin components (heaviest - lazy load)
 const Admin = lazy(() => import('./pages/Admin'))
@@ -123,6 +125,8 @@ function App() {
                       <Route path="/dentists" element={<Dentists />} />
                       <Route path="/booking-complete" element={<BookingComplete />} />
                       <Route path="/check-appointment" element={<CheckAppointmentStatus />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/terms-conditions" element={<TermsConditions />} />
                       
                       {/* Login Route */}
                       <Route path="/login" element={<RoleBasedLogin />} />

@@ -14,12 +14,15 @@ const Team = () => {
   };
 
   return (
-    <section id="team" className="py-16 lg:py-24 section-gradient">
+    <section id="team" className="pt-8 pb-16 lg:pt-12 lg:pb-20 section-gradient">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center space-y-4 mb-12 lg:mb-16">
-          <h2 className="heading-lg text-primary">Meet Our Lead Dentist</h2>
-          <p className="body-lg text-muted-foreground max-w-2xl mx-auto">
+        <div className="text-center space-y-4 mb-8 lg:mb-12">
+          <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-4">
+            👨‍⚕️ Our Expert Team
+          </div>
+          <h2 className="heading-lg text-dental-charcoal">Meet Our Lead Dentist</h2>
+          <p className="body-lg text-dental-slate max-w-2xl mx-auto">
             Our experienced dental professional is committed to providing you with the highest quality 
             care in a comfortable and welcoming environment.
           </p>
