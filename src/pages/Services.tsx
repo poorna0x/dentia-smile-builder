@@ -28,8 +28,8 @@ const ServicesPage = () => {
     <div className="min-h-screen">
       <Navigation />
       <main className="pt-20">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center mb-12">
+        <div className="container mx-auto px-4 py-4">
+          <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-primary mb-4">Our Services</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Discover our comprehensive range of dental services designed to give you the perfect smile

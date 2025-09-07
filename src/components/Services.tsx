@@ -36,17 +36,8 @@ const Services = () => {
   };
 
   return (
-    <section id="services" className="py-16 lg:py-24 section-gradient">
+    <section id="services" className="py-8 lg:py-12 section-gradient">
       <div className="container mx-auto px-4">
-        {/* Section Header */}
-        <div className="text-center space-y-4 mb-12 lg:mb-16">
-          <h2 className="heading-lg text-primary">Our Comprehensive Services</h2>
-          <p className="body-lg text-muted-foreground max-w-2xl mx-auto">
-            From routine cleanings to advanced procedures, we offer a full range of dental services 
-            to meet all your oral health needs under one roof.
-          </p>
-        </div>
-
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {services.map((service, index) => {
