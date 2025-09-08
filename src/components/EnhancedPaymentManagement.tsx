@@ -263,7 +263,7 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         return isRelated
       })
 
-      const isMultiTooth = relatedTreatments.length > 0
+      const isMultiTooth = relatedTreatments.length > 1 // Changed: only consider multi-tooth if more than 1 tooth
 
       if (!isMultiTooth) {
         return
@@ -300,40 +300,23 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
       }
 
       // Show confirmation toast
-      toast.info(`Syncing payment across teeth. This will take a few seconds...`)
+      toast.info(`Updating payment records for ${totalTeethInProcedure} teeth...`)
 
-      // Update payment records for all related treatments
+      // FIXED: Instead of creating duplicate transactions, update the paid_amount for related treatments
+      // This maintains the payment sync without inflating analytics
       let actuallySyncedCount = 0
       for (const relatedTreatment of validRelatedTreatments) {
         try {
           const relatedPayment = await simplePaymentApi.getTreatmentPayment(relatedTreatment.id)
           
           if (relatedPayment) {
-            let syncedThisTreatment = false
+            // Calculate new paid amount by adding the payment amount
+            const newPaidAmount = relatedPayment.paid_amount + paymentAmount + miscAmount
             
-            if (paymentAmount > 0) {
-              await simplePaymentApi.addPaymentTransaction({
-                treatment_payment_id: relatedPayment.id,
-                amount: paymentAmount,
-                payment_date: formData.payment_date,
-                notes: `Multi-tooth sync: ${formData.notes || 'Additional payment'}`
-              })
-              syncedThisTreatment = true
-            }
-
-            if (miscAmount > 0) {
-              await simplePaymentApi.addPaymentTransaction({
-                treatment_payment_id: relatedPayment.id,
-                amount: miscAmount,
-                payment_date: formData.payment_date,
-                notes: `Multi-tooth sync: Miscellaneous: ${miscCost.description} (₹${miscAmount})`
-              })
-              syncedThisTreatment = true
-            }
+            // Update the treatment payment record with new paid amount
+            await simplePaymentApi.updateTreatmentPaymentPaidAmount(relatedPayment.id, newPaidAmount)
             
-            if (syncedThisTreatment) {
-              actuallySyncedCount++
-            }
+            actuallySyncedCount++
           }
         } catch (error) {
           console.error(`🦷 Error syncing to tooth ${relatedTreatment.tooth_number}:`, error)
@@ -341,9 +324,8 @@ const EnhancedPaymentManagement: React.FC<EnhancedPaymentManagementProps> = ({
         }
       }
 
-
       // Show completion notification
-      toast.success(`✅ Payment synced across teeth successfully!`)
+      toast.success(`✅ Payment records updated for ${actuallySyncedCount} teeth!`)
     } catch (error) {
       toast.error('❌ Failed to sync payment across teeth')
     }

@@ -286,6 +286,22 @@ export const simplePaymentApi = {
     }
   },
 
+  // Update treatment payment paid amount (for multi-tooth sync without duplicate transactions)
+  updateTreatmentPaymentPaidAmount: async (treatmentPaymentId: string, newPaidAmount: number): Promise<void> => {
+    const { error } = await supabase
+      .from('treatment_payments')
+      .update({ 
+        paid_amount: newPaidAmount,
+        remaining_amount: newPaidAmount, // This will be recalculated by database triggers
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', treatmentPaymentId)
+
+    if (error) {
+      throw new Error(`Failed to update treatment payment paid amount: ${error.message}`)
+    }
+  },
+
   // Get clinic payment analytics
   getClinicPaymentAnalytics: async (clinicId: string, startDate?: string, endDate?: string): Promise<any[]> => {
     const { data, error } = await supabase
