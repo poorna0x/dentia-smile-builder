@@ -14,7 +14,6 @@ export default defineConfig({
   ],
   build: {
     outDir: 'dist',
-    sourcemap: false,
     minify: 'terser',
     terserOptions: {
       compress: {
@@ -38,53 +37,75 @@ export default defineConfig({
     },
 
     rollupOptions: {
-      external: ['twilio'], // Mark Twilio as external (server-side only)
+      external: ['twilio', 'cloudinary'], // Mark server-side libraries as external
       output: {
-        manualChunks: {
+        manualChunks: (id) => {
           // Core React (most stable, cache for long time)
-          'react-core': ['react', 'react-dom'],
+          if (id.includes('react') && !id.includes('react-router')) {
+            return 'react-core'
+          }
           
           // Routing (stable, cache for long time)
-          'router': ['react-router-dom'],
+          if (id.includes('react-router')) {
+            return 'router'
+          }
           
           // UI Components (grouped for better caching)
-          'ui-components': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-toast',
-            '@radix-ui/react-accordion',
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-avatar',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-progress',
-            '@radix-ui/react-radio-group',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slider',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-toggle',
-            '@radix-ui/react-tooltip'
-          ],
-          
-          // Utilities (stable, cache for long time)
-          'utils': ['date-fns', 'clsx', 'tailwind-merge', 'lucide-react'],
+          if (id.includes('@radix-ui')) {
+            return 'ui-components'
+          }
           
           // Supabase (external dependency)
-          'supabase': ['@supabase/supabase-js'],
+          if (id.includes('@supabase')) {
+            return 'supabase'
+          }
           
           // Forms and validation
-          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
+            return 'forms'
+          }
           
           // Charts and data visualization
-          'charts': ['recharts'],
+          if (id.includes('recharts')) {
+            return 'charts'
+          }
+          
+          // Utilities (stable, cache for long time)
+          if (id.includes('date-fns') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('lucide-react')) {
+            return 'utils'
+          }
           
           // External services
-          'services': ['axios', 'resend', 'cloudinary']
+          if (id.includes('axios') || id.includes('resend')) {
+            return 'services'
+          }
+          
+          // Large admin components - split into separate chunks
+          if (id.includes('AdminPatientManagement')) {
+            return 'admin-patient-management'
+          }
+          
+          if (id.includes('SuperAdmin')) {
+            return 'super-admin'
+          }
+          
+          if (id.includes('Admin') && !id.includes('AdminPatientManagement') && !id.includes('AdminPaymentAnalytics')) {
+            return 'admin'
+          }
+          
+          if (id.includes('AdminPaymentAnalytics')) {
+            return 'admin-payment-analytics'
+          }
+          
+          // Large pages
+          if (id.includes('Home')) {
+            return 'home'
+          }
+          
+          // Default chunk for other modules
+          if (id.includes('node_modules')) {
+            return 'vendor'
+          }
         },
         // Optimize chunk file names for better caching
         chunkFileNames: (chunkInfo) => {
@@ -96,13 +117,19 @@ export default defineConfig({
       }
     },
     // Optimize chunk size
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 1000, // Increased to allow larger chunks for better caching
     // Increase inline limit for small assets
-    assetsInlineLimit: 8192,
+    assetsInlineLimit: 4096, // Reduced to prevent large assets from being inlined
     // Enable CSS code splitting
     cssCodeSplit: true,
     // Target modern browsers for smaller bundles
-    target: 'es2020'
+    target: 'es2020',
+    // Enable source map for debugging in production (optional)
+    sourcemap: false,
+    // Optimize for production
+    reportCompressedSize: true,
+    // Enable tree shaking
+    treeshake: true
   },
   resolve: {
     alias: {
@@ -129,7 +156,8 @@ export default defineConfig({
     exclude: [
       '@radix-ui/react-dialog', 
       '@radix-ui/react-popover',
-      'twilio' // Exclude Twilio as it's server-side only
+      'twilio', // Exclude Twilio as it's server-side only
+      'cloudinary' // Exclude Cloudinary as it's server-side only
     ]
   },
   // Enable experimental features for better performance

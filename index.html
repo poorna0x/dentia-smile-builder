@@ -184,6 +184,14 @@
     <link rel="dns-prefetch" href="https://www.google-analytics.com" />
     <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
     
+    <!-- Resource Hints for Better Performance -->
+    <link rel="preload" href="/src/main.tsx" as="script" />
+    <link rel="modulepreload" href="/src/main.tsx" />
+    
+    <!-- Preload critical assets -->
+    <link rel="preload" href="/logo.webp" as="image" type="image/webp" />
+    <link rel="preload" href="/favicon.png" as="image" type="image/png" />
+    
     <!-- Optimized Font Loading -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
@@ -200,6 +208,27 @@
     
     <!-- PWA Manifest Loader - Only loads on admin routes -->
     <script src="/pwa-manifest-loader.js"></script>
+    
+    <!-- Back/Forward Cache Support -->
+    <script>
+      // Enable back/forward cache restoration
+      window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+          // Page was restored from back/forward cache
+          console.log('Page restored from back/forward cache');
+          // Trigger any necessary re-initialization
+          window.dispatchEvent(new Event('bfcache-restore'));
+        }
+      });
+      
+      // Handle page visibility changes
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          // Page became visible again
+          window.dispatchEvent(new Event('page-visible'));
+        }
+      });
+    </script>
   </head>
 
   <body>
