@@ -4440,6 +4440,7 @@ export default function AdminPatientManagement() {
                         value={medication.medication_name}
                         onChange={(e) => updateMedication(index, 'medication_name', e.target.value)}
                         placeholder="e.g., Amoxicillin, Ibuprofen"
+                        className={!medication.medication_name.trim() ? 'border-red-500' : 'border-blue-500'}
                       />
                       <div className="mt-2 flex flex-wrap gap-2">
                         {commonDentalMedications
@@ -4494,6 +4495,7 @@ export default function AdminPatientManagement() {
                         value={medication.frequency}
                         onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
                         placeholder="e.g., 3 times daily, Every 6 hours"
+                        className={!medication.frequency.trim() ? 'border-red-500' : 'border-blue-500'}
                       />
                       <div className="mt-2 flex flex-wrap gap-2">
                         {commonFrequencies
@@ -4521,6 +4523,7 @@ export default function AdminPatientManagement() {
                         value={medication.duration}
                         onChange={(e) => updateMedication(index, 'duration', e.target.value)}
                         placeholder="e.g., 7 days, 2 weeks"
+                        className={!medication.duration.trim() ? 'border-red-500' : 'border-blue-500'}
                       />
                       <div className="mt-2 flex flex-wrap gap-2">
                         {commonDurations
