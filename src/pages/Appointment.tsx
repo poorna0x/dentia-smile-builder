@@ -237,6 +237,7 @@ const Appointment = () => {
       }
       
       // 🚀 OPTIMIZED: Load appointments and disabled slots in parallel for faster loading
+      // Force fresh data like admin page does
       const [existingAppointments, disabledSlotsData] = await Promise.all([
         appointmentsApi.getByDate(clinic.id, appointmentDate),
         loadDisabledSlots(date)
@@ -607,6 +608,9 @@ const Appointment = () => {
         if (isBooked) {
           console.log('🔍 Found booked slot:', label, 'in bookedSlots:', bookedSlots);
         }
+        
+        // Additional debug for all slots
+        console.log('🔍 Slot:', label, 'isBooked:', isBooked, 'bookedSlots:', bookedSlots);
         
         // Only add slots that are not blocked by admin settings
         if (!isBlocked) {
