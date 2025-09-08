@@ -16,10 +16,21 @@ export const usePermissions = () => {
   const [roleInitialized, setRoleInitialized] = useState(false);
   const { clinic } = useClinic();
 
-  // Initialize role from sessionStorage only once
+  // Initialize role from sessionStorage with fallback to localStorage
   useEffect(() => {
     if (!roleInitialized) {
-      const role = sessionStorage.getItem('userRole') as UserRole;
+      // Try sessionStorage first (for current session)
+      let role = sessionStorage.getItem('userRole') as UserRole;
+      
+      // If not found in sessionStorage, try localStorage (persistent across browser sessions)
+      if (!role) {
+        role = localStorage.getItem('userRole') as UserRole;
+        // If found in localStorage, restore to sessionStorage for current session
+        if (role) {
+          sessionStorage.setItem('userRole', role);
+        }
+      }
+      
       setUserRole(role);
       setRoleInitialized(true);
     }
@@ -130,12 +141,14 @@ export const usePermissions = () => {
 
   const clearRole = useCallback(() => {
     sessionStorage.removeItem('userRole');
+    localStorage.removeItem('userRole'); // Also clear localStorage
     setUserRole(null);
     setRoleInitialized(false);
   }, []);
 
   const setRole = useCallback((role: UserRole) => {
     sessionStorage.setItem('userRole', role);
+    localStorage.setItem('userRole', role); // Also save to localStorage for persistence
     setUserRole(role);
   }, []);
 

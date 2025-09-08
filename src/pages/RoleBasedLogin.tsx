@@ -24,18 +24,28 @@ const RoleBasedLogin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Initialize selectedRole from sessionStorage on component mount
+  // Initialize selectedRole from sessionStorage or localStorage on component mount
   useEffect(() => {
-    const savedRole = sessionStorage.getItem('userRole') as 'dentist' | 'staff' | null;
+    // Try sessionStorage first, then localStorage as fallback
+    let savedRole = sessionStorage.getItem('userRole') as 'dentist' | 'staff' | null;
+    if (!savedRole) {
+      savedRole = localStorage.getItem('userRole') as 'dentist' | 'staff' | null;
+      // If found in localStorage, restore to sessionStorage
+      if (savedRole) {
+        sessionStorage.setItem('userRole', savedRole);
+      }
+    }
+    
     if (savedRole && (savedRole === 'dentist' || savedRole === 'staff')) {
       setSelectedRole(savedRole);
     }
   }, []);
 
-  // Store the selected role in sessionStorage for access control
+  // Store the selected role in both sessionStorage and localStorage for access control
   const handleRoleSelect = (role: 'dentist' | 'staff') => {
     setSelectedRole(role);
     sessionStorage.setItem('userRole', role);
+    localStorage.setItem('userRole', role); // Also save to localStorage for persistence
   };
   
   // Smart CAPTCHA integration
@@ -65,8 +75,9 @@ const RoleBasedLogin: React.FC = () => {
     const result = await login(email, password);
     
     if (result.success) {
-      // Save the selected role to sessionStorage with validation
+      // Save the selected role to both sessionStorage and localStorage with validation
       sessionStorage.setItem('userRole', selectedRole);
+      localStorage.setItem('userRole', selectedRole); // Also save to localStorage for persistence
       
       // Also set a timestamp to track when the role was set
       sessionStorage.setItem('userRoleTimestamp', Date.now().toString());
