@@ -1509,6 +1509,9 @@ export default function AdminPatientManagement() {
   const [isSavingPrescription, setIsSavingPrescription] = useState(false);
   const isSavingRef = useRef(false);
 
+  // Prescription validation errors
+  const [prescriptionValidationErrors, setPrescriptionValidationErrors] = useState<{[key: string]: boolean}>({});
+
   // Common dental medications for suggestions (Indian brands included)
   const commonDentalMedications = [
     // Antibiotics
