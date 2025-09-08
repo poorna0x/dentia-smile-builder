@@ -1,45 +1,103 @@
-import React, { useState, useEffect } from 'react'
-import { useLightweightRealtime } from '@/lib/lightweight-realtime'
+import { useEffect } from 'react';
 
-const PerformanceMonitor: React.FC = () => {
-  const [isVisible, setIsVisible] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState<any>(null)
-
-  const { getStats } = useLightweightRealtime('default')
-
-  useEffect(() => {
-    // Only show in development mode
-    if (import.meta.env.DEV) {
-      setIsVisible(true)
-    }
-
-    const updateStatus = () => {
-      try {
-            const stats = getStats()
-    setConnectionStatus(stats)
-      } catch (error) {
-        console.warn('Failed to get connection status:', error)
-      }
-    }
-
-    updateStatus()
-    const interval = setInterval(updateStatus, 5000) // Update every 5 seconds
-
-    return () => clearInterval(interval)
-  }, [getConnectionStatus])
-
-  if (!isVisible) return null
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-white p-3 rounded-lg text-xs font-mono">
-      <div className="flex items-center space-x-2 mb-1">
-        <div className={`w-2 h-2 rounded-full ${connectionStatus?.isConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
-        <span>Real-time: {connectionStatus?.isConnected ? 'Connected' : 'Disconnected'}</span>
-      </div>
-      <div>Listeners: {connectionStatus?.activeListeners || 0}</div>
-      <div className="text-gray-400">Free Tier Optimized</div>
-    </div>
-  )
+interface PerformanceMetrics {
+  fcp?: number; // First Contentful Paint
+  lcp?: number; // Largest Contentful Paint
+  fid?: number; // First Input Delay
+  cls?: number; // Cumulative Layout Shift
+  ttfb?: number; // Time to First Byte
 }
 
-export default PerformanceMonitor
+export const PerformanceMonitor: React.FC = () => {
+  useEffect(() => {
+    // Only run in production
+    if (process.env.NODE_ENV !== 'production') return;
+
+    const metrics: PerformanceMetrics = {};
+
+    // Measure First Contentful Paint (FCP)
+    const fcpObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.name === 'first-contentful-paint') {
+          metrics.fcp = entry.startTime;
+        }
+      }
+    });
+    fcpObserver.observe({ entryTypes: ['paint'] });
+
+    // Measure Largest Contentful Paint (LCP)
+    const lcpObserver = new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      const lastEntry = entries[entries.length - 1];
+      metrics.lcp = lastEntry.startTime;
+    });
+    lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+
+    // Measure First Input Delay (FID)
+    const fidObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        metrics.fid = (entry as any).processingStart - entry.startTime;
+      }
+    });
+    fidObserver.observe({ entryTypes: ['first-input'] });
+
+    // Measure Cumulative Layout Shift (CLS)
+    let clsValue = 0;
+    const clsObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (!(entry as any).hadRecentInput) {
+          clsValue += (entry as any).value;
+        }
+      }
+      metrics.cls = clsValue;
+    });
+    clsObserver.observe({ entryTypes: ['layout-shift'] });
+
+    // Measure Time to First Byte (TTFB)
+    const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    if (navigationEntry) {
+      metrics.ttfb = navigationEntry.responseStart - navigationEntry.requestStart;
+    }
+
+    // Send metrics after page load
+    const sendMetrics = () => {
+      // You can send these metrics to your analytics service
+      console.log('Performance Metrics:', metrics);
+      
+      // Example: Send to Google Analytics
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'web_vitals', {
+          event_category: 'Performance',
+          event_label: 'Core Web Vitals',
+          value: Math.round(metrics.lcp || 0),
+          custom_map: {
+            fcp: metrics.fcp,
+            lcp: metrics.lcp,
+            fid: metrics.fid,
+            cls: metrics.cls,
+            ttfb: metrics.ttfb
+          }
+        });
+      }
+    };
+
+    // Send metrics when page is about to unload
+    window.addEventListener('beforeunload', sendMetrics);
+
+    // Also send after 5 seconds to capture LCP
+    setTimeout(sendMetrics, 5000);
+
+    // Cleanup
+    return () => {
+      fcpObserver.disconnect();
+      lcpObserver.disconnect();
+      fidObserver.disconnect();
+      clsObserver.disconnect();
+      window.removeEventListener('beforeunload', sendMetrics);
+    };
+  }, []);
+
+  return null; // This component doesn't render anything
+};
+
+export default PerformanceMonitor;

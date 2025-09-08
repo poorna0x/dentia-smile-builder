@@ -7,6 +7,7 @@ import { useFeatureToggles } from './hooks/useFeatureToggles'
 import WebsiteStatusWrapper from './components/WebsiteStatusWrapper'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import PerformanceMonitor from './components/PerformanceMonitor'
 
 import { ClinicProvider } from './contexts/ClinicContext'
 import { supabase } from './lib/supabase'
@@ -41,7 +42,7 @@ const LoadingSpinner = () => (
 
 import './App.css'
 
-// Create a client
+// Create a client with optimized settings for performance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -49,6 +50,16 @@ const queryClient = new QueryClient({
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      // Enable background refetch for better UX
+      refetchInterval: false,
+      // Optimize network requests
+      networkMode: 'online',
+    },
+    mutations: {
+      retry: 1,
+      networkMode: 'online',
     },
   },
 })
@@ -115,6 +126,7 @@ function App() {
             >
               <ClinicProvider>
                 <WebsiteStatusWrapper>
+                  <PerformanceMonitor />
                   <Suspense fallback={<LoadingSpinner />}>
                     <Routes>
                       {/* Public Routes */}

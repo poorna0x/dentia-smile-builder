@@ -14,6 +14,11 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-DNS-Prefetch-Control = "on"
+    # Performance headers
+    X-DNS-Prefetch-Control = "on"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Compression
+    Content-Encoding = "gzip"
 
 # Cache JavaScript files for 1 year
 [[headers]]
@@ -63,6 +68,19 @@
   for = "*.woff2"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache service worker for 1 hour
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+    Service-Worker-Allowed = "/"
+
+# Cache manifest files
+[[headers]]
+  for = "*.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
 
 # HTML files - shorter cache for updates
 [[headers]]

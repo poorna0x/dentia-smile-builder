@@ -8,6 +8,46 @@ export default {
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
 	],
+	// Optimize for production builds
+	safelist: [
+		// Critical classes that might be dynamically generated
+		'animate-spin',
+		'animate-pulse',
+		'animate-bounce',
+		'fade-in',
+		'accordion-down',
+		'accordion-up'
+	],
+	// Remove unused styles in production
+	corePlugins: {
+		// Disable unused features for smaller bundle
+		preflight: true,
+		container: true,
+		accessibility: true,
+		pointerEvents: true,
+		visibility: true,
+		position: true,
+		inset: true,
+		isolation: true,
+		zIndex: true,
+		order: true,
+		gridColumn: true,
+		gridColumnStart: true,
+		gridColumnEnd: true,
+		gridRow: true,
+		gridRowStart: true,
+		gridRowEnd: true,
+		float: true,
+		clear: true,
+		objectFit: true,
+		objectPosition: true,
+		overflow: true,
+		overscrollBehavior: true,
+		position: true,
+		inset: true,
+		visibility: true,
+		zIndex: true,
+	},
 	prefix: "",
 	theme: {
 		container: {
