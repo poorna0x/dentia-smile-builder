@@ -182,9 +182,17 @@ const Appointment = () => {
 
 
 
-  // Scroll to top on page load
+  // Scroll to top on page load and refresh data
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Force refresh data on page load to ensure fresh data
+    if (clinic?.id) {
+      console.log('🔄 Page loaded, refreshing booked slots');
+      setTimeout(() => {
+        checkBookedSlots(true);
+      }, 100);
+    }
   }, []);
 
   // Setup push notifications on component mount
@@ -200,21 +208,23 @@ const Appointment = () => {
   const checkBookedSlots = useCallback(async (forceRefresh = false) => {
     if (!clinic?.id) return;
     
-    // 🚀 OPTIMIZED: Reduced debounce for better responsiveness
+    // 🚀 FIXED: Only apply debounce for non-force refreshes, and reduce it
     const now = Date.now();
     const timeSinceLastRefresh = now - lastRefreshTime;
-    const minRefreshInterval = forceRefresh ? 0 : 300; // 300ms for normal, 0 for force refresh
+    const minRefreshInterval = forceRefresh ? 0 : 100; // Reduced from 300ms to 100ms
     
     if (!forceRefresh && timeSinceLastRefresh < minRefreshInterval) {
-      // Skipping refresh - too soon since last refresh
+      console.log('⏭️ Skipping refresh - too soon since last refresh');
       return;
     }
     
-    // Prevent concurrent refreshes
-    if (isRefreshing) {
-      // Skipping refresh - already refreshing
+    // 🚀 FIXED: Allow force refresh even if already refreshing
+    if (isRefreshing && !forceRefresh) {
+      console.log('⏭️ Skipping refresh - already refreshing (non-force)');
       return;
     }
+    
+    console.log('🔄 Starting booked slots refresh', { forceRefresh, timeSinceLastRefresh });
     
     setIsRefreshing(true);
     // 🚀 OPTIMIZED: Use single loading state
@@ -226,11 +236,12 @@ const Appointment = () => {
     try {
       const appointmentDate = format(date, 'yyyy-MM-dd');
       
-      // 🚀 IMPROVED: Clear cache before fetching to ensure fresh data
-      if (forceRefresh && typeof QueryOptimizer !== 'undefined') {
+      // 🚀 FIXED: Always clear cache for better consistency
+      if (typeof QueryOptimizer !== 'undefined') {
         try {
           QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
           QueryOptimizer.clearCache('appointments');
+          console.log('🗑️ Cache cleared for date:', appointmentDate);
         } catch (error) {
           console.warn('Failed to clear cache:', error);
         }
@@ -251,6 +262,7 @@ const Appointment = () => {
       // Debug: Log booked slots to see the format
       console.log('🔍 Booked slots from database:', booked);
       console.log('🔍 Existing appointments:', existingAppointments.filter(apt => apt.status !== 'Cancelled'));
+      console.log('🔍 Previous booked slots:', bookedSlots);
       
       // 🚀 OPTIMIZED: Immediate state update for better responsiveness
       setBookedSlots(booked);
@@ -262,17 +274,18 @@ const Appointment = () => {
       // 🚀 OPTIMIZED: Mark loading complete
       setIsLoadingTimeSlots(false);
     }
-  }, [clinic?.id, date, lastRefreshTime, isRefreshing]);
+  }, [clinic?.id, date, lastRefreshTime, isRefreshing, bookedSlots]);
 
   // Initial load when date or clinic changes
   useEffect(() => {
     if (clinic?.id) {
+      console.log('📅 Date or clinic changed, loading booked slots');
       // Set loading state and load data
       setIsLoadingTimeSlots(true);
       // Add debounce to prevent rapid API calls when changing dates
       const timeoutId = setTimeout(() => {
         checkBookedSlots(true); // Force refresh for initial load
-      }, 100);
+      }, 50); // Reduced timeout for faster loading
       
       return () => clearTimeout(timeoutId);
     }
@@ -303,10 +316,20 @@ const Appointment = () => {
             );
             
             if (hasRelevantChanges) {
-              // Simple approach: just refresh the data
+              // Clear cache and refresh the data immediately
+              if (typeof QueryOptimizer !== 'undefined') {
+                try {
+                  QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${currentDate}`);
+                  QueryOptimizer.clearCache('appointments');
+                } catch (error) {
+                  console.warn('Failed to clear cache on real-time update:', error);
+                }
+              }
+              
+              // Refresh with a small delay to ensure database consistency
               setTimeout(() => {
                 checkBookedSlots(true);
-              }, 100);
+              }, 200);
             }
           }
           setRealtimeStatus('connected');
@@ -609,8 +632,10 @@ const Appointment = () => {
           console.log('🔍 Found booked slot:', label, 'in bookedSlots:', bookedSlots);
         }
         
-        // Additional debug for all slots
-        console.log('🔍 Slot:', label, 'isBooked:', isBooked, 'bookedSlots:', bookedSlots);
+        // Additional debug for all slots (only log first few to avoid spam)
+        if (slots.length < 5) {
+          console.log('🔍 Slot:', label, 'isBooked:', isBooked, 'bookedSlots:', bookedSlots);
+        }
         
         // Only add slots that are not blocked by admin settings
         if (!isBlocked) {
@@ -738,14 +763,15 @@ const Appointment = () => {
           patient_id: patientId
         });
         
-        // 🚀 CRITICAL FIX: Invalidate cache immediately after appointment creation
+        // 🚀 CRITICAL FIX: Invalidate cache and update state immediately after appointment creation
         // This ensures the booked slot appears immediately without requiring a refresh
-        if (clinic?.id && typeof QueryOptimizer !== 'undefined') {
+        if (clinic?.id) {
           try {
             // Clear QueryOptimizer cache for this specific date
-            QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
-            // Also clear the general appointments cache
-            QueryOptimizer.clearCache('appointments');
+            if (typeof QueryOptimizer !== 'undefined') {
+              QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
+              QueryOptimizer.clearCache('appointments');
+            }
           } catch (error) {
             console.warn('Failed to clear cache after appointment creation:', error);
           }
@@ -757,10 +783,18 @@ const Appointment = () => {
             return Array.from(new Set(newBooked)).sort();
           });
           
-          // Force refresh the booked slots to ensure consistency
+          // Force refresh the booked slots to ensure consistency with database
+          // Use multiple attempts to ensure database transaction is complete
           setTimeout(() => {
+            console.log('🔄 First refresh attempt after booking');
             checkBookedSlots(true);
-          }, 100);
+          }, 300);
+          
+          // Second refresh attempt as backup
+          setTimeout(() => {
+            console.log('🔄 Second refresh attempt after booking');
+            checkBookedSlots(true);
+          }, 1000);
         }
         
         // Send confirmation email to patient
@@ -1035,9 +1069,24 @@ const Appointment = () => {
 
                   {/* Time Slots or Holiday Notice */}
                   <div className="space-y-2">
-                    <Label className="text-base font-medium text-primary">
-                      Available Time Slots
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-medium text-primary">
+                        Available Time Slots
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          console.log('🔄 Manual refresh triggered');
+                          checkBookedSlots(true);
+                        }}
+                        disabled={isLoadingTimeSlots}
+                        className="text-xs px-2 py-1 h-7"
+                      >
+                        {isLoadingTimeSlots ? '⟳' : '↻'} Refresh
+                      </Button>
+                    </div>
                     
                     {/* 🚀 OPTIMIZED: Single loading state */}
                     {isLoadingTimeSlots ? (
@@ -1076,12 +1125,15 @@ const Appointment = () => {
                                   <Button
                                     key={ts.value}
                                     type="button"
-                                    variant={selectedTime === ts.value ? 'default' : 'outline'}
+                                    variant={ts.booked ? 'destructive' : selectedTime === ts.value ? 'default' : 'outline'}
                                     className={cn(
                                       'justify-center h-12 rounded-md transition-all duration-200 time-slot-button', 
-                                      selectedTime === ts.value ? 'btn-appointment' : '',
-                                      ts.booked ? 'bg-red-500 text-white border-red-500 cursor-not-allowed hover:bg-red-500 hover:text-white' : '',
-                                      ts.disabled && !ts.booked ? 'bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed hover:bg-gray-300 hover:text-gray-500' : ''
+                                      // Booked slots - highest priority styling
+                                      ts.booked && '!bg-red-500 !text-white !border-red-500 !cursor-not-allowed hover:!bg-red-600 hover:!text-white hover:!border-red-600',
+                                      // Selected slot styling (only if not booked)
+                                      selectedTime === ts.value && !ts.booked && 'btn-appointment',
+                                      // Disabled slots (past times, not booked)
+                                      ts.disabled && !ts.booked && '!bg-gray-300 !text-gray-500 !border-gray-300 !cursor-not-allowed hover:!bg-gray-300 hover:!text-gray-500'
                                     )}
                                     disabled={ts.disabled || ts.booked}
                                     onClick={() => !ts.booked && setSelectedTime(ts.value)}
@@ -1108,14 +1160,26 @@ const Appointment = () => {
                                 </div>
                               )}
                             </div>
-                            {(bookedSlots.length > 0 || timeSlots.some(ts => ts.disabled && !ts.booked)) && (
+                            {(bookedSlots.length > 0 || timeSlots.some(ts => ts.disabled && !ts.booked) || isRefreshing) && (
                               <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-gray-200">
                                 <div className="space-y-1">
+                                  {isRefreshing && (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                      <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                      <span>Updating slot availability...</span>
+                                    </div>
+                                  )}
                                   {bookedSlots.length > 0 && (
-                                    <div>🔴 Red slots are booked and unavailable.</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-3 h-3 bg-red-500 rounded"></div>
+                                      <span>Red slots are booked and unavailable ({bookedSlots.length} booked)</span>
+                                    </div>
                                   )}
                                   {timeSlots.some(ts => ts.disabled && !ts.booked) && (
-                                    <div>⚪ Gray slots are past times and unavailable.</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-3 h-3 bg-gray-300 rounded"></div>
+                                      <span>Gray slots are past times and unavailable</span>
+                                    </div>
                                   )}
                                   <div>Please select an available time slot.</div>
                                 </div>
