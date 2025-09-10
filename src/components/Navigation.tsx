@@ -18,15 +18,32 @@
  * @returns JSX.Element - The navigation component
  */
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Phone, Clock, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.webp';
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Handle logo click - navigate to home and scroll to top
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (location.pathname === '/') {
+      // If already on home page, just scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // If on different page, navigate to home
+      navigate('/');
+    }
+    
+    // Close mobile menu if open
+    setIsMenuOpen(false);
+  };
 
   return (
     <>
@@ -55,7 +72,10 @@ const Navigation = () => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center py-4">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
+            <button 
+              onClick={handleLogoClick}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+            >
               <img 
                 src={logo} 
                 alt="Jeshna Dental Logo" 
@@ -64,7 +84,7 @@ const Navigation = () => {
               <span className="text-xl font-bold text-primary hidden sm:block">
                 Jeshna Dental {/* TODO: Change to your clinic name */}
               </span>
-            </Link>
+            </button>
 
 
             {/* Desktop Menu */}
