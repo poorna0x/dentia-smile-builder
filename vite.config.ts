@@ -16,28 +16,8 @@ export default defineConfig({
   ],
   build: {
     outDir: 'dist',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-        // Conservative optimizations to prevent reference errors
-        passes: 1,
-        unsafe: false,
-        unsafe_comps: false,
-        unsafe_math: false,
-        unsafe_proto: false,
-        unsafe_regexp: false,
-        unsafe_undefined: false
-      },
-      mangle: {
-        // Conservative mangling to prevent reference errors
-        keep_classnames: true,
-        keep_fnames: true,
-        reserved: ['Oe', 'Ye', 'Xe', 'Ze'] // Reserve common minified names that cause issues
-      }
-    },
+    // Use esbuild for more reliable minification (avoids Terser reference errors)
+    minify: 'esbuild',
 
     rollupOptions: {
       external: ['twilio', 'cloudinary'], // Mark server-side libraries as external
@@ -173,9 +153,12 @@ export default defineConfig({
     target: 'es2020',
     // Keep function names to prevent reference errors
     keepNames: true,
-    // Conservative minification
+    // Very conservative minification to prevent reference errors
     minifyIdentifiers: false,
-    minifySyntax: true,
-    minifyWhitespace: true
+    minifySyntax: false,
+    minifyWhitespace: true,
+    // Additional options to prevent reference errors
+    legalComments: 'none',
+    treeShaking: true
   }
 })
