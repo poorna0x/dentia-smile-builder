@@ -63,7 +63,7 @@ const Hero = () => {
           {/* Main Headline */}
           <div className="space-y-6">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight animate-fade-in">
-              Olive Dental Care <br />
+              Dentia Dental Care <br />
               <span className="text-accent">Elevating Smiles</span> with Expert Care and a Gentle Touch
             </h1>
 
@@ -112,7 +112,7 @@ const Hero = () => {
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Mail className="w-4 h-4 text-accent" />
-              <span>contact@olivedentalclinic.com</span> {/* TODO: Change to your clinic email */}
+              <span>contact@dentalclinic.com</span> {/* TODO: Change to your clinic email */}
             </div>
           </div>
         </div>

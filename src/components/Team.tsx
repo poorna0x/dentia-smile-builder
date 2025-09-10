@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 
 const Team = () => {
   const teamMember = {
-    name: 'Dr. Elsa',
+    name: 'Dr. Shetty',
     role: 'Lead Dentist & Practice Owner',
     image: drPrasanna,
     specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Pediatric Dentistry', 'Dental Implants'],
     experience: '15+ Years Experience',
-    description: 'Dr. Elsa is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'
+    description: 'Dr. Shetty is passionate about creating beautiful, healthy smiles while ensuring every patient feels comfortable and cared for during their visit.'
   };
 
   return (
