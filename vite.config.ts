@@ -161,7 +161,9 @@ export default defineConfig({
       '@radix-ui/react-popover',
       'twilio', // Exclude Twilio as it's server-side only
       'cloudinary' // Exclude Cloudinary as it's server-side only
-    ]
+    ],
+    // Force pre-bundling of React to ensure it loads first
+    force: true
   },
   // Enable experimental features for better performance
   esbuild: {
