@@ -22,9 +22,9 @@ export default defineConfig({
         drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-        // Additional optimizations
-        passes: 2,
-        unsafe: false, // Disable unsafe optimizations to prevent reference errors
+        // Conservative optimizations to prevent reference errors
+        passes: 1,
+        unsafe: false,
         unsafe_comps: false,
         unsafe_math: false,
         unsafe_proto: false,
@@ -32,9 +32,10 @@ export default defineConfig({
         unsafe_undefined: false
       },
       mangle: {
-        // Mangle class names for smaller bundles
-        keep_classnames: true, // Keep class names to prevent reference errors
-        keep_fnames: true // Keep function names to prevent reference errors
+        // Conservative mangling to prevent reference errors
+        keep_classnames: true,
+        keep_fnames: true,
+        reserved: ['Oe', 'Ye', 'Xe', 'Ze'] // Reserve common minified names that cause issues
       }
     },
 
@@ -169,6 +170,10 @@ export default defineConfig({
     // Target modern browsers
     target: 'es2020',
     // Keep function names to prevent reference errors
-    keepNames: true
+    keepNames: true,
+    // Conservative minification
+    minifyIdentifiers: false,
+    minifySyntax: true,
+    minifyWhitespace: true
   }
 })
