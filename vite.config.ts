@@ -9,7 +9,9 @@ export default defineConfig({
       // Enable React Fast Refresh for better development experience
       fastRefresh: true,
       // Optimize JSX runtime
-      jsxRuntime: 'automatic'
+      jsxRuntime: 'automatic',
+      // Ensure React is properly imported
+      include: "**/*.{jsx,tsx}",
     })
   ],
   build: {
@@ -22,17 +24,17 @@ export default defineConfig({
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
         // Additional optimizations
         passes: 2,
-        unsafe: true,
-        unsafe_comps: true,
-        unsafe_math: true,
-        unsafe_proto: true,
-        unsafe_regexp: true,
-        unsafe_undefined: true
+        unsafe: false, // Disable unsafe optimizations to prevent reference errors
+        unsafe_comps: false,
+        unsafe_math: false,
+        unsafe_proto: false,
+        unsafe_regexp: false,
+        unsafe_undefined: false
       },
       mangle: {
         // Mangle class names for smaller bundles
-        keep_classnames: false,
-        keep_fnames: false
+        keep_classnames: true, // Keep class names to prevent reference errors
+        keep_fnames: true // Keep function names to prevent reference errors
       }
     },
 
@@ -165,6 +167,8 @@ export default defineConfig({
     // Remove console logs in production
     drop: ['console', 'debugger'],
     // Target modern browsers
-    target: 'es2020'
+    target: 'es2020',
+    // Keep function names to prevent reference errors
+    keepNames: true
   }
 })
