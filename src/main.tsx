@@ -1,24 +1,23 @@
-import React from 'react'
+// Import React first and ensure it's available globally
+import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-// Ensure React is available globally and wait for it to be ready
+// Ensure React is available globally immediately
 if (typeof window !== 'undefined') {
   window.React = React;
-  // Also ensure React is available on the global object
   (window as any).React = React;
+  // Also set it on the global object for extra safety
+  (globalThis as any).React = React;
 }
 
-// Wait a bit to ensure all modules are loaded
-const waitForReact = () => {
-  return new Promise<void>((resolve) => {
-    if (React && typeof React.createElement === 'function') {
-      resolve();
-    } else {
-      setTimeout(() => waitForReact().then(resolve), 10);
-    }
-  });
+// Simple check to ensure React is ready
+const isReactReady = () => {
+  return React && 
+         typeof React.createElement === 'function' && 
+         typeof React.useState === 'function' &&
+         typeof React.useEffect === 'function';
 };
 
 // Register service worker for caching and performance
@@ -34,19 +33,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Wait for DOM to be ready before initializing React
-async function initializeApp() {
+// Initialize React app
+function initializeApp() {
   const rootElement = document.getElementById("root");
   if (rootElement) {
     try {
-      // Wait for React to be fully loaded
-      await waitForReact();
-      
-      // Double check React is available
-      if (!React || typeof React.createElement !== 'function') {
+      // Check if React is ready
+      if (!isReactReady()) {
         throw new Error('React is not properly loaded');
       }
       
+      // Create root and render
       const root = createRoot(rootElement);
       root.render(<App />);
     } catch (error) {

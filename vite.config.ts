@@ -22,74 +22,8 @@ export default defineConfig({
     rollupOptions: {
       external: ['twilio', 'cloudinary'], // Mark server-side libraries as external
       output: {
-        manualChunks: (id) => {
-          // Core React (most stable, cache for long time)
-          if (id.includes('react') && !id.includes('react-router')) {
-            return 'react-core'
-          }
-          
-          // Routing (stable, cache for long time)
-          if (id.includes('react-router')) {
-            return 'router'
-          }
-          
-          // UI Components (grouped for better caching)
-          if (id.includes('@radix-ui')) {
-            return 'ui-components'
-          }
-          
-          // Supabase (external dependency)
-          if (id.includes('@supabase')) {
-            return 'supabase'
-          }
-          
-          // Forms and validation
-          if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
-            return 'forms'
-          }
-          
-          // Charts and data visualization
-          if (id.includes('recharts')) {
-            return 'charts'
-          }
-          
-          // Utilities (stable, cache for long time)
-          if (id.includes('date-fns') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('lucide-react')) {
-            return 'utils'
-          }
-          
-          // External services
-          if (id.includes('axios') || id.includes('resend')) {
-            return 'services'
-          }
-          
-          // Large admin components - split into separate chunks
-          if (id.includes('AdminPatientManagement')) {
-            return 'admin-patient-management'
-          }
-          
-          if (id.includes('SuperAdmin')) {
-            return 'super-admin'
-          }
-          
-          if (id.includes('Admin') && !id.includes('AdminPatientManagement') && !id.includes('AdminPaymentAnalytics')) {
-            return 'admin'
-          }
-          
-          if (id.includes('AdminPaymentAnalytics')) {
-            return 'admin-payment-analytics'
-          }
-          
-          // Large pages
-          if (id.includes('Home')) {
-            return 'home'
-          }
-          
-          // Default chunk for other modules
-          if (id.includes('node_modules')) {
-            return 'vendor'
-          }
-        },
+        // Disable manual chunking to prevent React initialization issues
+        manualChunks: undefined,
         // Optimize chunk file names for better caching
         chunkFileNames: (chunkInfo) => {
           const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
