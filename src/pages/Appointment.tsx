@@ -26,21 +26,19 @@ import {
 } from '@/lib/security';
 import { QueryOptimizer } from '@/lib/db-optimizations';
 
-
-
-
 const Appointment = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { clinic, loading: clinicLoading, error: clinicError } = useClinic();
   const { settings, loading: settingsLoading } = useSettings();
   
+  
   // Ensure page starts at top
   useScrollToTop();
 
   // Debug: Log settings structure (simplified)
   useEffect(() => {
-    // Settings loaded successfully
+    console.log('⚙️ Settings useEffect triggered, settings:', !!settings);
   }, [settings]);
 
   // Handle pre-filled patient data from URL parameters
@@ -75,9 +73,8 @@ const Appointment = () => {
   const [phone, setPhone] = useState('');
   const [date, setDate] = useState<Date>(() => {
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    return tomorrow; // Start with tomorrow, will be updated when settings load
+    today.setHours(0, 0, 0, 0);
+    return today; // Start with today
   });
   const [selectedTime, setSelectedTime] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -100,6 +97,8 @@ const Appointment = () => {
   // Add debounce mechanism to prevent duplicate refreshes
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const [renderKey, setRenderKey] = useState(0);
   
   // 🚀 OPTIMIZED: Single loading state for all time slot operations
   const [isLoadingTimeSlots, setIsLoadingTimeSlots] = useState(true);
@@ -182,18 +181,18 @@ const Appointment = () => {
 
 
 
-  // Scroll to top on page load and refresh data
+  // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Force refresh data on page load to ensure fresh data
-    if (clinic?.id) {
-      console.log('🔄 Page loaded, refreshing booked slots');
-      setTimeout(() => {
-        checkBookedSlots(true);
-      }, 100);
-    }
   }, []);
+
+  // FALLBACK: Force data load after component mounts (backup approach)
+  // SINGLE: Initial data load when everything is ready
+  useEffect(() => {
+    if (clinic?.id && !settingsLoading && settings && !hasInitiallyLoaded) {
+      checkBookedSlots(true);
+    }
+  }, [clinic?.id, settingsLoading, settings, hasInitiallyLoaded]);
 
   // Setup push notifications on component mount
   useEffect(() => {
@@ -214,17 +213,14 @@ const Appointment = () => {
     const minRefreshInterval = forceRefresh ? 0 : 100; // Reduced from 300ms to 100ms
     
     if (!forceRefresh && timeSinceLastRefresh < minRefreshInterval) {
-      console.log('⏭️ Skipping refresh - too soon since last refresh');
       return;
     }
     
     // 🚀 FIXED: Allow force refresh even if already refreshing
     if (isRefreshing && !forceRefresh) {
-      console.log('⏭️ Skipping refresh - already refreshing (non-force)');
       return;
     }
     
-    console.log('🔄 Starting booked slots refresh', { forceRefresh, timeSinceLastRefresh });
     
     setIsRefreshing(true);
     // 🚀 OPTIMIZED: Use single loading state
@@ -239,33 +235,59 @@ const Appointment = () => {
       // 🚀 FIXED: Always clear cache for better consistency
       if (typeof QueryOptimizer !== 'undefined') {
         try {
+          // Clear all appointment-related cache entries
           QueryOptimizer.clearCache(`appointments_date_${clinic.id}_${appointmentDate}`);
+          QueryOptimizer.clearCache(`appointments_all_${clinic.id}`);
           QueryOptimizer.clearCache('appointments');
-          console.log('🗑️ Cache cleared for date:', appointmentDate);
         } catch (error) {
-          console.warn('Failed to clear cache:', error);
+          window.console.warn('Failed to clear cache:', error);
         }
       }
       
       // 🚀 OPTIMIZED: Load appointments and disabled slots in parallel for faster loading
-      // Force fresh data like admin page does
-      const [existingAppointments, disabledSlotsData] = await Promise.all([
-        appointmentsApi.getByDate(clinic.id, appointmentDate),
-        loadDisabledSlots(date)
+      // Force fresh data by bypassing cache
+      const [existingAppointments, disabledSlotsData, allAppointments] = await Promise.all([
+        // Use the same reliable query as manual query
+        supabase
+          .from('appointments')
+          .select('*')
+          .eq('clinic_id', clinic.id)
+          .eq('date', appointmentDate)
+          .neq('status', 'Cancelled')
+          .then(({ data, error }) => {
+            if (error) {
+              window.console.error('Database query error:', error);
+              throw error;
+            }
+            return data || [];
+          }),
+        loadDisabledSlots(date),
+        // Also get all appointments for this clinic to see what's in the database
+        supabase
+          .from('appointments')
+          .select('*')
+          .eq('clinic_id', clinic.id)
+          .order('date', { ascending: true })
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data || [];
+          })
       ]);
+      
       
       // Get booked time slots (exclude cancelled appointments)
       const booked = existingAppointments
         .filter(apt => apt.status !== 'Cancelled')
         .map(apt => apt.time);
       
-      // Debug: Log booked slots to see the format
-      console.log('🔍 Booked slots from database:', booked);
-      console.log('🔍 Existing appointments:', existingAppointments.filter(apt => apt.status !== 'Cancelled'));
-      console.log('🔍 Previous booked slots:', bookedSlots);
       
       // 🚀 OPTIMIZED: Immediate state update for better responsiveness
       setBookedSlots(booked);
+      
+      // Mark that we've completed initial load
+      if (!hasInitiallyLoaded) {
+        setHasInitiallyLoaded(true);
+      }
     } catch (error) {
       console.error('Error checking booked slots:', error);
       setBookedSlots([]);
@@ -274,22 +296,21 @@ const Appointment = () => {
       // 🚀 OPTIMIZED: Mark loading complete
       setIsLoadingTimeSlots(false);
     }
-  }, [clinic?.id, date, lastRefreshTime, isRefreshing, bookedSlots]);
+  }, [clinic?.id, date, lastRefreshTime, isRefreshing]);
 
-  // Initial load when date or clinic changes
+  // Load when date or clinic changes - but only after initial load is complete
   useEffect(() => {
-    if (clinic?.id) {
-      console.log('📅 Date or clinic changed, loading booked slots');
-      // Set loading state and load data
-      setIsLoadingTimeSlots(true);
-      // Add debounce to prevent rapid API calls when changing dates
-      const timeoutId = setTimeout(() => {
-        checkBookedSlots(true); // Force refresh for initial load
-      }, 50); // Reduced timeout for faster loading
-      
-      return () => clearTimeout(timeoutId);
+    if (clinic?.id && !settingsLoading && settings && hasInitiallyLoaded) {
+      checkBookedSlots(true);
     }
-  }, [date, clinic?.id]); // Removed checkBookedSlots to prevent circular dependency
+  }, [date, clinic?.id, settingsLoading, settings, hasInitiallyLoaded]);
+
+  // Force re-render when bookedSlots changes to ensure time slots update
+  useEffect(() => {
+    if (bookedSlots.length >= 0) { // Changed from > 0 to >= 0 to catch empty arrays too
+      setRenderKey(prev => prev + 1);
+    }
+  }, [bookedSlots]);
 
   // Lightweight real-time simulation for slot availability
   useEffect(() => {
@@ -625,17 +646,9 @@ const Appointment = () => {
       if (!overlapsBreak && slotEnd <= end) {
         const label = `${format(slotStart, 'hh:mm a')} - ${format(slotEnd, 'hh:mm a')}`;
         const isBooked = bookedSlots.includes(label);
+        
         const isBlocked = overlapsDisabledSlot;
         
-        // Debug: Log slot generation
-        if (isBooked) {
-          console.log('🔍 Found booked slot:', label, 'in bookedSlots:', bookedSlots);
-        }
-        
-        // Additional debug for all slots (only log first few to avoid spam)
-        if (slots.length < 5) {
-          console.log('🔍 Slot:', label, 'isBooked:', isBooked, 'bookedSlots:', bookedSlots);
-        }
         
         // Only add slots that are not blocked by admin settings
         if (!isBlocked) {
@@ -650,19 +663,32 @@ const Appointment = () => {
     }
 
     // Generated time slots for date
+    console.log('✅ Generated', slots.length, 'time slots for', format(dateForSlots, 'yyyy-MM-dd'), 'booked slots:', bookedSlots.length);
     return slots;
   };
 
-  // Memoize time slots to prevent unnecessary recalculations
-  const timeSlots = useMemo(() => {
-    // Don't generate slots if still loading
-    if (isLoadingTimeSlots) {
-      // Skipping time slot generation - still loading
+  // Generate time slots directly - no memoization to avoid timing issues
+  const timeSlots = (() => {
+    console.log('🎯 TIME SLOTS GENERATION CALLED');
+    
+    // Don't generate slots if still loading or if settings aren't ready
+    if (isLoadingTimeSlots || !settings || settingsLoading) {
+      console.log('⏸️ Skipping time slot generation - loading:', isLoadingTimeSlots, 'settings:', !!settings, 'settingsLoading:', settingsLoading, 'renderKey:', renderKey);
       return [];
     }
-    // Regenerating time slots - dependencies changed
-    return generateTimeSlots(date);
-  }, [date, disabledSlots, bookedSlots, settings, isLoadingTimeSlots]);
+    
+    console.log('🔄 Generating time slots directly', {
+      date: format(date, 'yyyy-MM-dd'),
+      disabledSlotsCount: disabledSlots.length,
+      bookedSlotsCount: bookedSlots.length,
+      hasSettings: !!settings,
+      renderKey: renderKey
+    });
+    
+    const slots = generateTimeSlots(date);
+    
+    return slots;
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -807,8 +833,7 @@ const Appointment = () => {
           status: 'Confirmed',
           clinicName: clinic.name || 'Jeshna Dental Clinic',
           clinicPhone: clinic.contact_phone || '6363116263',
-          clinicEmail: clinic.contact_email || 'poorn8105@gmail.com',
-          clinicId: clinic.id // Add clinic ID for dentist notifications
+          clinicEmail: clinic.contact_email || 'poorn8105@gmail.com'
         });
 
         // Log email status
@@ -1078,7 +1103,6 @@ const Appointment = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          console.log('🔄 Manual refresh triggered');
                           checkBookedSlots(true);
                         }}
                         disabled={isLoadingTimeSlots}

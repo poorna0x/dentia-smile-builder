@@ -43,6 +43,7 @@ function initializeApp() {
         throw new Error('React is not properly loaded');
       }
       
+      console.log('🚀 MAIN.TSX - RENDERING APP COMPONENT');
       // Create root and render
       const root = createRoot(rootElement);
       root.render(<App />);
