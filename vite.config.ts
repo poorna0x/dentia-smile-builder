@@ -16,8 +16,8 @@ export default defineConfig({
   ],
   build: {
     outDir: 'dist',
-    // Use esbuild for more reliable minification (avoids Terser reference errors)
-    minify: 'esbuild',
+    // Disable minification temporarily to prevent reference errors
+    minify: false,
 
     rollupOptions: {
       external: ['twilio', 'cloudinary'], // Mark server-side libraries as external
@@ -153,12 +153,12 @@ export default defineConfig({
     target: 'es2020',
     // Keep function names to prevent reference errors
     keepNames: true,
-    // Very conservative minification to prevent reference errors
+    // Ultra conservative minification to prevent reference errors
     minifyIdentifiers: false,
     minifySyntax: false,
-    minifyWhitespace: true,
+    minifyWhitespace: false, // Disable even whitespace minification
     // Additional options to prevent reference errors
     legalComments: 'none',
-    treeShaking: true
+    treeShaking: false // Disable tree shaking to prevent reference issues
   }
 })

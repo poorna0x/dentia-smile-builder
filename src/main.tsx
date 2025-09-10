@@ -3,10 +3,23 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-// Ensure React is available globally
+// Ensure React is available globally and wait for it to be ready
 if (typeof window !== 'undefined') {
   window.React = React;
+  // Also ensure React is available on the global object
+  (window as any).React = React;
 }
+
+// Wait a bit to ensure all modules are loaded
+const waitForReact = () => {
+  return new Promise<void>((resolve) => {
+    if (React && typeof React.createElement === 'function') {
+      resolve();
+    } else {
+      setTimeout(() => waitForReact().then(resolve), 10);
+    }
+  });
+};
 
 // Register service worker for caching and performance
 if ('serviceWorker' in navigator) {
@@ -22,10 +35,18 @@ if ('serviceWorker' in navigator) {
 }
 
 // Wait for DOM to be ready before initializing React
-function initializeApp() {
+async function initializeApp() {
   const rootElement = document.getElementById("root");
   if (rootElement) {
     try {
+      // Wait for React to be fully loaded
+      await waitForReact();
+      
+      // Double check React is available
+      if (!React || typeof React.createElement !== 'function') {
+        throw new Error('React is not properly loaded');
+      }
+      
       const root = createRoot(rootElement);
       root.render(<App />);
     } catch (error) {
